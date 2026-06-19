@@ -258,81 +258,86 @@ const InitialAssessment: React.FC = () => {
     }
   }, [phase, step, physicalAnswers, cognitiveAnswers]);
 
+  const scoreMap: Record<string, number> = {
+    sedentary: 10, beginner: 25, intermediate: 45, advanced: 70,
+    rarely: 10, light: 20, moderate: 40, dedicated: 65,
+    poor: 10, fair: 25, good: 50, excellent: 75,
+    unstructured: 10, mixed: 25, balanced: 50, optimized: 75,
+    very_active: 65, active: 45, none: 10, occasional: 25,
+    low: 10, strong: 55, exceptional: 80, heavy: 75,
+    weak: 10, average: 30, avoidant: 10, dependent: 20,
+    analytical: 50, strategic: 75, weekly: 50, daily: 75,
+  };
+
+  const computePhysicalStats = (answers: { question: string; answer: string }[]) => {
+    const vals = answers.map(a => scoreMap[a.answer] || 25);
+    return {
+      strength: vals[0] || 25,
+      agility: vals[4] || 25,
+      vitality: Math.round((vals.slice(1, 4).reduce((a, b) => a + b, 0)) / Math.max(vals.slice(1, 4).length, 1)),
+    };
+  };
+
+  const computeCognitiveStats = (answers: { question: string; answer: string }[]) => {
+    const vals = answers.map(a => scoreMap[a.answer] || 25);
+    return {
+      intelligence: Math.round((vals.slice(0, 4).reduce((a, b) => a + b, 0)) / 4),
+      willpower: Math.round((vals[0] + vals[3]) / 2),
+      social: vals[4] || 25,
+    };
+  };
+
   const processPhysicalAssessment = async (answers: { question: string; answer: string }[]) => {
+    const computed = computePhysicalStats(answers);
     try {
       const agent = new PhysicalTrainerAgent();
       const result = await agent.assessPhysicalBaseline(answers);
       setAgentReasoning(result.reasoning);
       setProcessingMessage('');
 
-      const statsSnapshot: UserStats = {
-        strength: result.strength,
-        intelligence: 25,
-        agility: result.agility,
-        vitality: result.vitality,
-        willpower: 25,
-        social: 25,
-      };
-
-      // Move to cognitive phase with pre-filled physical stats
-      setPhysicalAnswers(answers);
-      setPhase('cognitive');
-      setStep(0);
-      setAgentReasoning(null);
-
-      // Store the physical stats to merge later
       localStorage.setItem('nexus_physical_assessment', JSON.stringify({
         strength: result.strength,
         agility: result.agility,
         vitality: result.vitality,
-        reasoning: result.reasoning,
       }));
     } catch {
-      setProcessingMessage('');
-      setPhase('cognitive');
-      setStep(0);
+      localStorage.setItem('nexus_physical_assessment', JSON.stringify(computed));
     }
+    setPhysicalAnswers(answers);
+    setPhase('cognitive');
+    setStep(0);
+    setAgentReasoning(null);
   };
 
   const processCognitiveAssessment = async (answers: { question: string; answer: string }[]) => {
+    const computed = computeCognitiveStats(answers);
+    const savedPhysical = localStorage.getItem('nexus_physical_assessment');
+    const physical = savedPhysical ? JSON.parse(savedPhysical) : { strength: 25, agility: 25, vitality: 25 };
+
+    let intelligence = computed.intelligence;
+    let willpower = computed.willpower;
+    let social = computed.social;
+
     try {
       const agent = new MentalTrainerAgent();
       const result = await agent.assessCognitiveBaseline(answers);
       setAgentReasoning(result.reasoning);
+      intelligence = result.intelligence;
+      willpower = result.willpower;
+      social = result.social;
+    } catch {}
 
-      const savedPhysical = localStorage.getItem('nexus_physical_assessment');
-      const physical = savedPhysical ? JSON.parse(savedPhysical) : { strength: 25, agility: 25, vitality: 25 };
-
-      const finalStats: UserStats = {
-        strength: physical.strength,
-        intelligence: result.intelligence,
-        agility: physical.agility,
-        vitality: physical.vitality,
-        willpower: result.willpower,
-        social: result.social,
-      };
-
-      localStorage.removeItem('nexus_physical_assessment');
-      setProcessingMessage('');
-      setFinalStats(finalStats);
-      setPhase('profile');
-    } catch {
-      setProcessingMessage('');
-      const savedPhysical = localStorage.getItem('nexus_physical_assessment');
-      const physical = savedPhysical ? JSON.parse(savedPhysical) : { strength: 25, agility: 25, vitality: 25 };
-      localStorage.removeItem('nexus_physical_assessment');
-
-      const fallbackStats: UserStats = {
-        strength: physical.strength,
-        intelligence: 25,
-        agility: physical.agility,
-        vitality: physical.vitality,
-        willpower: 25,
-        social: 25,
-      };
-      setFinalStats(fallbackStats);
-      setPhase('profile');
-    }
+    localStorage.removeItem('nexus_physical_assessment');
+    setProcessingMessage('');
+    setFinalStats({
+      strength: physical.strength,
+      intelligence,
+      agility: physical.agility,
+      vitality: physical.vitality,
+      willpower,
+      social,
+    });
+    setPhase('profile');
   };
 
   const isProcessing = phase === 'processing_physical' || phase === 'processing_cognitive';
