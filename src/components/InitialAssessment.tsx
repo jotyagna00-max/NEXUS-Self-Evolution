@@ -197,44 +197,8 @@ const InitialAssessment: React.FC = () => {
   const currentStep = currentQuestions[step];
 
   const handleOption = useCallback(async (question: string, answerValue: string) => {
-    const answerMap: Record<string, string> = {
-      sedentary: "Sedentary - minimal activity",
-      beginner: "Beginner level",
-      intermediate: "Intermediate level",
-      advanced: "Advanced level",
-      rarely: "0-1 days per week",
-      light: "2-3 days per week",
-      moderate: "4-5 days per week",
-      dedicated: "6-7 days per week",
-      poor: "Poor quality",
-      fair: "Fair quality",
-      good: "Good quality",
-      excellent: "Excellent quality",
-      unstructured: "Unstructured",
-      mixed: "Mixed habits",
-      balanced: "Balanced nutrition",
-      optimized: "Optimized nutrition",
-      very_active: "Very active daily life",
-      low: "Less than 1 hour",
-      strong: "Strong capacity",
-      exceptional: "Exceptional capacity",
-      none: "None at all",
-      heavy: "Heavy throughput",
-      weak: "Weak retention",
-      average: "Average retention",
-      avoidant: "Avoid or delay",
-      dependent: "Seek external help",
-      analytical: "Break it down analytically",
-      strategic: "Systematically solve",
-      occasional: "Occasional practice",
-      weekly: "Weekly practice",
-      daily: "Daily practice",
-    };
-
-    const readableAnswer = answerMap[answerValue] || answerValue;
-
     if (phase === 'physical') {
-      const updatedAnswers = [...physicalAnswers, { question, answer: readableAnswer }];
+      const updatedAnswers = [...physicalAnswers, { question, answer: answerValue }];
       setPhysicalAnswers(updatedAnswers);
 
       if (step < physicalQuestions.length - 1) {
@@ -245,7 +209,7 @@ const InitialAssessment: React.FC = () => {
         await processPhysicalAssessment(updatedAnswers);
       }
     } else {
-      const updatedAnswers = [...cognitiveAnswers, { question, answer: readableAnswer }];
+      const updatedAnswers = [...cognitiveAnswers, { question, answer: answerValue }];
       setCognitiveAnswers(updatedAnswers);
 
       if (step < cognitiveQuestions.length - 1) {
@@ -289,9 +253,17 @@ const InitialAssessment: React.FC = () => {
 
   const processPhysicalAssessment = async (answers: { question: string; answer: string }[]) => {
     const computed = computePhysicalStats(answers);
+    const readableMap: Record<string, string> = {
+      sedentary: "Sedentary - minimal activity", beginner: "Beginner level", intermediate: "Intermediate level", advanced: "Advanced level",
+      rarely: "0-1 days per week", light: "2-3 days per week", moderate: "4-5 days per week", dedicated: "6-7 days per week",
+      poor: "Poor quality", fair: "Fair quality", good: "Good quality", excellent: "Excellent quality",
+      unstructured: "Unstructured", mixed: "Mixed habits", balanced: "Balanced nutrition", optimized: "Optimized nutrition",
+      very_active: "Very active daily life",
+    };
+    const readableAnswers = answers.map(a => ({ question: a.question, answer: readableMap[a.answer] || a.answer }));
     try {
       const agent = new PhysicalTrainerAgent();
-      const result = await agent.assessPhysicalBaseline(answers);
+      const result = await agent.assessPhysicalBaseline(readableAnswers);
       setAgentReasoning(result.reasoning);
       setProcessingMessage('');
 
@@ -318,9 +290,18 @@ const InitialAssessment: React.FC = () => {
     let willpower = computed.willpower;
     let social = computed.social;
 
+    const readableCognitiveMap: Record<string, string> = {
+      low: "Less than 1 hour", moderate: "1-3 hours", strong: "Strong capacity", exceptional: "Exceptional capacity",
+      none: "None at all", light: "1-2 items", heavy: "Heavy throughput",
+      weak: "Weak retention", average: "Average retention",
+      avoidant: "Avoid or delay", dependent: "Seek external help", analytical: "Break it down analytically", strategic: "Systematically solve",
+      occasional: "Occasional practice", weekly: "Weekly practice", daily: "Daily practice",
+    };
+    const readableAnswers = answers.map(a => ({ question: a.question, answer: readableCognitiveMap[a.answer] || a.answer }));
+
     try {
       const agent = new MentalTrainerAgent();
-      const result = await agent.assessCognitiveBaseline(answers);
+      const result = await agent.assessCognitiveBaseline(readableAnswers);
       setAgentReasoning(result.reasoning);
       intelligence = result.intelligence;
       willpower = result.willpower;
@@ -539,22 +520,6 @@ const InitialAssessment: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* Progress & Status */}
-                  <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Zap size={14} className="text-yellow-400" />
-                      <span className="text-[10px] text-white/30 uppercase tracking-widest">Neural Link Active</span>
-                    </div>
-                    <div className="flex gap-1.5">
-                      {currentQuestions.map((_, i) => (
-                        <div
-                          key={i}
-                          className={`h-1 rounded-full transition-all duration-500 ${i === step ? 'w-8 bg-emerald-500 glow-emerald' : i < step ? 'w-4 bg-emerald-500/30' : 'w-4 bg-white/10'
-                            }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
                 </motion.div>
               </AnimatePresence>
             )}
