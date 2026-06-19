@@ -164,8 +164,10 @@ const InitialAssessment: React.FC = () => {
   }, [phase]);
 
   const handleProfileSubmit = () => {
-    if (!profileName.trim() || !profileGoal.trim() || !profileTimeframe) return;
-    const goalText = `${profileGoal.trim()} (Timeframe: ${profileTimeframe})`;
+    if (!profileName.trim()) return;
+    const goalText = profileGoal.trim()
+      ? `${profileGoal.trim()} (Timeframe: ${profileTimeframe || 'Not set'})`
+      : 'Self-improvement (Timeframe: Ongoing)';
     updateUserProfile({
       name: profileName.trim(),
       primaryGoal: goalText,
@@ -807,7 +809,7 @@ const InitialAssessment: React.FC = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={handleProfileSubmit}
-                      disabled={!profileName.trim() || !profileGoal.trim() || !profileTimeframe}
+                      disabled={!profileName.trim()}
                       className="flex-1 py-4 rounded-2xl font-display text-sm uppercase tracking-[0.3em] font-bold transition-all bg-emerald-500 text-black disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_30px_rgba(16,185,129,0.3)]"
                     >
                       Initialize Evolution System
