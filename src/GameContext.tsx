@@ -837,12 +837,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAscensionData(prev => ({
       ascensionCount: newAscensionCount,
       multiplier: parseFloat((prev.multiplier + 0.1).toFixed(2)),
-      ascendedAt: [...prev.ascendedAt, now()],
+      ascendedAt: [...prev.ascendedAt, new Date().toISOString()],
     }));
 
-    const now = new Date().toISOString();
+    const nowStr = new Date().toISOString();
     setStats({ strength: 10, intelligence: 10, agility: 10, vitality: 10, willpower: 10, social: 10 });
-    setLastStatUpdates({ strength: now, intelligence: now, agility: now, vitality: now, willpower: now, social: now });
+    setLastStatUpdates({ strength: nowStr, intelligence: nowStr, agility: nowStr, vitality: nowStr, willpower: nowStr, social: nowStr });
     addCredits(500 * newAscensionCount);
     addExp(1000);
 
