@@ -337,7 +337,7 @@ const InitialAssessment: React.FC = () => {
   const processingAgent = phase === 'processing_physical' ? 'TITAN' : 'SAGE';
 
   return (
-    <div className="fixed inset-0 bg-[#000] z-[100] flex items-center justify-center p-6 font-tech overflow-hidden nexus-grid">
+    <div className="fixed inset-0 bg-[#000] z-[100] flex items-start justify-center p-6 pt-12 font-tech overflow-y-auto nexus-grid">
       {/* Scanlines Overlay */}
       <div className="scanlines" />
 
