@@ -1,0 +1,8 @@
+{
+  "name": "Nexus: Self-Evolution System",
+  "description": "A gamified self-improvement dashboard featuring multi-agent AI guidance, hexagonal stat tracking, and quest-based evolution.",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone"
+  ]
+}
