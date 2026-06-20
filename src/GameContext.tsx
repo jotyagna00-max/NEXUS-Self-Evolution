@@ -5,6 +5,7 @@ import {
   ActivePowerUp, Debuff, ShadowState, RaidBoss, AscensionData,
   NarrativeChapter, RiftSchedule, StoreItem, ProgressionState,
   CustomSkillSet, CustomSkill, AppNotification,
+  ConsistencyData, AgentRecommendation,
   calculateExpToNextLevel, getRankFromLevel, DEFAULT_ACHIEVEMENTS,
   STORE_ITEMS, NARRATIVE_CHAPTERS
 } from './types';
@@ -101,6 +102,9 @@ interface GameContextType {
   streamCommandToAgent: (agentType: string, command: string, onChunk: (text: string) => void) => Promise<void>;
   sendTrainerRequest: (message: string) => Promise<{ response: string, reasoning: string[], agentUsed: string, coordinatedWith: string[] }>;
   streamTrainerRequest: (message: string, onChunk: (text: string) => void) => Promise<{ fullResponse: string, agentUsed: string, coordinatedWith: string[] }>;
+  consistency: ConsistencyData;
+  recommendations: AgentRecommendation[];
+  generateRecommendations: () => Promise<void>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -149,6 +153,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [streakData, setStreakData] = useState<StreakData>(() => {
     const saved = localStorage.getItem('nexus_streak');
     return saved ? JSON.parse(saved) : { currentStreak: 0, longestStreak: 0, lastCompletedDate: null, dailyCompletions: 0, totalDailyTarget: 3, weeklyStreak: 0, longestWeeklyStreak: 0 };
+  });
+
+  const [consistency, setConsistency] = useState<ConsistencyData>(() => {
+    const saved = localStorage.getItem('nexus_consistency');
+    if (saved) return JSON.parse(saved);
+    return { score: 100, totalDays: 0, completedDays: 0, currentRun: 0, longestRun: 0, recoveryCount: 0, last7Days: [true, true, true, true, true, true, true], graceDaysRemaining: 2 };
+  });
+
+  const [recommendations, setRecommendations] = useState<AgentRecommendation[]>(() => {
+    const saved = localStorage.getItem('nexus_recommendations');
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [achievements, setAchievements] = useState<Achievement[]>(() => {
@@ -460,11 +475,92 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const now = new Date(d);
       const diff = Math.floor((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
       if (diff > 1) {
-        return { ...prev, currentStreak: 0, dailyCompletions: 0 };
+        return { ...prev, dailyCompletions: 0 };
       }
       return prev;
     });
   }, []);
+
+  const updateConsistency = useCallback((completed: boolean) => {
+    const d = today();
+    setConsistency(prev => {
+      const dayIndex = new Date(d).getDay();
+      const newLast7 = [...prev.last7Days];
+      if (completed) {
+        newLast7[dayIndex] = true;
+      } else if (!newLast7[dayIndex]) {
+        newLast7[dayIndex] = false;
+      }
+
+      const completedCount = newLast7.filter(Boolean).length;
+      const score = Math.round((completedCount / 7) * 100);
+
+      const newCurrentRun = completed ? prev.currentRun + 1 : (prev.graceDaysRemaining > 0 ? prev.currentRun : 0);
+      const newGrace = completed ? prev.graceDaysRemaining : Math.max(0, prev.graceDaysRemaining - 1);
+      const newRecovery = completed && prev.graceDaysRemaining === 0 && prev.currentRun === 0 && prev.completedDays > 0
+        ? prev.recoveryCount + 1 : prev.recoveryCount;
+
+      return {
+        ...prev,
+        score,
+        totalDays: prev.totalDays + 1,
+        completedDays: completed ? prev.completedDays + 1 : prev.completedDays,
+        currentRun: newCurrentRun,
+        longestRun: Math.max(prev.longestRun, newCurrentRun),
+        recoveryCount: newRecovery,
+        last7Days: newLast7,
+        graceDaysRemaining: newGrace,
+      };
+    });
+    if (completed) {
+      updateStreak();
+    }
+  }, [updateStreak]);
+
+  const generateRecommendations = useCallback(async () => {
+    const statEntries: [string, number][] = Object.entries(stats) as [string, number][];
+    const sorted = statEntries.sort((a, b) => a[1] - b[1]);
+    const lowest = sorted[0];
+    const secondLowest = sorted[1];
+
+    const recs: AgentRecommendation[] = [];
+    recs.push({
+      id: `rec_${Date.now()}_1`,
+      agent: 'SAGE',
+      priority: 'high',
+      title: `${lowest[0].charAt(0).toUpperCase() + lowest[0].slice(1)} needs attention`,
+      description: `Your ${lowest[0]} stat (${lowest[1]}) is your lowest. A focused protocol session could boost it by 2-3 points.`,
+      actionLabel: `Train ${lowest[0]}`,
+      targetStat: lowest[0],
+      createdAt: new Date().toISOString(),
+    });
+    if (secondLowest[1] < 40) {
+      recs.push({
+        id: `rec_${Date.now()}_2`,
+        agent: 'MANAGER',
+        priority: 'medium',
+        title: `Balance your ${secondLowest[0]}`,
+        description: `${secondLowest[0].charAt(0).toUpperCase() + secondLowest[0].slice(1)} at ${secondLowest[1]} is below average. Consistency this week would help.`,
+        actionLabel: `View protocols`,
+        targetStat: secondLowest[0],
+        createdAt: new Date().toISOString(),
+      });
+    }
+    recs.push({
+      id: `rec_${Date.now()}_3`,
+      agent: 'CHRONOS',
+      priority: 'low',
+      title: consistency.score < 70 ? 'Build consistency momentum' : 'Maintain your rhythm',
+      description: consistency.score < 70
+        ? `Your 7-day consistency is ${consistency.score}%. Focus on 'never miss twice' to build momentum.`
+        : `Your 7-day consistency is ${consistency.score}%. Keep the run going — you're building identity.`,
+      actionLabel: 'View streak',
+      createdAt: new Date().toISOString(),
+    });
+
+    setRecommendations(recs.slice(0, 3));
+    localStorage.setItem('nexus_recommendations', JSON.stringify(recs.slice(0, 3)));
+  }, [stats, consistency.score]);
 
   const applyPenalty = (type: PenaltyRecord['type'], reason: string, amount: number) => {
     const penalty: PenaltyRecord = {
@@ -553,6 +649,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       addCredits(q.rewardCredits);
       addExp(q.rewardExp);
+      updateConsistency(true);
       updateStreak();
       checkStreak();
       updateShadow(false);
@@ -596,7 +693,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       addCredits(t.rewardCredits);
       addExp(t.rewardExp);
-      updateStreak();
+      updateConsistency(true);
       checkStreak();
       updateShadow(false);
 
@@ -607,10 +704,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const failTask = async (id: string) => {
     setTasks(prev => prev.map(t => {
       if (t.id !== id || t.completed) return t;
-      const consecutiveMisses = penaltyRecords.filter(p => p.type === 'consecutive_miss' && p.date === today()).length + 1;
-      const penaltyAmount = NC_MISS_PENALTY_BASE * Math.pow(2, consecutiveMisses - 1);
-      applyPenalty('missed', `Missed task: ${t.title}`, penaltyAmount);
+      applyPenalty('missed', `Missed task: ${t.title}`, NC_MISS_PENALTY_BASE);
       updateShadow(true);
+      updateConsistency(false);
       return t;
     }));
   };
@@ -647,6 +743,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return newStats;
     });
     setLastStatUpdates(prev => ({ ...prev, [stat]: new Date().toISOString() }));
+    updateConsistency(true);
   };
 
   const updateShadow = useCallback((increased: boolean) => {
@@ -886,14 +983,46 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const d = today();
     setTasks(prev => {
       if (prev.some(t => t.date === d && !t.completed)) return prev;
-      const newTasks: Task[] = [
-        { id: `t_${d}_1`, title: 'Complete a training protocol', description: 'Sync any protocol to advance your stats.', category: 'fitness', difficulty: 1, points: 10, rewardCredits: 10, rewardExp: 15, completed: false, date: d },
-        { id: `t_${d}_2`, title: 'Read or study for 20 minutes', description: 'Expand your knowledge base.', category: 'mental', difficulty: 1, points: 10, rewardCredits: 10, rewardExp: 15, completed: false, date: d },
-        { id: `t_${d}_3`, title: 'Complete one habit micro-quest', description: 'Build consistency in your daily habits.', category: 'habit', difficulty: 1, points: 10, rewardCredits: 10, rewardExp: 15, completed: false, date: d },
-      ];
+
+      const bodyProtocols = protocols.filter(p => p.type === 'physical' || p.type === 'agility');
+      const mindProtocols = protocols.filter(p => p.type === 'mental' || p.type === 'reading');
+      const otherProtocols = protocols.filter(p => !bodyProtocols.includes(p) && !mindProtocols.includes(p));
+
+      const pickRandom = <T,>(arr: T[]): T | null => arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : null;
+
+      const body = pickRandom(bodyProtocols);
+      const mind = pickRandom(mindProtocols);
+      const other = pickRandom(otherProtocols);
+
+      const newTasks: Task[] = [];
+
+      if (body) {
+        newTasks.push({
+          id: `t_${d}_1`, title: `Sync ${body.title}`, description: `Complete your ${body.title} protocol.`, category: 'fitness', difficulty: body.difficulty || 1, points: (body.gain || 2) * 5, rewardCredits: 10 + (body.difficulty || 1) * 3, rewardExp: 15 + (body.difficulty || 1) * 3, completed: false, date: d,
+        });
+      } else {
+        newTasks.push({
+          id: `t_${d}_1`, title: 'Complete a training protocol', description: 'Sync any body protocol to advance your stats.', category: 'fitness', difficulty: 1, points: 10, rewardCredits: 10, rewardExp: 15, completed: false, date: d,
+        });
+      }
+
+      if (mind) {
+        newTasks.push({
+          id: `t_${d}_2`, title: `Sync ${mind.title}`, description: `Complete your ${mind.title} protocol.`, category: 'mental', difficulty: mind.difficulty || 1, points: (mind.gain || 2) * 5, rewardCredits: 10 + (mind.difficulty || 1) * 3, rewardExp: 15 + (mind.difficulty || 1) * 3, completed: false, date: d,
+        });
+      } else {
+        newTasks.push({
+          id: `t_${d}_2`, title: 'Read or study for 20 minutes', description: 'Expand your knowledge base.', category: 'mental', difficulty: 1, points: 10, rewardCredits: 10, rewardExp: 15, completed: false, date: d,
+        });
+      }
+
+      newTasks.push({
+        id: `t_${d}_3`, title: other ? `Complete ${other.title}` : 'Complete one habit micro-quest', description: other ? `Execute your ${other.title} protocol.` : 'Build consistency in your daily habits.', category: 'habit', difficulty: other?.difficulty || 1, points: other ? (other.gain || 2) * 5 : 10, rewardCredits: other ? 10 + (other.difficulty || 1) * 3 : 10, rewardExp: other ? 15 + (other.difficulty || 1) * 3 : 15, completed: false, date: d,
+      });
+
       return [...prev, ...newTasks];
     });
-  }, []);
+  }, [protocols]);
 
   const purchaseStoreItem = (item: StoreItem): boolean => {
     if (item.exclusive && !isPro) return false;
@@ -1074,6 +1203,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       habits, activePowerUps, debuffs, shadowState, raidBoss, ascensionData,
       narrativeChapters, riftSchedules, customSkillSets, isPro,
       notifications, canAscend, lastStatUpdates,
+      consistency, recommendations, generateRecommendations,
       completeAssessment, setCharacter, setProtocol, addProtocol, removeProtocol, updateProtocol,
       addCustomSkillSet, removeCustomSkillSet, updateCustomSkillValue,
       updateUserProfile, addQuest, completeQuest, failQuest, completeTask, failTask,

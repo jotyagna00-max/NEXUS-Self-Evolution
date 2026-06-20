@@ -8,30 +8,23 @@ const NeuralFlow: React.FC<{ activeAgent: AgentType; isProcessing: boolean }> = 
   const specialists: AgentType[] = ['SAGE', 'TITAN', 'CHRONOS'];
 
   return (
-    <div className="relative h-48 w-full flex items-center justify-center bg-black/40 rounded-2xl border border-white/5 mb-6 overflow-hidden">
-      <div className="absolute inset-0 opacity-10" />
-
+    <div className="relative h-36 w-full flex items-center justify-center bg-black/20 rounded-2xl border border-emerald-500/5 mb-6 overflow-hidden">
       <div className="relative z-10 flex flex-col items-center">
         <motion.div
           animate={
             isProcessing
               ? {
-                scale: [1, 1.06, 1],
-                boxShadow: [
-                  '0 0 0px rgba(16,185,129,0)',
-                  '0 0 26px rgba(16,185,129,0.55)',
-                  '0 0 0px rgba(16,185,129,0)',
-                ],
+                scale: [1, 1.05, 1],
               }
               : {}
           }
           transition={{ duration: 2, repeat: Infinity }}
-          className={`w-16 h-16 rounded-full glass border-2 flex items-center justify-center transition-colors ${activeAgent === 'MANAGER' ? 'border-emerald-500 text-emerald-400' : 'border-white/20 text-white/40'
+          className={`w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border flex items-center justify-center transition-colors ${activeAgent === 'MANAGER' ? 'border-emerald-500/40 text-emerald-400' : 'border-white/10 text-white/40'
             }`}
         >
-          <Cpu size={24} />
+          <Cpu size={22} />
         </motion.div>
-        <span className="text-[8px] font-display uppercase tracking-widest mt-2 text-white/40">Neural Manager</span>
+        <span className="text-[8px] font-display uppercase tracking-widest mt-2 text-white/30">Neural Manager</span>
       </div>
 
       <div className="absolute inset-0 flex items-center justify-around px-12">
@@ -44,21 +37,18 @@ const NeuralFlow: React.FC<{ activeAgent: AgentType; isProcessing: boolean }> = 
               <motion.div
                 animate={
                   isActive && isProcessing
-                    ? {
-                      y: [0, -4, 0],
-                      borderColor: ['rgba(16,185,129,0.2)', 'rgba(16,185,129,0.85)', 'rgba(16,185,129,0.2)'],
-                    }
+                    ? { y: [0, -3, 0] }
                     : {}
                 }
                 transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
-                className={`w-12 h-12 rounded-xl glass border flex items-center justify-center transition-all ${isActive
-                    ? 'border-emerald-500/55 text-emerald-400 shadow-[0_0_18px_rgba(16,185,129,0.22)]'
-                    : 'border-white/10 text-white/20'
+                className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${isActive
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                    : 'bg-white/[0.03] border-white/5 text-white/20'
                   }`}
               >
-                <Icon size={18} />
+                <Icon size={16} />
               </motion.div>
-              <span className="text-[7px] font-mono uppercase tracking-tighter text-white/30">{type}</span>
+              <span className="text-[7px] font-mono uppercase tracking-tighter text-white/25">{type}</span>
             </div>
           );
         })}
@@ -130,17 +120,17 @@ const AgentConsole: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[700px] bg-black/60 rounded-[40px] border border-white/10 overflow-hidden backdrop-blur-3xl relative">
-      <div className="p-6 border-b border-white/10 flex items-center justify-between bg-white/5">
+    <div className="flex flex-col h-[700px] bg-[#0a0a0a] rounded-[32px] border border-emerald-500/10 overflow-hidden relative shadow-[0_0_80px_rgba(16,185,129,0.04)]">
+      {/* Gemini-style gradient header */}
+      <div className="p-6 border-b border-emerald-500/10 flex items-center justify-between bg-gradient-to-r from-emerald-500/[0.03] via-transparent to-emerald-500/[0.03]">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl glass border border-emerald-500/30 flex items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-transparent to-transparent" />
-            <Terminal size={20} className="text-emerald-400 relative z-10" />
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/20 flex items-center justify-center">
+            <Terminal size={20} className="text-emerald-400" />
           </div>
           <div>
             <h2 className="text-sm font-display uppercase tracking-[0.3em] text-white">Neural Console</h2>
             <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_18px_rgba(16,185,129,0.6)]" />
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-[8px] font-mono text-emerald-500/60 uppercase tracking-widest">System Synchronized</span>
             </div>
           </div>
@@ -151,9 +141,9 @@ const AgentConsole: React.FC = () => {
             <button
               key={agent.type}
               onClick={() => setActiveAgent(agent.type)}
-              className={`p-3 rounded-xl transition-all border ${activeAgent === agent.type
-                  ? 'bg-emerald-500/10 border-emerald-500/55 text-emerald-400 shadow-[0_0_18px_rgba(16,185,129,0.12)]'
-                  : 'bg-white/5 border-white/10 text-white/30 hover:text-white/60'
+              className={`p-3 rounded-2xl transition-all border ${activeAgent === agent.type
+                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
+                  : 'bg-white/[0.03] border-transparent text-white/30 hover:text-white/60 hover:bg-white/[0.06]'
                 }`}
               title={agent.label}
               aria-label={agent.label}
@@ -167,7 +157,7 @@ const AgentConsole: React.FC = () => {
       <div className="flex-1 overflow-hidden flex flex-col p-6">
         <NeuralFlow activeAgent={activeAgent} isProcessing={isTyping} />
 
-        <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto pr-2 space-y-4">
           {messages.map((msg, i) => (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -175,9 +165,9 @@ const AgentConsole: React.FC = () => {
               key={i}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[85%] space-y-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+              <div className={`max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                 <div
-                  className={`flex items-center gap-2 text-[8px] uppercase tracking-widest opacity-45 mb-1 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                  className={`flex items-center gap-2 text-[8px] uppercase tracking-widest text-white/30 mb-1.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                     }`}
                 >
                   {msg.role === 'user' ? <User size={10} /> : <Cpu size={10} />}
@@ -185,9 +175,9 @@ const AgentConsole: React.FC = () => {
                 </div>
 
                 <div
-                  className={`p-5 rounded-[26px] border ${msg.role === 'user'
-                      ? 'bg-emerald-500/10 border-emerald-500/35 text-white shadow-[0_0_0_rgba(0,0,0,0)]'
-                      : 'bg-white/5 border-white/10 text-white/90'
+                  className={`p-5 rounded-2xl border ${msg.role === 'user'
+                      ? 'bg-emerald-500/10 border-emerald-500/25 text-white'
+                      : 'bg-white/[0.04] border-white/5 text-white/90'
                     }`}
                 >
                   <p className="leading-relaxed text-sm font-tech whitespace-pre-wrap">{msg.text}</p>
@@ -198,18 +188,18 @@ const AgentConsole: React.FC = () => {
 
           {isTyping && (
             <div className="flex justify-start">
-              <div className="bg-white/5 border border-emerald-500/15 p-4 rounded-[18px] flex items-center gap-3 shadow-[0_0_22px_rgba(16,185,129,0.08)]">
+              <div className="bg-white/[0.04] border border-emerald-500/10 p-4 rounded-2xl flex items-center gap-3">
                 <div className="flex gap-1">
                   {[0, 1, 2].map((i) => (
                     <motion.div
                       key={i}
                       animate={{ y: [0, -4, 0] }}
                       transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1 }}
-                      className="w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_16px_rgba(16,185,129,0.4)]"
+                      className="w-1.5 h-1.5 bg-emerald-400 rounded-full"
                     />
                   ))}
                 </div>
-                <span className="text-[10px] font-mono text-white/45 uppercase tracking-widest">Generating reply...</span>
+                <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Generating reply...</span>
               </div>
             </div>
           )}
@@ -218,20 +208,20 @@ const AgentConsole: React.FC = () => {
         </div>
       </div>
 
-      <div className="p-8 border-t border-white/10 bg-white/5">
+      <div className="p-6 border-t border-emerald-500/10 bg-gradient-to-r from-emerald-500/[0.02] via-transparent to-emerald-500/[0.02]">
         <div className="relative max-w-4xl mx-auto">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={`Enter command for ${activeAgent.toLowerCase()} interface...`}
-            className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-emerald-500/50 font-mono text-sm transition-all pr-16 placeholder:text-white/20"
+            placeholder={`Message ${activeAgent.toLowerCase()}...`}
+            className="w-full bg-black/60 border border-emerald-500/15 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-emerald-500/40 font-mono text-sm transition-all pr-16 placeholder:text-white/15"
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isTyping}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-emerald-500 hover:bg-emerald-400 text-black p-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black p-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label="Send message"
           >
             <Send size={20} />

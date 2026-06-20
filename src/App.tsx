@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -16,7 +16,6 @@ import {
   Book,
   ShoppingCart,
   Flame,
-  Skull,
   ArrowUpCircle
 } from 'lucide-react';
 import { GameProvider, useGame } from './GameContext';
@@ -30,8 +29,8 @@ import Feedback from './components/Feedback';
 import PersonalizedTrainer from './components/PersonalizedTrainer';
 import NexusStore from './components/NexusStore';
 import HabitLab from './components/HabitLab';
-import ShadowSelf from './components/ShadowSelf';
-import RaidBossMount from './components/RaidBossMount';
+import ConsistencyTracker from './components/ConsistencyTracker';
+import AgentBriefing from './components/AgentBriefing';
 import Profile from './components/Profile';
 import AscensionCeremony from './components/AscensionCeremony';
 import NotificationToast from './components/NotificationToast';
@@ -50,6 +49,7 @@ const MenuOverlay = ({
   setActiveTab: (id: any) => void,
   tabs: any[],
 }) => {
+  const { stats, consistency } = useGame();
   return (
     <AnimatePresence>
       {isOpen && (
@@ -57,46 +57,80 @@ const MenuOverlay = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-6"
+          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={onClose}
         >
-          <button
-            onClick={onClose}
-            className="absolute top-8 right-8 p-4 hover:bg-white/10 rounded-full transition-all text-white/40 hover:text-white"
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+            onClick={e => e.stopPropagation()}
+            className="glass rounded-[32px] border border-white/10 w-full max-w-lg max-h-[80vh] overflow-y-auto relative shadow-[0_0_80px_rgba(16,185,129,0.06)]"
           >
-            <X size={24} />
-          </button>
-
-          <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-12">
-            <div className="space-y-8">
-              <div className="space-y-2">
-                <span className="text-emerald-500 font-display text-[8px] tracking-[0.4em] uppercase">System Navigation</span>
-                <h2 className="text-3xl font-display font-black uppercase tracking-tighter">Main Menu</h2>
+            <div className="sticky top-0 z-10 flex items-center justify-between p-6 pb-4 border-b border-white/5 bg-black/60 backdrop-blur-xl">
+              <div>
+                <span className="text-emerald-500/60 font-display text-[8px] tracking-[0.5em] uppercase">NEXUS v2.0</span>
+                <h2 className="text-lg font-display font-bold uppercase tracking-tight text-white mt-0.5">
+                  <span className="text-emerald-400">Main</span> Menu
+                </h2>
               </div>
+              <button onClick={onClose} className="p-2.5 hover:bg-white/5 rounded-xl transition-all text-white/30 hover:text-white border border-transparent hover:border-white/10">
+                <X size={18} />
+              </button>
+            </div>
 
+            <div className="p-6 space-y-6">
               <nav className="space-y-1">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      onClose();
-                    }}
-                    className={`w-full flex items-center justify-between p-3 rounded-xl transition-all group ${activeTab === tab.id
-                      ? 'bg-emerald-500 text-black'
-                      : 'text-white/40 hover:bg-white/5 hover:text-white'
-                      }`}
+                    onClick={() => { setActiveTab(tab.id); onClose(); }}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all group border ${
+                      activeTab === tab.id
+                        ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400'
+                        : 'border-transparent text-white/40 hover:bg-white/[0.03] hover:border-white/5 hover:text-white/70'
+                    }`}
                   >
                     <div className="flex items-center gap-3">
-                      <tab.icon size={16} />
-                      <span className="font-display uppercase tracking-widest text-[11px]">{tab.label}</span>
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
+                        activeTab === tab.id
+                          ? 'bg-emerald-500/15 text-emerald-400'
+                          : 'bg-white/5 text-white/30 group-hover:bg-white/10'
+                      }`}>
+                        <tab.icon size={15} />
+                      </div>
+                      <span className="font-display uppercase tracking-[0.2em] text-[10px]">{tab.label}</span>
                     </div>
-                    <ChevronRight size={14} className={`transition-transform ${activeTab === tab.id ? 'rotate-90' : 'group-hover:translate-x-2'}`} />
+                    <ChevronRight size={13} className={`transition-transform ${
+                      activeTab === tab.id ? 'rotate-90 text-emerald-400' : 'text-white/20 group-hover:translate-x-1 group-hover:text-white/40'
+                    }`} />
                   </button>
                 ))}
               </nav>
-            </div>
 
-          </div>
+              <div className="h-px bg-gradient-to-r from-emerald-500/20 via-white/5 to-transparent" />
+
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'INT', value: stats.intelligence, color: 'text-blue-400', bar: 'bg-blue-500/60' },
+                  { label: 'STR', value: stats.strength, color: 'text-red-400', bar: 'bg-red-500/60' },
+                  { label: 'WIL', value: stats.willpower, color: 'text-purple-400', bar: 'bg-purple-500/60' },
+                  { label: 'CON', value: consistency.score, color: 'text-emerald-400', bar: 'bg-emerald-500/60' },
+                ].map((s) => (
+                  <div key={s.label} className="bg-white/[0.03] rounded-xl p-3.5 border border-white/5">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-[9px] font-display font-bold ${s.color}`}>{s.label}</span>
+                      <span className="text-[11px] font-mono text-white/60">{s.value}</span>
+                    </div>
+                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${s.bar}`} style={{ width: `${s.value}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -104,7 +138,9 @@ const MenuOverlay = ({
 };
 
 const Dashboard = () => {
-  const { stats, hasCompletedAssessment, customSkillSets, addCustomSkillSet, removeCustomSkillSet, userProfile, canAscend, performAscension, lastStatUpdates } = useGame();
+  const { stats, quests, hasCompletedAssessment, customSkillSets, addCustomSkillSet, removeCustomSkillSet, userProfile, canAscend, performAscension, lastStatUpdates, consistency, recommendations, generateRecommendations } = useGame();
+
+  useEffect(() => { generateRecommendations(); }, []);
   const statKeys: (keyof typeof stats)[] = ['strength', 'intelligence', 'agility', 'vitality', 'willpower', 'social'];
   const decayingIndices = statKeys
     .map((k, i) => {
@@ -113,7 +149,7 @@ const Dashboard = () => {
       return daysSinceUpdate >= 7 ? i : -1;
     })
     .filter(i => i >= 0);
-  const [activeTab, setActiveTab] = useState<'overview' | 'trainer' | 'training' | 'quests' | 'feedback' | 'books' | 'store' | 'habits' | 'shadow'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'trainer' | 'training' | 'quests' | 'feedback' | 'books' | 'store' | 'habits'>('overview');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showSkillModal, setShowSkillModal] = useState(false);
@@ -131,7 +167,6 @@ const Dashboard = () => {
     { id: 'quests', label: 'Destiny Quests', icon: Sword },
     { id: 'books', label: 'Book Mastery', icon: Book },
     { id: 'habits', label: 'Habit Lab', icon: Flame },
-    { id: 'shadow', label: 'Shadow Self', icon: Skull },
     { id: 'store', label: 'Nexus Store', icon: ShoppingCart },
     { id: 'feedback', label: 'System Feedback', icon: MessageCircle },
   ];
@@ -364,77 +399,74 @@ const Dashboard = () => {
                 transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
               >
                 {activeTab === 'overview' && (
-                  <div className="grid grid-cols-12 gap-8">
-                    {/* Main Stats Area */}
-                    <div className="col-span-12 lg:col-span-8 space-y-8">
-                      <div className="glass p-8 rounded-[40px] border border-white/10 relative overflow-hidden group">
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-emerald-500/5 blur-[120px] rounded-full" />
-
-                          {/* Main HexGraph + Add More Skills */}
-                          <div className="flex flex-wrap items-start gap-6">
-                            <HexGraph stats={stats} size={280} title="Core Stats" decayingIndices={decayingIndices} />
-                            <button
-                              onClick={() => setShowSkillModal(true)}
-                              className="flex flex-col items-center justify-center w-[280px] h-[280px] rounded-2xl border-2 border-dashed border-white/10 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all text-white/30 hover:text-emerald-400 group"
-                            >
-                              <Hexagon size={32} className="mb-3 group-hover:rotate-90 transition-transform" />
-                              <span className="font-display text-xs uppercase tracking-[0.2em]">Add More Skills</span>
-                            </button>
-                            {canAscend && (
-                              <motion.button
-                                initial={{ scale: 0.9, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                onClick={() => { performAscension(); setShowAscension(true); }}
-                                className="flex flex-col items-center justify-center w-[280px] h-[280px] rounded-2xl border-2 border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20 transition-all text-purple-400 group relative overflow-hidden"
+                  <div className="space-y-8">
+                    {/* Row 1: HexGraph + Agent Briefing */}
+                    <div className="grid grid-cols-12 gap-8">
+                      <div className="col-span-12 lg:col-span-7">
+                        <div className="glass p-8 rounded-[40px] border border-white/10 relative overflow-hidden group">
+                          <div className="relative">
+                            <div className="absolute inset-0 bg-emerald-500/5 blur-[120px] rounded-full" />
+                            <div className="flex flex-wrap items-start gap-6">
+                              <HexGraph stats={stats} size={240} title="Core Stats" decayingIndices={decayingIndices} />
+                              <button
+                                onClick={() => setShowSkillModal(true)}
+                                className="flex flex-col items-center justify-center w-[240px] h-[240px] rounded-2xl border-2 border-dashed border-white/10 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all text-white/30 hover:text-emerald-400 group"
                               >
-                                <motion.div
-                                  className="absolute inset-0 bg-purple-500/10"
-                                  animate={{ opacity: [0.3, 0.6, 0.3] }}
-                                  transition={{ duration: 2, repeat: Infinity }}
-                                />
-                                <ArrowUpCircle size={40} className="mb-3 relative z-10 group-hover:scale-110 transition-transform" />
-                                <span className="font-display text-xs uppercase tracking-[0.2em] relative z-10">Ascension Ready</span>
-                                <span className="text-[8px] font-mono text-purple-400/60 mt-1 relative z-10">All stats at 100</span>
-                              </motion.button>
+                                <Hexagon size={28} className="mb-3 group-hover:rotate-90 transition-transform" />
+                                <span className="font-display text-xs uppercase tracking-[0.2em]">Add More Skills</span>
+                              </button>
+                              {canAscend && (
+                                <motion.button
+                                  initial={{ scale: 0.9, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  onClick={() => { performAscension(); setShowAscension(true); }}
+                                  className="flex flex-col items-center justify-center w-[240px] h-[240px] rounded-2xl border-2 border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20 transition-all text-purple-400 group relative overflow-hidden"
+                                >
+                                  <motion.div className="absolute inset-0 bg-purple-500/10" animate={{ opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 2, repeat: Infinity }} />
+                                  <ArrowUpCircle size={36} className="mb-3 relative z-10 group-hover:scale-110 transition-transform" />
+                                  <span className="font-display text-xs uppercase tracking-[0.2em] relative z-10">Ascension Ready</span>
+                                  <span className="text-[8px] font-mono text-purple-400/60 mt-1 relative z-10">All stats at 100</span>
+                                </motion.button>
+                              )}
+                            </div>
+                            {customSkillSets.length > 0 && (
+                              <div className="mt-6">
+                                <div className="flex items-center gap-3 mb-4">
+                                  <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">Custom Skill Trees</span>
+                                  <div className="h-px flex-1 bg-white/5" />
+                                </div>
+                                <div className="flex flex-wrap gap-6">
+                                  {customSkillSets.map((set) => (
+                                    <div key={set.id} className="relative group/skill">
+                                      <HexGraph customLabels={set.skills.map(s => s.name)} customData={set.skills.map(s => s.value)} size={180} title={set.name} />
+                                      <button onClick={() => removeCustomSkillSet(set.id)} className="absolute top-2 right-2 p-1 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 opacity-0 group-hover/skill:opacity-100 transition-all text-[10px]"><X size={12} /></button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             )}
                           </div>
-
-                          {/* Custom Skill Sets */}
-                          {customSkillSets.length > 0 && (
-                            <div className="mt-8">
-                              <div className="flex items-center gap-3 mb-4">
-                                <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">Custom Skill Trees</span>
-                                <div className="h-px flex-1 bg-white/5" />
-                              </div>
-                              <div className="flex flex-wrap gap-6">
-                                {customSkillSets.map((set) => (
-                                  <div key={set.id} className="relative group/skill">
-                                    <HexGraph
-                                      customLabels={set.skills.map(s => s.name)}
-                                      customData={set.skills.map(s => s.value)}
-                                      size={200}
-                                      title={set.name}
-                                    />
-                                    <button
-                                      onClick={() => removeCustomSkillSet(set.id)}
-                                      className="absolute top-2 right-2 p-1 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 opacity-0 group-hover/skill:opacity-100 transition-all text-[10px]"
-                                    >
-                                      <X size={12} />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </div>
+                      </div>
+                      <div className="col-span-12 lg:col-span-5">
+                        <AgentBriefing
+                          recommendations={recommendations}
+                          quests={quests}
+                          onRefresh={() => generateRecommendations()}
+                          onAction={(rec) => {
+                            if (rec.targetStat) {
+                              const tabMap: Record<string, string> = { strength: 'training', intelligence: 'training', willpower: 'training', agility: 'training', vitality: 'training', social: 'training' };
+                              setActiveTab((tabMap[rec.targetStat] || 'training') as any);
+                            } else {
+                              setActiveTab('training');
+                            }
+                          }}
+                        />
                       </div>
                     </div>
 
-                    {/* Sidebar: Raid Boss */}
-                    <div className="col-span-12 lg:col-span-4 space-y-8">
-                      <RaidBossMount />
-                    </div>
+                    {/* Row 2: Consistency */}
+                    <ConsistencyTracker data={consistency} />
                   </div>
                 )}
 
@@ -445,12 +477,6 @@ const Dashboard = () => {
                 {activeTab === 'habits' && <HabitLab />}
                 {activeTab === 'store' && <NexusStore />}
                 {activeTab === 'feedback' && <Feedback />}
-                {activeTab === 'shadow' && (
-                  <div className="max-w-xl mx-auto">
-                    <ShadowSelf />
-                  </div>
-                )}
-
               </motion.div>
             </AnimatePresence>
           </div>

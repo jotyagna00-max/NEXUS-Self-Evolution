@@ -302,6 +302,28 @@ export const calculateExpToNextLevel = (level: number): number => {
   return Math.floor(100 * Math.pow(level, 1.5));
 };
 
+export interface ConsistencyData {
+  score: number;
+  totalDays: number;
+  completedDays: number;
+  currentRun: number;
+  longestRun: number;
+  recoveryCount: number;
+  last7Days: boolean[];
+  graceDaysRemaining: number;
+}
+
+export interface AgentRecommendation {
+  id: string;
+  agent: string;
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  actionLabel: string;
+  targetStat?: string;
+  createdAt: string;
+}
+
 export const DEFAULT_ACHIEVEMENTS: Achievement[] = [
   {
     id: 'first_steps', name: 'First Steps', description: 'Complete your first quest',
