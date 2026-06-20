@@ -562,6 +562,41 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('nexus_recommendations', JSON.stringify(recs.slice(0, 3)));
   }, [stats, consistency.score]);
 
+  const generateProtocolQuests = useCallback(() => {
+    const d = today();
+    const ownedWithQuests = protocols.filter(p => p.quest && p.isStoreItem);
+    if (ownedWithQuests.length === 0) return;
+
+    const statEntries: [string, number][] = Object.entries(stats) as [string, number][];
+    const sorted = statEntries.sort((a, b) => a[1] - b[1]);
+    const lowestStat = sorted[0][0];
+
+    const matching = ownedWithQuests.filter(p => p.stat === lowestStat);
+    const picked = matching.length > 0
+      ? matching[Math.floor(Math.random() * matching.length)]
+      : ownedWithQuests[Math.floor(Math.random() * ownedWithQuests.length)];
+
+    if (!picked.quest) return;
+
+    const questKey = `${picked.id}_${d}`;
+    const existingIds = new Set(quests.map(q => q.id));
+    if (existingIds.has(questKey)) return;
+
+    setQuests(prev => [...prev, {
+      id: questKey,
+      title: picked.quest.title,
+      description: picked.quest.description,
+      type: 'daily',
+      category: picked.type === 'physical' ? 'fitness' : 'mental',
+      difficulty: picked.quest.difficulty,
+      rewardExp: picked.quest.rewardExp,
+      rewardCredits: picked.quest.rewardCredits,
+      statAffected: picked.quest.stat || picked.stat,
+      completed: false,
+      failed: false,
+    }]);
+  }, [protocols, stats, quests]);
+
   const applyPenalty = (type: PenaltyRecord['type'], reason: string, amount: number) => {
     const penalty: PenaltyRecord = {
       id: Date.now().toString(),
@@ -1028,7 +1063,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (item.exclusive && !isPro) return false;
     if (!spendCredits(item.cost)) return false;
 
-    if (item.type === 'protocol' && item.protocolData) {
+    if ((item.type === 'protocol' || item.type === 'book') && item.protocolData) {
       addProtocol({ ...item.protocolData, isStoreItem: true, owned: true, cost: item.cost });
     } else if (item.type === 'powerup') {
       activatePowerUp(item);
@@ -1163,6 +1198,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkDebuffs();
     checkRifts();
     generateDailyTasks();
+    generateProtocolQuests();
     const shadowInterval = setInterval(() => {
       const shadowAvg = [shadowState.strength, shadowState.intelligence, shadowState.agility, shadowState.vitality, shadowState.willpower, shadowState.social].reduce((a: number, b: number) => a + b, 0) / 6;
       const userAvg = (Object.values(stats) as number[]).reduce((a: number, b: number) => a + b, 0) / 6;

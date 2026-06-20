@@ -5,25 +5,25 @@ import { useGame } from '../GameContext';
 import { STORE_ITEMS, StoreItem } from '../types';
 
 const typeIcons: Record<string, any> = {
-  protocol: Brain, powerup: Zap, cosmetic: Star, subscription: Crown,
+  protocol: Brain, powerup: Zap, cosmetic: Star, subscription: Crown, book: Book,
   mental: Brain, physical: Dumbbell, agility: Wind, willpower: Moon, reading: Book, habit: Activity,
 };
 
 const typeColors: Record<string, string> = {
-  protocol: 'text-blue-400', powerup: 'text-yellow-400', cosmetic: 'text-pink-400', subscription: 'text-purple-400',
+  protocol: 'text-blue-400', powerup: 'text-yellow-400', cosmetic: 'text-pink-400', subscription: 'text-purple-400', book: 'text-red-400',
   mental: 'text-blue-400', physical: 'text-red-400', agility: 'text-green-400', willpower: 'text-purple-400', reading: 'text-red-400', habit: 'text-amber-400',
 };
 
 const NexusStore: React.FC = () => {
   const { credits, purchaseStoreItem, isPro, setProStatus, protocols, addProtocol, spendCredits } = useGame();
-  const [filter, setFilter] = useState<'all' | 'protocol' | 'powerup' | 'subscription'>('all');
+  const [filter, setFilter] = useState<'all' | 'protocol' | 'book' | 'powerup' | 'subscription'>('all');
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
 
   const filteredItems = STORE_ITEMS.filter(item => {
     if (filter !== 'all' && item.type !== filter) return false;
     if (item.type === 'subscription' && isPro) return false;
-    if (item.type === 'protocol' && protocols.some(p => p.isStoreItem && p.title === item.protocolData?.title)) return false;
+    if ((item.type === 'protocol' || item.type === 'book') && protocols.some(p => p.isStoreItem && p.title === item.protocolData?.title)) return false;
     return true;
   });
 
@@ -72,12 +72,12 @@ const NexusStore: React.FC = () => {
         </div>
 
         <div className="flex gap-3">
-          {(['all', 'protocol', 'powerup', 'subscription'] as const).map(f => (
+          {(['all', 'protocol', 'book', 'powerup', 'subscription'] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={`px-6 py-3 rounded-xl font-display text-[10px] uppercase tracking-widest transition-all border ${
                 filter === f ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-white/5 text-white/40 border-white/10 hover:text-white'
               }`}>
-              {f === 'all' ? 'All Items' : f === 'protocol' ? 'Protocols' : f === 'powerup' ? 'Power-Ups' : 'Pro'}
+              {f === 'all' ? 'All Items' : f === 'protocol' ? 'Protocols' : f === 'book' ? 'Books' : f === 'powerup' ? 'Power-Ups' : 'Pro'}
             </button>
           ))}
         </div>
@@ -134,9 +134,16 @@ const NexusStore: React.FC = () => {
                   )}
                 </div>
 
-                <p className="text-xs text-white/40 font-tech leading-relaxed mb-6 min-h-[40px]">
-                  {item.description}
+                <p className="text-xs text-white/40 font-tech leading-relaxed mb-4 min-h-[40px]">
+                  {item.protocolData?.criteria || item.description}
                 </p>
+                {item.type === 'book' && item.protocolData && (
+                  <div className="flex items-center gap-4 mb-4 text-[9px] text-white/30 font-mono">
+                    {item.protocolData.author && <span>{item.protocolData.author}</span>}
+                    {item.protocolData.pages && <span>{item.protocolData.pages} pages</span>}
+                    <span className="text-emerald-400/60">+{item.protocolData.gain} {item.protocolData.stat}</span>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-4">
                   <button

@@ -32,6 +32,15 @@ export interface UserProfile {
   accountabilityNeeds?: string;
 }
 
+export interface ProtocolQuest {
+  title: string;
+  description: string;
+  difficulty: number;
+  rewardCredits: number;
+  rewardExp: number;
+  stat?: StatType;
+}
+
 export interface Protocol {
   id: string;
   title: string;
@@ -50,6 +59,10 @@ export interface Protocol {
   difficulty?: number;
   estDuration?: string;
   aiGenerated?: boolean;
+  criteria?: string;
+  quest?: ProtocolQuest;
+  domain?: 'body' | 'mind';
+  tier?: number;
 }
 
 export interface Habit {
@@ -163,7 +176,7 @@ export interface StoreItem {
   id: string;
   name: string;
   description: string;
-  type: 'protocol' | 'powerup' | 'cosmetic' | 'subscription';
+  type: 'protocol' | 'powerup' | 'cosmetic' | 'subscription' | 'book';
   cost: number;
   protocolData?: Partial<Protocol>;
   powerUpEffect?: string;
@@ -458,56 +471,184 @@ export const DEFAULT_ACHIEVEMENTS: Achievement[] = [
 ];
 
 export const STORE_ITEMS: StoreItem[] = [
+  // ════════════════════════════════════════
+  // BODY PROTOCOLS
+  // ════════════════════════════════════════
   {
-    id: 'memory_palace', name: 'Memory Palace Protocol', description: 'Advanced mnemonic techniques to enhance information retention and recall.',
-    type: 'protocol', cost: 300, exclusive: false,
-    protocolData: { title: 'Memory Palace', desc: 'Advanced mnemonic techniques to enhance information retention and recall.', type: 'mental', stat: 'intelligence', gain: 3, difficulty: 3, estDuration: '20 min/day', aiGenerated: false }
+    id: 'pure_strength', name: 'Pure Strength Foundation', description: 'Build raw strength with simple compound lifts — 3 days a week.',
+    type: 'protocol', cost: 150, exclusive: false,
+    protocolData: {
+      title: 'Pure Strength', desc: 'Do 3 sets of 5 reps of a compound exercise. Rest 2 min between sets.', type: 'physical', stat: 'strength', gain: 2, difficulty: 1, estDuration: '30 min/day', aiGenerated: false, domain: 'body', tier: 1,
+      criteria: 'Do 3 sets of 5 push-ups or squats. Rest 2 min between sets. Next time add 1 rep per set.',
+      quest: { title: 'Strength: 3×5', description: 'Do 3 sets of 5 reps — push-ups or squats, controlled form.', difficulty: 1, rewardCredits: 15, rewardExp: 20, stat: 'strength' }
+    }
   },
   {
-    id: 'speed_reading', name: 'Speed Reading Protocol', description: 'Train your eyes and brain to process text at 3x your current speed.',
+    id: 'muscle_builder', name: 'Muscle Builder Protocol', description: 'Build size with higher reps and slow lowering — 4 days a week.',
     type: 'protocol', cost: 250, exclusive: false,
-    protocolData: { title: 'Speed Reading', desc: 'Train your eyes and brain to process text at 3x your current speed.', type: 'mental', stat: 'intelligence', gain: 2, difficulty: 2, estDuration: '15 min/day', aiGenerated: false }
+    protocolData: {
+      title: 'Muscle Builder', desc: 'Do 4 sets of 10 reps. Lower slowly (3s down). Focus on the squeeze.', type: 'physical', stat: 'strength', gain: 3, difficulty: 2, estDuration: '40 min/day', aiGenerated: false, domain: 'body', tier: 2,
+      criteria: 'Do 4 sets of 10 reps. Lower each rep slowly (3 count). Squeeze at the top.',
+      quest: { title: 'Muscle Builder: 4×10', description: 'Do 4 sets of 10 reps with slow lowering. Feel the muscle work.', difficulty: 2, rewardCredits: 20, rewardExp: 30, stat: 'strength' }
+    }
   },
   {
-    id: 'deep_focus', name: 'Deep Focus Protocol', description: 'Extend your concentration windows using progressive overload techniques.',
-    type: 'protocol', cost: 400, exclusive: false,
-    protocolData: { title: 'Deep Focus', desc: 'Extend your concentration windows using progressive overload techniques.', type: 'mental', stat: 'willpower', gain: 3, difficulty: 4, estDuration: '30 min/day', aiGenerated: false }
-  },
-  {
-    id: 'spartan_hiit', name: 'Spartan HIIT Protocol', description: 'High-intensity interval training designed for maximum efficiency.',
-    type: 'protocol', cost: 300, exclusive: false,
-    protocolData: { title: 'Spartan HIIT', desc: 'High-intensity interval training designed for maximum efficiency.', type: 'physical', stat: 'strength', gain: 3, difficulty: 3, estDuration: '20 min/day', aiGenerated: false }
-  },
-  {
-    id: 'calisthenics', name: 'Calisthenics Foundation', description: 'Master your bodyweight with progressive calisthenics routines.',
-    type: 'protocol', cost: 250, exclusive: false,
-    protocolData: { title: 'Calisthenics Foundation', desc: 'Master your bodyweight with progressive calisthenics routines.', type: 'physical', stat: 'strength', gain: 2, difficulty: 2, estDuration: '25 min/day', aiGenerated: false }
-  },
-  {
-    id: 'marathon_base', name: 'Marathon Base Protocol', description: 'Build your aerobic endurance from the ground up.',
+    id: 'fighter_conditioning', name: 'Fighter Conditioning', description: 'Combat-style circuits for explosive power and endurance.',
     type: 'protocol', cost: 350, exclusive: false,
-    protocolData: { title: 'Marathon Base', desc: 'Build your aerobic endurance from the ground up.', type: 'physical', stat: 'vitality', gain: 3, difficulty: 3, estDuration: '30-45 min/day', aiGenerated: false }
+    protocolData: {
+      title: 'Fighter Conditioning', desc: '10 min circuit: 40s work, 20s rest. Repeat 3 rounds.', type: 'physical', stat: 'agility', gain: 3, difficulty: 3, estDuration: '30 min/day', aiGenerated: false, domain: 'body', tier: 3,
+      criteria: 'Do each exercise for 40s, rest 20s. 3 rounds total. Go hard on the work intervals.',
+      quest: { title: 'Fighter Circuit: 40/20×3', description: '40s work / 20s rest. 3 rounds. Push yourself each interval.', difficulty: 3, rewardCredits: 25, rewardExp: 35, stat: 'agility' }
+    }
   },
   {
-    id: 'cold_exposure', name: 'Cold Exposure Protocol', description: 'Wim Hof inspired cold therapy to build willpower and resilience.',
-    type: 'protocol', cost: 350, exclusive: false,
-    protocolData: { title: 'Cold Exposure', desc: 'Wim Hof inspired cold therapy to build willpower and resilience.', type: 'willpower', stat: 'willpower', gain: 4, difficulty: 5, estDuration: '10 min/day', aiGenerated: false }
-  },
-  {
-    id: 'digital_detox', name: 'Digital Detox Protocol', description: 'Systematic reduction of screen time and digital dependency.',
+    id: 'calisthenics_foundation', name: 'Calisthenics Foundation', description: 'Master bodyweight control — push, pull, squat, plank.',
     type: 'protocol', cost: 200, exclusive: false,
-    protocolData: { title: 'Digital Detox', desc: 'Systematic reduction of screen time and digital dependency.', type: 'willpower', stat: 'willpower', gain: 2, difficulty: 2, estDuration: 'ongoing', aiGenerated: false }
+    protocolData: {
+      title: 'Calisthenics Foundation', desc: 'Do the foundation circuit: push-ups → rows → squats → plank. 3 rounds.', type: 'physical', stat: 'strength', gain: 2, difficulty: 1, estDuration: '25 min/day', aiGenerated: false, domain: 'body', tier: 1,
+      criteria: 'Circuit: push-ups (max), rows (5+), squats (15), plank (30s). Rest 2 min, repeat 2 more rounds.',
+      quest: { title: 'Bodyweight Circuit', description: 'Push-ups → Rows → Squats → Plank. 3 rounds. Track your max per round.', difficulty: 1, rewardCredits: 15, rewardExp: 20, stat: 'strength' }
+    }
   },
   {
-    id: 'agility_drill', name: 'Shadow Agility Protocol', description: 'Reaction time and agility drills inspired by combat training.',
+    id: 'endurance_base', name: 'Endurance Base', description: 'Build aerobic capacity — steady state and interval work.',
     type: 'protocol', cost: 300, exclusive: false,
-    protocolData: { title: 'Shadow Agility', desc: 'Reaction time and agility drills inspired by combat training.', type: 'agility', stat: 'agility', gain: 3, difficulty: 3, estDuration: '20 min/day', aiGenerated: false }
+    protocolData: {
+      title: 'Endurance Base', desc: '20 min steady cardio (run/row/bike) at conversational pace.', type: 'physical', stat: 'vitality', gain: 3, difficulty: 2, estDuration: '30 min/day', aiGenerated: false, domain: 'body', tier: 2,
+      criteria: '20 min steady cardio. You should be able to talk but not sing. Extend by 2 min each session.',
+      quest: { title: 'Steady Cardio: 20 min', description: '20 min cardio at conversational pace. No stopping. Feel your endurance grow.', difficulty: 2, rewardCredits: 20, rewardExp: 25, stat: 'vitality' }
+    }
+  },
+
+  // ════════════════════════════════════════
+  // MIND PROTOCOLS
+  // ════════════════════════════════════════
+  {
+    id: 'emotional_awareness', name: 'Emotional Awareness', description: 'Name your emotions as they happen — builds self-awareness.',
+    type: 'protocol', cost: 150, exclusive: false,
+    protocolData: {
+      title: 'Emotional Awareness', desc: 'Name 3 emotions you felt today. Write what triggered them.', type: 'mental', stat: 'willpower', gain: 2, difficulty: 1, estDuration: '10 min/day', aiGenerated: false, domain: 'mind', tier: 1,
+      criteria: 'Set 3 alarms. Each time: pause, name what you feel, write the trigger. Do this 3x today.',
+      quest: { title: 'Name Your Emotions', description: 'Pause 3 times today. Identify the emotion. Write the trigger.', difficulty: 1, rewardCredits: 15, rewardExp: 20, stat: 'willpower' }
+    }
   },
   {
-    id: 'social_aura', name: 'Social Aura Protocol', description: 'Charisma and communication skill-building exercises.',
-    type: 'protocol', cost: 350, exclusive: false,
-    protocolData: { title: 'Social Aura', desc: 'Charisma and communication skill-building exercises.', type: 'mental', stat: 'social', gain: 3, difficulty: 3, estDuration: '15 min/day', aiGenerated: false }
+    id: 'metacognition_training', name: 'Metacognition Training', description: 'Think about your thinking — plan, predict, review.',
+    type: 'protocol', cost: 200, exclusive: false,
+    protocolData: {
+      title: 'Metacognition', desc: 'Pick a task. Predict how long it will take. After, compare actual vs predicted.', type: 'mental', stat: 'intelligence', gain: 2, difficulty: 2, estDuration: '15 min/day', aiGenerated: false, domain: 'mind', tier: 1,
+      criteria: 'Pick 1 task. Write your predicted time. Do the task. Write actual time. Note the gap. Adjust next prediction.',
+      quest: { title: 'Predict vs Reality', description: 'Pick a task. Predict time. Do it. Compare. Adjust your next estimate.', difficulty: 2, rewardCredits: 20, rewardExp: 25, stat: 'intelligence' }
+    }
   },
+  {
+    id: 'emotion_regulation', name: 'Emotion Regulation', description: 'Pause, breathe, reframe — practical techniques for control.',
+    type: 'protocol', cost: 250, exclusive: false,
+    protocolData: {
+      title: 'Emotion Regulation', desc: 'When stressed: pause, take 4 deep breaths (4 in, 7 hold, 8 out), name the emotion.', type: 'mental', stat: 'willpower', gain: 3, difficulty: 2, estDuration: '5 min/day', aiGenerated: false, domain: 'mind', tier: 2,
+      criteria: 'When you feel stress or frustration: stop. 4-7-8 breathing (4 in, 7 hold, 8 out). Label the emotion. Continue.',
+      quest: { title: 'Pause & Regulate', description: 'Next time you feel stressed: stop, breathe 4-7-8, label the emotion, continue.', difficulty: 2, rewardCredits: 20, rewardExp: 25, stat: 'willpower' }
+    }
+  },
+  {
+    id: 'stoic_practice', name: 'Daily Stoic Practice', description: 'Control what you can, release what you can\'t — ancient wisdom.',
+    type: 'protocol', cost: 200, exclusive: false,
+    protocolData: {
+      title: 'Daily Stoic', desc: 'Write 1 thing you control and 1 you don\'t. Practice releasing the second.', type: 'mental', stat: 'willpower', gain: 2, difficulty: 1, estDuration: '5 min/day', aiGenerated: false, domain: 'mind', tier: 1,
+      criteria: 'Morning: write what you control vs what you don\'t. Throughout the day: catch yourself worrying about the uncontrollable. Release it.',
+      quest: { title: 'Dichotomy of Control', description: 'Write 1 thing you control and 1 you don\'t. Practice releasing the second.', difficulty: 1, rewardCredits: 15, rewardExp: 20, stat: 'willpower' }
+    }
+  },
+  {
+    id: 'memory_palace', name: 'Memory Palace Protocol', description: 'Advanced mnemonic techniques to enhance information retention.',
+    type: 'protocol', cost: 300, exclusive: false,
+    protocolData: {
+      title: 'Memory Palace', desc: 'Create a mental location and place items along a familiar route to recall later.', type: 'mental', stat: 'intelligence', gain: 3, difficulty: 3, estDuration: '20 min/day', aiGenerated: false, domain: 'mind', tier: 3,
+      criteria: 'Pick a familiar route (your home). Place 5 items you want to remember along the path. Walk it mentally to recall.',
+      quest: { title: 'Build a Memory Palace', description: 'Choose a route. Place 5 items along it. Mentally walk it to recall them all.', difficulty: 3, rewardCredits: 25, rewardExp: 35, stat: 'intelligence' }
+    }
+  },
+  {
+    id: 'charisma_lab', name: 'Charisma Lab', description: 'Active listening, storytelling, and social confidence drills.',
+    type: 'protocol', cost: 300, exclusive: false,
+    protocolData: {
+      title: 'Charisma Lab', desc: 'In your next conversation: listen more than you speak, ask 2 follow-up questions.', type: 'mental', stat: 'social', gain: 3, difficulty: 2, estDuration: 'practice daily', aiGenerated: false, domain: 'mind', tier: 2,
+      criteria: 'Next conversation: listen 80% of the time. Ask 2 follow-up questions. Summarize what they said before responding.',
+      quest: { title: 'Active Listening Drill', description: 'In your next conversation: listen 80%, ask 2 follow-ups, summarize before responding.', difficulty: 2, rewardCredits: 20, rewardExp: 25, stat: 'social' }
+    }
+  },
+
+  // ════════════════════════════════════════
+  // BOOKS
+  // ════════════════════════════════════════
+  {
+    id: 'book_starting_strength', name: 'Starting Strength', description: 'Mark Rippetoe — The essential manual for barbell training. 320 pages.',
+    type: 'book', cost: 200, exclusive: false,
+    protocolData: { title: 'Starting Strength', desc: 'The essential manual for barbell training technique.', type: 'reading', stat: 'strength', gain: 2, difficulty: 1, estDuration: '20 min/day', author: 'Mark Rippetoe', pages: 320, pagesRead: 0, bookStatus: 'reading', domain: 'body', tier: 1,
+      criteria: 'Read 10 pages. Note one technique cue you learned. Apply it in your next workout.',
+      quest: { title: 'Read: Starting Strength', description: 'Read 10 pages from Starting Strength. Note one technique cue.', difficulty: 1, rewardCredits: 15, rewardExp: 20 }
+    }
+  },
+  {
+    id: 'book_complete_calisthenics', name: 'Complete Calisthenics', description: 'Ashley Kalym — Ultimate bodyweight guide. 400 pages, 500+ photos.',
+    type: 'book', cost: 200, exclusive: false,
+    protocolData: { title: 'Complete Calisthenics', desc: 'Bodyweight exercise from beginner to advanced.', type: 'reading', stat: 'strength', gain: 2, difficulty: 1, estDuration: '20 min/day', author: 'Ashley Kalym', pages: 400, pagesRead: 0, bookStatus: 'reading', domain: 'body', tier: 1,
+      criteria: 'Read 10 pages and practice one new exercise from the chapter.',
+      quest: { title: 'Read: Complete Calisthenics', description: 'Read 10 pages. Learn and practice one new exercise.', difficulty: 1, rewardCredits: 15, rewardExp: 20 }
+    }
+  },
+  {
+    id: 'book_emotional_intelligence', name: 'Emotional Intelligence', description: 'Daniel Goleman — #1 bestseller on why EQ matters more than IQ. 384 pages.',
+    type: 'book', cost: 250, exclusive: false,
+    protocolData: { title: 'Emotional Intelligence', desc: 'Goleman\'s groundbreaking book on EQ.', type: 'reading', stat: 'willpower', gain: 3, difficulty: 2, estDuration: '20 min/day', author: 'Daniel Goleman', pages: 384, pagesRead: 0, bookStatus: 'reading', domain: 'mind', tier: 2,
+      criteria: 'Read 10 pages. Identify one EQ concept and apply it today.',
+      quest: { title: 'Read: Emotional Intelligence', description: 'Read 10 pages. Apply one EQ concept in real life today.', difficulty: 2, rewardCredits: 20, rewardExp: 25 }
+    }
+  },
+  {
+    id: 'book_daily_stoic', name: 'The Daily Stoic', description: 'Ryan Holiday — 366 daily meditations from Marcus Aurelius, Seneca, Epictetus.',
+    type: 'book', cost: 200, exclusive: false,
+    protocolData: { title: 'The Daily Stoic', desc: 'Daily Stoic meditations and reflections.', type: 'reading', stat: 'willpower', gain: 2, difficulty: 1, estDuration: '10 min/day', author: 'Ryan Holiday', pages: 416, pagesRead: 0, bookStatus: 'reading', domain: 'mind', tier: 1,
+      criteria: 'Read today\'s entry. Write one sentence on how to apply it.',
+      quest: { title: 'Read: The Daily Stoic', description: 'Read today\'s Stoic entry. Write one way to apply it.', difficulty: 1, rewardCredits: 15, rewardExp: 20 }
+    }
+  },
+  {
+    id: 'book_atomic_habits', name: 'Atomic Habits', description: 'James Clear — Habit architecture for lasting change. 320 pages.',
+    type: 'book', cost: 250, exclusive: false,
+    protocolData: { title: 'Atomic Habits', desc: 'Proven framework for building good habits and breaking bad ones.', type: 'reading', stat: 'intelligence', gain: 3, difficulty: 2, estDuration: '15 min/day', author: 'James Clear', pages: 320, pagesRead: 0, bookStatus: 'reading', domain: 'mind', tier: 2,
+      criteria: 'Read one chapter. Design one tiny habit you can start tomorrow (2 min version).',
+      quest: { title: 'Read: Atomic Habits', description: 'Read 1 chapter. Design one 2-minute habit to start tomorrow.', difficulty: 2, rewardCredits: 20, rewardExp: 25 }
+    }
+  },
+  {
+    id: 'book_thinking_fast_slow', name: 'Thinking, Fast and Slow', description: 'Daniel Kahneman — Nobel Prize winner on how your mind works. 512 pages.',
+    type: 'book', cost: 350, exclusive: false,
+    protocolData: { title: 'Thinking, Fast and Slow', desc: 'Kahneman\'s masterwork on cognitive biases and decision-making.', type: 'reading', stat: 'intelligence', gain: 4, difficulty: 3, estDuration: '20 min/day', author: 'Daniel Kahneman', pages: 512, pagesRead: 0, bookStatus: 'reading', domain: 'mind', tier: 3,
+      criteria: 'Read 10 pages. Identify one cognitive bias you noticed in yourself today.',
+      quest: { title: 'Read: Thinking Fast/Slow', description: 'Read 10 pages. Find one cognitive bias you experienced today.', difficulty: 3, rewardCredits: 25, rewardExp: 35 }
+    }
+  },
+  {
+    id: 'book_awaken_giant', name: 'Awaken the Giant Within', description: 'Tony Robbins — Master your emotions, body, and life. 544 pages.',
+    type: 'book', cost: 300, exclusive: false,
+    protocolData: { title: 'Awaken the Giant Within', desc: 'Robbins\' strategies for mastering emotions and achieving goals.', type: 'reading', stat: 'willpower', gain: 3, difficulty: 2, estDuration: '20 min/day', author: 'Tony Robbins', pages: 544, pagesRead: 0, bookStatus: 'reading', domain: 'mind', tier: 2,
+      criteria: 'Read 10 pages. Apply one strategy from the chapter immediately.',
+      quest: { title: 'Read: Awaken the Giant', description: 'Read 10 pages. Apply one strategy immediately.', difficulty: 2, rewardCredits: 20, rewardExp: 25 }
+    }
+  },
+  {
+    id: 'book_ultimate_conditioning', name: 'Ultimate Conditioning for Martial Arts', description: 'Loren Landow — UFC S&C coach\'s complete fighter conditioning system.',
+    type: 'book', cost: 350, exclusive: false,
+    protocolData: { title: 'Ultimate Conditioning', desc: 'Complete conditioning system for combat athletes.', type: 'reading', stat: 'agility', gain: 4, difficulty: 3, estDuration: '20 min/day', author: 'Loren Landow', pages: 360, pagesRead: 0, bookStatus: 'reading', domain: 'body', tier: 3,
+      criteria: 'Read 10 pages. Add one new drill or exercise from the chapter to your routine.',
+      quest: { title: 'Read: Ultimate Conditioning', description: 'Read 10 pages. Add one new drill from the book to your routine.', difficulty: 3, rewardCredits: 25, rewardExp: 35 }
+    }
+  },
+
+  // ════════════════════════════════════════
+  // POWER-UPS
+  // ════════════════════════════════════════
   {
     id: 'powerup_2x', name: 'x2 Gain Amplifier', description: 'Double all protocol sync gains for 24 hours.',
     type: 'powerup', cost: 150, exclusive: false,
