@@ -62,21 +62,25 @@ const Feedback = () => {
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({
           _subject: `[NEXUS Feedback] ${labelMap[category]}`,
+          _replyto: 'feedback@nexus.app',
           Category: labelMap[category],
           Message: message,
-          Timestamp: new Date().toLocaleString(),
         }),
       });
-      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+      const data = await res.json();
+      if (data.ok) {
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+      } else {
+        setSendError(data.error || 'Formspree error');
+      }
     } catch (err: any) {
-      setSendError('Could not send. Check your internet or try again.');
+      setSendError(err?.message || 'Could not send.');
     }
 
     setFeedbackList(prev => [newFeedback, ...prev]);
     setMessage('');
     setIsSubmitting(false);
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
   };
 
   const getCategoryIcon = (cat: FeedbackItem['category']) => {
