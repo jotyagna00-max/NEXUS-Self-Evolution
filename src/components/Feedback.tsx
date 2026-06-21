@@ -24,7 +24,7 @@ interface FeedbackItem {
 }
 
 const labelMap: Record<string, string> = { bug: 'Bug Report', feature: 'Feature Request', improvement: 'Improvement', other: 'Other' };
-const FORM_ENDPOINT = 'https://formsubmit.co/jotyagna00@gmail.com';
+const FORM_ENDPOINT = 'https://formspree.io/f/xykqgopw';
 
 const Feedback = () => {
   const [feedbackList, setFeedbackList] = useState<FeedbackItem[]>(() => {
@@ -36,7 +36,6 @@ const Feedback = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [sendError, setSendError] = useState('');
-  const [formReady, setFormReady] = useState(() => localStorage.getItem('formsubmit_verified') === 'true');
 
   useEffect(() => {
     localStorage.setItem('feedback', JSON.stringify(feedbackList));
@@ -63,16 +62,12 @@ const Feedback = () => {
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({
           _subject: `[NEXUS Feedback] ${labelMap[category]}`,
-          _template: 'table',
-          _captcha: 'false',
           Category: labelMap[category],
           Message: message,
           Timestamp: new Date().toLocaleString(),
         }),
       });
       if (!res.ok) throw new Error(`Server responded with ${res.status}`);
-      setFormReady(true);
-      localStorage.setItem('formsubmit_verified', 'true');
     } catch (err: any) {
       setSendError('Could not send. Check your internet or try again.');
     }
