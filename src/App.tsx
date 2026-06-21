@@ -78,7 +78,7 @@ const MenuOverlay = ({
       if (result?.version) currentVer = result.version;
 
       if (!result || !result.available) {
-        const res = await fetch('https://nexus-iota-beige.vercel.app/update/version.json', { signal: AbortSignal.timeout(5000) });
+        const res = await fetch('https://gist.githubusercontent.com/jotyagna00-max/5bbe4ebd4efadc7098259e62e830213b/raw/version.json', { signal: AbortSignal.timeout(5000) });
         const remote = await res.json();
         if (compareVersions(remote.latestVersion, currentVer) > 0) {
           result = { available: true, version: remote.latestVersion, url: remote.downloadUrl || '' };
@@ -88,7 +88,7 @@ const MenuOverlay = ({
       }
 
       if (result?.available) {
-        pushNotification({ id: 'update_found_' + Date.now(), type: 'level_up', title: `Update v${result.version} Available`, description: `Download from ${result.url || 'github.com/jotyagna00-max/NEXUS-Self-Evolution/releases'}`, timestamp: new Date().toISOString() });
+        pushNotification({ id: 'update_found_' + Date.now(), type: 'level_up', title: `Update v${result.version} Available`, description: `Download from ${result.url || 'github.com/jotyagna00-max/nexus-releases/releases'}`, timestamp: new Date().toISOString() });
       } else {
         pushNotification({ id: 'up_to_date_' + Date.now(), type: 'level_up', title: 'Up to Date', description: `Latest: v${result.version}`, timestamp: new Date().toISOString() });
       }
