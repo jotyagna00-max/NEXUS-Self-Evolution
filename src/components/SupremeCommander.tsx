@@ -45,6 +45,7 @@ const SupremeCommander: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   // Web Speech API setup
   const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
   const recognition = useRef<any>(null);
+  const handleVoiceCommandRef = useRef<(text: string) => Promise<void>>(async () => {});
 
   useEffect(() => {
     const initOrchestrator = async () => {
@@ -69,7 +70,7 @@ const SupremeCommander: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         setTranscript(text);
         
         if (event.results[0].isFinal) {
-          handleVoiceCommand(text);
+          handleVoiceCommandRef.current(text);
         }
       };
 
@@ -153,6 +154,7 @@ const SupremeCommander: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       setIsProcessing(false);
     }
   };
+  handleVoiceCommandRef.current = handleVoiceCommand;
 
   const toggleListening = () => {
     if (!recognition.current) {

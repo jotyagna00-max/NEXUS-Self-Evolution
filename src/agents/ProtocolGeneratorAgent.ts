@@ -108,17 +108,13 @@ export class ProtocolGeneratorAgent extends AgentBase {
 
   private async queryAI(systemPrompt: string, userPrompt: string): Promise<string> {
     try {
-      const response = await fetch('/api/agents/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ]})
-      });
-      if (!response.ok) throw new Error('API error');
-      const data = await response.json();
-      return data.response || data.content || JSON.stringify(data);
+      const { content } = await this.generateResponse(
+        systemPrompt,
+        userPrompt,
+        {},
+        { temperature: 0.7, max_tokens: 1024 }
+      );
+      return content;
     } catch {
       return this.generateFallbackResponse(userPrompt);
     }

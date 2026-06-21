@@ -11,6 +11,7 @@ import {
 } from './types';
 import { generateAgentResponse, streamAgentResponse, AgentType } from './services/agentService';
 import { generateTrainerResponse, streamTrainerResponse } from './services/trainerService';
+import { AgentOrchestrator } from './agents/AgentOrchestrator';
 
 const NC_PER_TASK = 10;
 const NC_PER_QUEST_BASE = 50;
@@ -105,6 +106,8 @@ interface GameContextType {
   consistency: ConsistencyData;
   recommendations: AgentRecommendation[];
   generateRecommendations: () => Promise<void>;
+  getAgentMotivation: () => Promise<string>;
+  getQuestGeneratorStatus: () => string;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -165,6 +168,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const saved = localStorage.getItem('nexus_recommendations');
     return saved ? JSON.parse(saved) : [];
   });
+
+  const orchestratorRef = useRef<AgentOrchestrator | null>(null);
+  const getOrchestrator = useCallback(() => {
+    if (!orchestratorRef.current) {
+      orchestratorRef.current = new AgentOrchestrator();
+      orchestratorRef.current.initialize().catch(() => {});
+    }
+    return orchestratorRef.current;
+  }, []);
 
   const [achievements, setAchievements] = useState<Achievement[]>(() => {
     const saved = localStorage.getItem('nexus_achievements');
@@ -562,6 +574,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('nexus_recommendations', JSON.stringify(recs.slice(0, 3)));
   }, [stats, consistency.score]);
 
+  const getAgentMotivation = useCallback(async () => {
+    try {
+      const orch = getOrchestrator();
+      const msg = await orch.generateMotivation({
+        stats, profile: userProfile, quests, enhancedQuests: [],
+        tasks,
+      });
+      return msg;
+    } catch {
+      return 'Keep pushing forward. Every action compounds into greatness.';
+    }
+  }, [stats, userProfile, quests, tasks, getOrchestrator]);
+
+  const getQuestGeneratorStatus = useCallback(() => {
+    try {
+      const orch = getOrchestrator();
+      return orch ? 'Online' : 'Standby';
+    } catch {
+      return 'Offline';
+    }
+  }, [getOrchestrator]);
+
   const generateProtocolQuests = useCallback(() => {
     const d = today();
     const ownedWithQuests = protocols.filter(p => p.quest && p.isStoreItem);
@@ -807,8 +841,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [stats]);
 
   const addHabit = (habit: Partial<Habit>) => {
+    const id = Date.now().toString();
+    const microQuests = (habit.microQuests || []).map(q => ({
+      ...q,
+      habitId: id
+    }));
     const newHabit: Habit = {
-      id: Date.now().toString(),
+      id,
       title: habit.title || 'New Habit',
       description: habit.description || '',
       type: habit.type || 'build',
@@ -816,11 +855,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       streak: 0,
       longestStreak: 0,
       lastCompletedDate: null,
-      microQuests: [],
+      microQuests,
       createdAt: now(),
       isAddiction: habit.isAddiction || false,
       weeklyTarget: habit.weeklyTarget || 5,
-      ...habit
     };
     setHabits(prev => [...prev, newHabit]);
   };
@@ -1023,7 +1061,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const mindProtocols = protocols.filter(p => p.type === 'mental' || p.type === 'reading');
       const otherProtocols = protocols.filter(p => !bodyProtocols.includes(p) && !mindProtocols.includes(p));
 
-      const pickRandom = <T,>(arr: T[]): T | null => arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : null;
+      const pickRandom = (arr: Protocol[]): Protocol | null => arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : null;
 
       const body = pickRandom(bodyProtocols);
       const mind = pickRandom(mindProtocols);
@@ -1251,7 +1289,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       readChapter, checkRifts, generateDailyTasks, purchaseStoreItem, setProStatus,
       pushNotification, dismissNotification,
       sendCommandToAgent, streamCommandToAgent,
-      sendTrainerRequest, streamTrainerRequest
+      sendTrainerRequest, streamTrainerRequest,
+      getAgentMotivation, getQuestGeneratorStatus
     }}>
       {children}
     </GameContext.Provider>
