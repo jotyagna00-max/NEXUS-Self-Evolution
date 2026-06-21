@@ -58,7 +58,7 @@ const MenuOverlay = ({
   const handleCheckUpdate = async () => {
     const api = (window as any).electronAPI;
     if (!api) {
-      pushNotification({ id: 'no_electron_' + Date.now(), type: 'level_up', title: 'Desktop App Only', description: 'Updates are only available in the desktop EXE version.', timestamp: new Date().toISOString() });
+      pushNotification({ id: 'no_electron_' + Date.now(), type: 'level_up', title: 'Desktop App Only', description: 'The update check only works inside the installed EXE. Download the latest version from nexus-iota-beige.vercel.app/download', timestamp: new Date().toISOString() });
       return;
     }
     setCheckingUpdate(true);
