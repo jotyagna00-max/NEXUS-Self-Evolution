@@ -55,20 +55,45 @@ const MenuOverlay = ({
   const { stats, consistency, pushNotification } = useGame();
   const [checkingUpdate, setCheckingUpdate] = useState(false);
 
-  const handleCheckUpdate = async () => {
-    const api = (window as any).electronAPI;
-    if (!api) {
-      pushNotification({ id: 'no_electron_' + Date.now(), type: 'level_up', title: 'Desktop App Only', description: 'The update check only works inside the installed EXE. Download the latest version from nexus-iota-beige.vercel.app/download', timestamp: new Date().toISOString() });
-      return;
+  const compareVersions = (a: string, b: string): number => {
+    const pa = a.split('.').map(Number);
+    const pb = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) {
+      if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+      if ((pa[i] || 0) < (pb[i] || 0)) return -1;
     }
+    return 0;
+  };
+
+  const handleCheckUpdate = async () => {
     setCheckingUpdate(true);
     try {
-      const result = await api.checkForUpdates();
-      if (!result?.available) {
-        pushNotification({ id: 'up_to_date_' + Date.now(), type: 'level_up', title: 'Up to Date', description: result?.version ? `Latest: v${result.version}` : 'NEXUS is up to date.', timestamp: new Date().toISOString() });
+      const api = (window as any).electronAPI;
+      let currentVer = '1.1.0';
+      let result = null;
+
+      if (api?.checkForUpdates) {
+        try { result = await api.checkForUpdates(); } catch {}
+      }
+      if (result?.version) currentVer = result.version;
+
+      if (!result || !result.available) {
+        const res = await fetch('https://nexus-iota-beige.vercel.app/update/version.json', { signal: AbortSignal.timeout(5000) });
+        const remote = await res.json();
+        if (compareVersions(remote.latestVersion, currentVer) > 0) {
+          result = { available: true, version: remote.latestVersion, url: remote.downloadUrl || '' };
+        } else {
+          result = { available: false, version: remote.latestVersion };
+        }
+      }
+
+      if (result?.available) {
+        pushNotification({ id: 'update_found_' + Date.now(), type: 'level_up', title: `Update v${result.version} Available`, description: `Download from ${result.url || 'github.com/jotyagna00-max/NEXUS-Self-Evolution/releases'}`, timestamp: new Date().toISOString() });
+      } else {
+        pushNotification({ id: 'up_to_date_' + Date.now(), type: 'level_up', title: 'Up to Date', description: `Latest: v${result.version}`, timestamp: new Date().toISOString() });
       }
     } catch {
-      pushNotification({ id: 'update_err_' + Date.now(), type: 'level_up', title: 'Update Check Failed', description: 'Could not reach update server.', timestamp: new Date().toISOString() });
+      pushNotification({ id: 'update_err_' + Date.now(), type: 'level_up', title: 'Update Check Failed', description: 'Could not reach update server. Check your internet connection.', timestamp: new Date().toISOString() });
     }
     setCheckingUpdate(false);
   };
