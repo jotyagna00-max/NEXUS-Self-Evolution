@@ -177,10 +177,9 @@ ipcMain.on('store:clear', () => {
 ipcMain.handle('app:get-version', () => app.getVersion());
 ipcMain.handle('app:get-platform', () => process.platform);
 
-const UPDATE_FALLBACK_URL = 'https://raw.githubusercontent.com/jotyagna00-max/NEXUS-Self-Evolution/main/electron/version.json';
 const UPDATE_URL = isDev
   ? `file://${path.join(__dirname, 'version.json')}`
-  : 'https://nexus-iota-beige.vercel.app/update/version.json';
+  : 'https://gist.githubusercontent.com/jotyagna00-max/5bbe4ebd4efadc7098259e62e830213b/raw/version.json';
 
 async function checkForUpdates() {
   const result = { available: false, version: app.getVersion(), url: '' };
@@ -197,7 +196,7 @@ async function checkForUpdates() {
     return result;
   }
 
-  const urls = [UPDATE_URL, UPDATE_FALLBACK_URL];
+  const urls = [UPDATE_URL];
   for (const url of urls) {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
