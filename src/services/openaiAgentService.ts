@@ -15,9 +15,15 @@ function getClient(): OpenAI {
 function parseApiError(err: any): Error {
   const msg = err?.message || err?.statusText || String(err);
   if (msg.includes('clipboard') || msg.includes('image input')) {
-    return new Error("This model does not support image input. Please send text only.");
+    return new Error("The AI model only supports text. Please send text messages only (no images or file attachments).");
   }
-  return new Error(msg);
+  if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('Unauthorized')) {
+    return new Error("API key is invalid or expired. Please update your NVIDIA API key in Neural Settings.");
+  }
+  if (msg.includes('429') || msg.includes('rate limit') || msg.includes('Too Many Requests')) {
+    return new Error("Too many requests. Please wait a moment before sending another message.");
+  }
+  return new Error(`AI service error: ${msg}`);
 }
 
 export async function generateOpenAIResponse(

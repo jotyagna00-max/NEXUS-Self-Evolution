@@ -33,6 +33,8 @@ import ConsistencyTracker from './components/ConsistencyTracker';
 import AgentBriefing from './components/AgentBriefing';
 import Profile from './components/Profile';
 import AscensionCeremony from './components/AscensionCeremony';
+import SplashScreen from './components/SplashScreen';
+import UpdateToast from './components/UpdateToast';
 import NotificationToast from './components/NotificationToast';
 import ParticleBackground from './components/ParticleBackground';
 
@@ -149,6 +151,7 @@ const Dashboard = () => {
       return daysSinceUpdate >= 7 ? i : -1;
     })
     .filter(i => i >= 0);
+  const [showSplash, setShowSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'trainer' | 'training' | 'quests' | 'feedback' | 'books' | 'store' | 'habits'>('overview');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -309,6 +312,11 @@ const Dashboard = () => {
 
     <AscensionCeremony show={showAscension} onComplete={() => { setShowAscension(false); }} />
 
+    <AnimatePresence>
+      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+    </AnimatePresence>
+
+    <UpdateToast />
     <NotificationToast />
     <ParticleBackground count={25} color="rgba(16,185,129,0.25)" speed={0.7} />
 
