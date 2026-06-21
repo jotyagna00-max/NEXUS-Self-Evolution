@@ -45,10 +45,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
   installUpdate: (installerPath) => ipcRenderer.invoke('update:install', installerPath),
 
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
-
-  sendFeedback: ({ category, label, message }) => ipcRenderer.invoke('feedback:send', { category, label, message }),
-
-  saveMailCredentials: (credentials) => ipcRenderer.invoke('feedback:save-credentials', credentials),
-
-  getMailCredentials: () => ipcRenderer.invoke('feedback:get-credentials'),
 });
