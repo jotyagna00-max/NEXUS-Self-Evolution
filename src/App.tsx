@@ -69,7 +69,7 @@ const MenuOverlay = ({
     setCheckingUpdate(true);
     try {
       const api = (window as any).electronAPI;
-      let currentVer = '1.1.0';
+      let currentVer = '1.2.0';
       let result = null;
 
       if (api?.checkForUpdates) {
