@@ -1,0 +1,6 @@
+{
+  "latestVersion": "1.2.0",
+  "downloadUrl": "https://github.com/jotyagna00-max/nexus-releases/releases/download/v1.2.0/NEXUS-Setup-1.2.0.exe",
+  "releaseNotes": "Added Formspree feedback agent - auto-sends categorized feedback to email. Proxied through local Express server.",
+  "minSchemaVersion": 1
+}

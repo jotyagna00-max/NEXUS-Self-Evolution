@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEXUS Self-Evolution</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-image:
+        radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.04) 0%, transparent 50%),
+        radial-gradient(circle at 80% 50%, rgba(59, 130, 246, 0.04) 0%, transparent 50%);
+    }
+    .container {
+      max-width: 520px;
+      padding: 40px 24px;
+      text-align: center;
+    }
+    .badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.3em;
+      color: rgba(16, 185, 129, 0.5);
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+      font-size: 36px;
+      letter-spacing: -0.02em;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    h1 span { color: #10b981; }
+    .subtitle {
+      font-size: 14px;
+      color: rgba(255,255,255,0.4);
+      line-height: 1.6;
+      margin-bottom: 40px;
+    }
+    .version-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+    .version-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 28px;
+      color: #10b981;
+      margin-bottom: 8px;
+    }
+    .version-label {
+      font-size: 11px;
+      color: rgba(255,255,255,0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      margin-bottom: 20px;
+    }
+    .release-notes {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      line-height: 1.6;
+      padding: 16px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 10px;
+      margin-bottom: 24px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 36px;
+      background: #10b981;
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: #059669; transform: translateY(-1px); }
+    .btn svg { width: 18px; height: 18px; }
+    .meta {
+      margin-top: 24px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.2);
+    }
+    .meta a { color: rgba(255,255,255,0.3); text-decoration: none; }
+    .meta a:hover { color: rgba(255,255,255,0.5); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="badge">▲ NEXUS CORE</div>
+    <h1>self-<span>evolution</span></h1>
+    <p class="subtitle">Tactical self-mastery dashboard. Your personal optimization system.</p>
+    <div class="version-card">
+      <div class="version-number">v1.2.0</div>
+      <div class="version-label">Latest Release</div>
+      <div class="release-notes" id="release-notes">Loading release notes...</div>
+      <a href="https://github.com/jotyagna00-max/nexus-releases/releases/download/v1.2.0/NEXUS-Setup-1.2.0.exe" class="btn" id="download-btn">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Download EXE (139 MB)
+      </a>
+    </div>
+    <div class="meta">
+      <a href="https://github.com/jotyagna00-max/nexus-releases">GitHub</a> &middot;
+      <a href="https://github.com/jotyagna00-max/nexus-releases/releases">All Releases</a>
+    </div>
+  </div>
+  <script>
+    fetch('/update/version.json')
+      .then(r => r.json())
+      .then(data => {
+        document.querySelector('.version-number').textContent = 'v' + data.latestVersion;
+        document.getElementById('release-notes').textContent = data.releaseNotes || 'No release notes.';
+        document.getElementById('download-btn').href = data.downloadUrl;
+      })
+      .catch(() => {
+        document.getElementById('release-notes').textContent = 'Formspree feedback agent, email delivery, update system.';
+      });
+  </script>
+</body>
+</html>
