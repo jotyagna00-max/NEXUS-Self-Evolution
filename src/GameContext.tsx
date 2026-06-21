@@ -108,6 +108,7 @@ interface GameContextType {
   generateRecommendations: () => Promise<void>;
   getAgentMotivation: () => Promise<string>;
   getQuestGeneratorStatus: () => string;
+  resetAllData: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -1269,6 +1270,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [stats, ascensionData]);
 
+  const resetAllData = useCallback(() => {
+    const keys = Object.keys(localStorage).filter(k =>
+      k.startsWith('nexus_') ||
+      k === 'stats' ||
+      k === 'selectedCharacter' ||
+      k === 'userProfile' ||
+      k === 'appPermissions'
+    );
+    keys.forEach(k => localStorage.removeItem(k));
+    window.location.reload();
+  }, []);
+
   return (
     <GameContext.Provider value={{
       stats, quests, tasks, appPermissions,
@@ -1290,7 +1303,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       pushNotification, dismissNotification,
       sendCommandToAgent, streamCommandToAgent,
       sendTrainerRequest, streamTrainerRequest,
-      getAgentMotivation, getQuestGeneratorStatus
+      getAgentMotivation, getQuestGeneratorStatus,
+      resetAllData
     }}>
       {children}
     </GameContext.Provider>

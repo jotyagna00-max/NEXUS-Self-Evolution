@@ -16,7 +16,8 @@ import {
   Book,
   ShoppingCart,
   Flame,
-  ArrowUpCircle
+  ArrowUpCircle,
+  Download
 } from 'lucide-react';
 import { GameProvider, useGame } from './GameContext';
 import HexGraph from './components/HexGraph';
@@ -51,7 +52,27 @@ const MenuOverlay = ({
   setActiveTab: (id: any) => void,
   tabs: any[],
 }) => {
-  const { stats, consistency } = useGame();
+  const { stats, consistency, pushNotification } = useGame();
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+
+  const handleCheckUpdate = async () => {
+    const api = (window as any).electronAPI;
+    if (!api) {
+      pushNotification({ id: 'no_electron_' + Date.now(), type: 'level_up', title: 'Desktop App Only', description: 'Updates are only available in the desktop EXE version.', timestamp: new Date().toISOString() });
+      return;
+    }
+    setCheckingUpdate(true);
+    try {
+      const result = await api.checkForUpdates();
+      if (!result?.available) {
+        pushNotification({ id: 'up_to_date_' + Date.now(), type: 'level_up', title: 'Up to Date', description: result?.version ? `Latest: v${result.version}` : 'NEXUS is up to date.', timestamp: new Date().toISOString() });
+      }
+    } catch {
+      pushNotification({ id: 'update_err_' + Date.now(), type: 'level_up', title: 'Update Check Failed', description: 'Could not reach update server.', timestamp: new Date().toISOString() });
+    }
+    setCheckingUpdate(false);
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -111,6 +132,22 @@ const MenuOverlay = ({
                 ))}
               </nav>
 
+              <button
+                onClick={handleCheckUpdate}
+                disabled={checkingUpdate}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all group border border-transparent text-white/40 hover:bg-emerald-500/10 hover:border-emerald-500/25 hover:text-emerald-400"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/5 text-white/30 group-hover:bg-emerald-500/15 group-hover:text-emerald-400 transition-all">
+                    <Download size={15} className={checkingUpdate ? 'animate-spin' : ''} />
+                  </div>
+                  <span className="font-display uppercase tracking-[0.2em] text-[10px]">
+                    {checkingUpdate ? 'Checking...' : 'Check for Update'}
+                  </span>
+                </div>
+                <ChevronRight size={13} className="text-white/20 group-hover:translate-x-1 group-hover:text-emerald-400 transition-transform" />
+              </button>
+
               <div className="h-px bg-gradient-to-r from-emerald-500/20 via-white/5 to-transparent" />
 
               <div className="grid grid-cols-2 gap-3">
@@ -140,7 +177,7 @@ const MenuOverlay = ({
 };
 
 const Dashboard = () => {
-  const { stats, quests, hasCompletedAssessment, customSkillSets, addCustomSkillSet, removeCustomSkillSet, userProfile, canAscend, performAscension, lastStatUpdates, consistency, recommendations, generateRecommendations } = useGame();
+  const { stats, quests, hasCompletedAssessment, customSkillSets, addCustomSkillSet, removeCustomSkillSet, userProfile, canAscend, performAscension, lastStatUpdates, consistency, recommendations, generateRecommendations, resetAllData } = useGame();
 
   useEffect(() => { generateRecommendations(); }, []);
   const statKeys: (keyof typeof stats)[] = ['strength', 'intelligence', 'agility', 'vitality', 'willpower', 'social'];
@@ -386,9 +423,9 @@ const Dashboard = () => {
 
           <div className="flex items-center gap-6">
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => { if (confirm('Terminate current session? All progress will be lost.')) resetAllData(); }}
               className="p-3 glass border-white/10 text-white/40 hover:text-red-500 hover:border-red-500/30 transition-all rounded-xl"
-              title="Reset Session"
+              title="Reset Session (Clears All Data)"
             >
               <LogOut size={20} />
             </button>

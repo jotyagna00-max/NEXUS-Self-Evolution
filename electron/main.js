@@ -120,7 +120,6 @@ async function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    checkForUpdates();
   });
 
   if (isDev) {
@@ -161,15 +160,18 @@ const UPDATE_URL = isDev
   : 'https://nexus-iota-beige.vercel.app/update/version.json';
 
 async function checkForUpdates() {
+  const result = { available: false, version: app.getVersion(), url: '' };
   if (isDev) {
     try {
       const local = JSON.parse(fs.readFileSync(path.join(__dirname, 'version.json'), 'utf-8'));
-      const current = app.getVersion();
-      if (compareVersions(local.latestVersion, current) > 0) {
-        mainWindow.webContents.send('update:available', local);
+      if (compareVersions(local.latestVersion, result.version) > 0) {
+        result.available = true;
+        result.version = local.latestVersion;
+        result.url = local.downloadUrl || local.url || '';
+        mainWindow.webContents.send('update:available', { version: result.version, url: result.url });
       }
     } catch {}
-    return;
+    return result;
   }
 
   const urls = [UPDATE_URL, UPDATE_FALLBACK_URL];
@@ -177,16 +179,23 @@ async function checkForUpdates() {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
       const remote = await res.json();
-      const current = app.getVersion();
-      if (compareVersions(remote.latestVersion, current) > 0) {
-        mainWindow.webContents.send('update:available', remote);
+      if (compareVersions(remote.latestVersion, result.version) > 0) {
+        result.available = true;
+        result.version = remote.latestVersion;
+        result.url = remote.downloadUrl || remote.url || '';
+        mainWindow.webContents.send('update:available', { version: result.version, url: result.url });
       }
-      return;
+      return result;
     } catch (e) {
       console.error(`Update check failed (${url}):`, e.message);
     }
   }
+  return result;
 }
+
+ipcMain.handle('update:check', async () => {
+  return await checkForUpdates();
+});
 
 function compareVersions(a, b) {
   const pa = a.split('.').map(Number);
