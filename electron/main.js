@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import net from 'net';
 import { fileURLToPath } from 'url';
+import { sendMail } from './mailer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;
@@ -198,6 +199,40 @@ async function checkForUpdates() {
 
 ipcMain.handle('update:check', async () => {
   return await checkForUpdates();
+});
+
+ipcMain.handle('feedback:send', async (event, { category, label, message }) => {
+  const creds = storeData['mail_credentials'];
+  if (!creds || !creds.user || !creds.pass) {
+    throw new Error('Mail agent not configured. Set up credentials first.');
+  }
+  const subject = `[NEXUS Feedback] ${label}`;
+  const text = [
+    `Category: ${label}`,
+    ``,
+    `Message:`,
+    `${message}`,
+    ``,
+    `---`,
+    `Submitted via NEXUS Self-Evolution Mail Agent`,
+  ].join('\n');
+  await sendMail({
+    from: creds.user,
+    to: 'jotyagna00@gmail.com',
+    subject,
+    text,
+    user: creds.user,
+    pass: creds.pass,
+  });
+});
+
+ipcMain.handle('feedback:save-credentials', (event, credentials) => {
+  storeData['mail_credentials'] = credentials;
+  saveStore();
+});
+
+ipcMain.handle('feedback:get-credentials', () => {
+  return storeData['mail_credentials'] || null;
 });
 
 function compareVersions(a, b) {

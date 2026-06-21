@@ -13,7 +13,21 @@ import {
   MessageSquare,
   Download,
   Upload,
+  Server,
+  Key,
+  Mail,
+  ChevronDown,
 } from 'lucide-react';
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      sendFeedback: (data: { category: string; label: string; message: string }) => Promise<void>;
+      saveMailCredentials: (creds: { user: string; pass: string }) => Promise<void>;
+      getMailCredentials: () => Promise<{ user: string; pass: string } | null>;
+    };
+  }
+}
 
 interface FeedbackItem {
   id: string;
@@ -32,18 +46,47 @@ const Feedback = () => {
   const [category, setCategory] = useState<FeedbackItem['category']>('improvement');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [mailCreds, setMailCreds] = useState<{ user: string; pass: string } | null>(null);
+  const [showMailSetup, setShowMailSetup] = useState(false);
+  const [mailUser, setMailUser] = useState('');
+  const [mailPass, setMailPass] = useState('');
+  const [mailError, setMailError] = useState('');
+  const isDesktop = typeof window.electronAPI !== 'undefined';
 
   useEffect(() => {
     localStorage.setItem('feedback', JSON.stringify(feedbackList));
   }, [feedbackList]);
 
+  useEffect(() => {
+    if (isDesktop) {
+      window.electronAPI!.getMailCredentials().then((creds) => {
+        if (creds) {
+          setMailCreds(creds);
+          setMailUser(creds.user);
+          setMailPass(creds.pass);
+        }
+      });
+    }
+  }, []);
+
   const labelMap: Record<string, string> = { bug: 'Bug Report', feature: 'Feature Request', improvement: 'Improvement', other: 'Other' };
+
+  const saveCreds = async () => {
+    if (!mailUser.includes('@') || !mailPass) return;
+    try {
+      await window.electronAPI!.saveMailCredentials({ user: mailUser, pass: mailPass });
+      setMailCreds({ user: mailUser, pass: mailPass });
+      setMailError('');
+      setShowMailSetup(false);
+    } catch { setMailError('Failed to save credentials'); }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
 
     setIsSubmitting(true);
+    setMailError('');
 
     const newFeedback: FeedbackItem = {
       id: Date.now().toString(),
@@ -53,11 +96,23 @@ const Feedback = () => {
       status: 'pending'
     };
 
-    const subject = encodeURIComponent(`[NEXUS Feedback] ${labelMap[category]}`);
-    const body = encodeURIComponent(
-      `Category: ${labelMap[category]}\n\nMessage:\n${message}\n\n---\nSubmitted via NEXUS Self-Evolution`
-    );
-    window.open(`mailto:jotyagna00@gmail.com?subject=${subject}&body=${body}`, '_blank');
+    if (isDesktop && mailCreds) {
+      try {
+        await window.electronAPI!.sendFeedback({
+          category,
+          label: labelMap[category],
+          message,
+        });
+      } catch (err: any) {
+        setMailError(err?.message || 'Mail agent failed');
+      }
+    } else {
+      const subject = encodeURIComponent(`[NEXUS Feedback] ${labelMap[category]}`);
+      const body = encodeURIComponent(
+        `Category: ${labelMap[category]}\n\nMessage:\n${message}\n\n---\nSubmitted via NEXUS Self-Evolution`
+      );
+      window.open(`mailto:jotyagna00@gmail.com?subject=${subject}&body=${body}`, '_blank');
+    }
 
     setFeedbackList(prev => [newFeedback, ...prev]);
     setMessage('');
@@ -96,7 +151,73 @@ const Feedback = () => {
             Communicate directly with the Nexus System architects. Share your thoughts, report anomalies, or suggest evolution enhancements to strengthen the core protocols.
           </p>
 
-          <p className="text-white/20 text-[10px] font-mono mb-8">Feedback is sent to <span className="text-emerald-400/60">jotyagna00@gmail.com</span> with category in subject.</p>
+          {/* Mail Agent */}
+          <div className="mb-8 p-6 rounded-3xl border border-white/5 bg-white/[0.02]">
+            <button
+              type="button"
+              onClick={() => setShowMailSetup(!showMailSetup)}
+              className="flex items-center gap-3 text-white/40 hover:text-white/70 transition-colors w-full"
+            >
+              <Server size={16} className={mailCreds ? 'text-emerald-400' : ''} />
+              <span className="text-[10px] font-display uppercase tracking-[0.3em]">
+                Mail Agent {mailCreds ? '✓ Active' : '(Not configured)'}
+              </span>
+              <ChevronDown size={14} className={`ml-auto transition-transform ${showMailSetup ? 'rotate-180' : ''}`} />
+            </button>
+            <AnimatePresence>
+              {showMailSetup && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-4 space-y-3 pt-4 border-t border-white/5">
+                    <p className="text-[10px] text-white/30 font-mono">
+                      Configure the Mail Agent to auto-send feedback to jotyagna00@gmail.com.
+                      Use a <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" className="text-emerald-400 hover:underline">Gmail App Password</a> (not your regular password).
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl px-4">
+                        <Mail size={14} className="text-white/20 shrink-0" />
+                        <input
+                          value={mailUser}
+                          onChange={e => setMailUser(e.target.value)}
+                          placeholder="your.email@gmail.com"
+                          className="w-full bg-transparent py-3 text-xs font-mono text-white/70 placeholder:text-white/10 focus:outline-none"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl px-4">
+                        <Key size={14} className="text-white/20 shrink-0" />
+                        <input
+                          type="password"
+                          value={mailPass}
+                          onChange={e => setMailPass(e.target.value)}
+                          placeholder="App Password (16 letters, no spaces)"
+                          className="w-full bg-transparent py-3 text-xs font-mono text-white/70 placeholder:text-white/10 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={saveCreds}
+                      disabled={!mailUser.includes('@') || !mailPass}
+                      className="text-[10px] font-display uppercase tracking-widest px-4 py-2 rounded-xl border border-white/10 text-white/40 hover:text-emerald-400 hover:border-emerald-500/30 transition-all disabled:opacity-30"
+                    >
+                      Save & Activate Agent
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {mailError && (
+            <div className="mb-6 px-6 py-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-mono flex items-center gap-2">
+              <AlertCircle size={14} />
+              {mailError}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-10">
             <div className="flex flex-wrap gap-4">
