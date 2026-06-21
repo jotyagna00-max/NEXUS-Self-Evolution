@@ -12,7 +12,10 @@ import {
   Lightbulb,
   MessageSquare,
   Download,
-  Upload
+  Upload,
+  Settings,
+  ExternalLink,
+  X
 } from 'lucide-react';
 
 interface FeedbackItem {
@@ -32,19 +35,42 @@ const Feedback = () => {
   const [category, setCategory] = useState<FeedbackItem['category']>('improvement');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [telegramToken, setTelegramToken] = useState(() => localStorage.getItem('nexus_telegram_token') || '');
+  const [telegramChatId, setTelegramChatId] = useState(() => localStorage.getItem('nexus_telegram_chat_id') || '');
+  const [showTelegramSetup, setShowTelegramSetup] = useState(!telegramToken || !telegramChatId);
+  const [telegramStatus, setTelegramStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
 
   useEffect(() => {
     localStorage.setItem('feedback', JSON.stringify(feedbackList));
   }, [feedbackList]);
+
+  useEffect(() => {
+    localStorage.setItem('nexus_telegram_token', telegramToken);
+  }, [telegramToken]);
+
+  useEffect(() => {
+    localStorage.setItem('nexus_telegram_chat_id', telegramChatId);
+  }, [telegramChatId]);
+
+  const testTelegram = async () => {
+    if (!telegramToken || !telegramChatId) return;
+    setTelegramStatus('testing');
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: telegramChatId, text: '✅ NEXUS feedback agent connected.', parse_mode: 'HTML' })
+      });
+      setTelegramStatus(res.ok ? 'ok' : 'fail');
+    } catch { setTelegramStatus('fail'); }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
 
     setIsSubmitting(true);
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
+
     const newFeedback: FeedbackItem = {
       id: Date.now().toString(),
       message: message,
@@ -52,6 +78,29 @@ const Feedback = () => {
       timestamp: new Date().toISOString(),
       status: 'pending'
     };
+
+    const emojiMap: Record<string, string> = { bug: '🐛', feature: '💡', improvement: '🔧', other: '📡' };
+    const labelMap: Record<string, string> = { bug: 'Bug Report', feature: 'Feature Request', improvement: 'Improvement', other: 'Other' };
+
+    const text = [
+      `<b>🚀 NEXUS Feedback</b>`,
+      `────────────────`,
+      `<b>Category:</b> ${emojiMap[category]} ${labelMap[category]}`,
+      `<b>Message:</b> ${message}`,
+      `<b>Time:</b> ${new Date().toLocaleString()}`
+    ].join('\n');
+
+    let sent = false;
+    if (telegramToken && telegramChatId) {
+      try {
+        const res = await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: telegramChatId, text, parse_mode: 'HTML' })
+        });
+        sent = res.ok;
+      } catch {}
+    }
 
     setFeedbackList(prev => [newFeedback, ...prev]);
     setMessage('');
@@ -89,6 +138,57 @@ const Feedback = () => {
           <p className="text-white/40 text-sm mb-12 max-w-xl font-tech leading-relaxed">
             Communicate directly with the Nexus System architects. Share your thoughts, report anomalies, or suggest evolution enhancements to strengthen the core protocols.
           </p>
+
+          {/* Telegram Setup */}
+          <div className="mb-8 p-6 rounded-3xl border border-white/5 bg-white/[0.02]">
+            <button
+              type="button"
+              onClick={() => setShowTelegramSetup(!showTelegramSetup)}
+              className="flex items-center gap-3 text-white/40 hover:text-white/70 transition-colors"
+            >
+              <Settings size={16} className={showTelegramSetup ? 'text-emerald-400' : ''} />
+              <span className="text-[10px] font-display uppercase tracking-[0.3em]">
+                Telegram Agent {telegramToken && telegramChatId ? '✓ Connected' : '(Not configured)'}
+              </span>
+              <X size={14} className={`ml-auto transition-transform ${showTelegramSetup ? 'rotate-45' : ''}`} />
+            </button>
+            <AnimatePresence>
+              {showTelegramSetup && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-4 space-y-3 pt-4 border-t border-white/5">
+                    <p className="text-[10px] text-white/30 font-mono">Send feedback to your Telegram. Create a bot via <a href="https://t.me/botfather" target="_blank" rel="noopener" className="text-emerald-400 hover:underline">@BotFather <ExternalLink size={10} className="inline" /></a> and get your chat ID from <a href="https://t.me/userinfobot" target="_blank" rel="noopener" className="text-emerald-400 hover:underline">@userinfobot <ExternalLink size={10} className="inline" /></a>.</p>
+                    <div className="flex flex-col gap-2">
+                      <input
+                        value={telegramToken}
+                        onChange={e => { setTelegramToken(e.target.value); setTelegramStatus('idle'); }}
+                        placeholder="Bot Token (e.g. 123456:ABC-DEF...)"
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-white/70 placeholder:text-white/10 focus:outline-none focus:border-emerald-500/50 transition-all"
+                      />
+                      <input
+                        value={telegramChatId}
+                        onChange={e => { setTelegramChatId(e.target.value); setTelegramStatus('idle'); }}
+                        placeholder="Chat ID (e.g. 123456789)"
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-white/70 placeholder:text-white/10 focus:outline-none focus:border-emerald-500/50 transition-all"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={testTelegram}
+                      disabled={!telegramToken || !telegramChatId || telegramStatus === 'testing'}
+                      className="text-[10px] font-display uppercase tracking-widest px-4 py-2 rounded-xl border border-white/10 text-white/40 hover:text-emerald-400 hover:border-emerald-500/30 transition-all disabled:opacity-30"
+                    >
+                      {telegramStatus === 'testing' ? 'Testing...' : telegramStatus === 'ok' ? '✅ Connected' : telegramStatus === 'fail' ? '❌ Connection Failed' : 'Test Connection'}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-10">
             <div className="flex flex-wrap gap-4">
