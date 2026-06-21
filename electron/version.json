@@ -1,5 +1,5 @@
 {
-  "latestVersion": "1.1.0",
+  "latestVersion": "1.2.0",
   "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/latest/download/NEXUS-Setup-1.1.0.exe",
   "releaseNotes": "Manual update button in main menu, logout clears all data, Splash boot animation, 3-section HabitLab, multi-agent orchestrator wiring.",
   "minSchemaVersion": 1
