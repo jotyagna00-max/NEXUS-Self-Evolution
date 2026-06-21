@@ -24,7 +24,7 @@ interface FeedbackItem {
 }
 
 const labelMap: Record<string, string> = { bug: 'Bug Report', feature: 'Feature Request', improvement: 'Improvement', other: 'Other' };
-const FORM_ENDPOINT = 'https://formspree.io/f/xykqgopw';
+const API_ENDPOINT = '/api/feedback/send';
 
 const Feedback = () => {
   const [feedbackList, setFeedbackList] = useState<FeedbackItem[]>(() => {
@@ -57,22 +57,17 @@ const Feedback = () => {
     };
 
     try {
-      const res = await fetch(FORM_ENDPOINT, {
+      const res = await fetch(API_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-          _subject: `[NEXUS Feedback] ${labelMap[category]}`,
-          _replyto: 'feedback@nexus.app',
-          Category: labelMap[category],
-          Message: message,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, label: labelMap[category], message }),
       });
       const data = await res.json();
       if (data.ok) {
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
       } else {
-        setSendError(data.error || 'Formspree error');
+        setSendError(data?.error || 'Failed to send');
       }
     } catch (err: any) {
       setSendError(err?.message || 'Could not send.');

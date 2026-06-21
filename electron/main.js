@@ -69,6 +69,26 @@ async function startServer() {
     }
   });
 
+  serverApp.post('/api/feedback/send', async (req, res) => {
+    const { category, label, message } = req.body;
+    try {
+      const response = await fetch('https://formspree.io/f/xykqgopw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          _subject: `[NEXUS Feedback] ${label}`,
+          email: 'user@nexus.app',
+          Category: label,
+          Message: message,
+        }),
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   if (isDev) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
