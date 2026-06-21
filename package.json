@@ -1,14 +1,37 @@
 {
-  "name": "react-example",
+  "name": "nexus-self-evolution",
   "private": true,
   "version": "1.1.0",
+  "description": "NEXUS Self-Evolution System",
+  "author": "Mindraxus <jotyagna00-max@users.noreply.github.com>",
+  "main": "electron/main.js",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "npx rimraf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "build:win": "npm run build && electron-builder --win"
+  },
+  "build": {
+    "appId": "com.nexus.self-evolution",
+    "productName": "NEXUS",
+    "directories": { "output": "release" },
+    "files": [ "dist/**/*", "electron/**/*", "package.json" ],
+    "win": {
+      "target": [ { "target": "nsis", "arch": [ "x64" ] } ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "createDesktopShortcut": true
+    }
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
