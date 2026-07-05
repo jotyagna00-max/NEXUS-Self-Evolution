@@ -44,81 +44,81 @@ const AgentDashboard: React.FC = () => {
 
   const agents: AgentStatus[] = [
     {
-      id: 'manager', name: 'NEURAL MANAGER',
+      id: 'manager', name: 'MANAGER',
       icon: Sparkles, color: 'text-emerald-400',
       status: 'Online',
-      task: 'System Orchestration',
-      details: `Operator: ${userProfile.name || 'Nexus'}. Synergy level: ${totalStats > 300 ? 'Optimal' : 'Building'}.`
+      task: 'Coordination',
+      details: `Welcome back, ${userProfile.name || 'there'}. ${totalStats > 300 ? 'All systems running strong.' : 'Building momentum.'}`
     },
     {
       id: 'sage', name: 'SAGE',
       icon: Brain, color: 'text-blue-400',
       status: stats.intelligence > 30 ? 'Active' : 'Monitoring',
-      task: 'Cognitive Enhancement',
-      details: `Intelligence: ${stats.intelligence}. ${stats.intelligence > 50 ? 'Peak cognitive performance.' : 'Neural pathways developing.'}`
+      task: 'Cognitive',
+      details: `Intelligence: ${stats.intelligence}. ${stats.intelligence > 50 ? 'Sharp mind.' : 'Growing steadily.'}`
     },
     {
       id: 'titan', name: 'TITAN',
       icon: Dumbbell, color: 'text-red-400',
       status: stats.strength > 30 ? 'Active' : 'Standby',
-      task: 'Physical Optimization',
-      details: `Strength: ${stats.strength}. ${stats.strength > 50 ? 'Muscular adaptation in progress.' : 'Baseline strength building.'}`
+      task: 'Physical',
+      details: `Strength: ${stats.strength}. ${stats.strength > 50 ? 'Solid foundation.' : 'Building base.'}`
     },
     {
       id: 'chronos', name: 'CHRONOS',
       icon: Clock, color: 'text-yellow-400',
       status: streakData.currentStreak > 3 ? 'Active' : 'Standby',
-      task: 'Temporal Optimization',
-      details: `Current streak: ${streakData.currentStreak}d. ${streakData.currentStreak > 7 ? 'Rhythm locked.' : 'Building temporal discipline.'}`
+      task: 'Temporal',
+      details: `Streak: ${streakData.currentStreak}d. ${streakData.currentStreak > 7 ? 'Rhythm locked.' : 'Building consistency.'}`
     },
     {
-      id: 'questGenerator', name: 'QUEST GENERATOR',
+      id: 'questGenerator', name: 'QUESTS',
       icon: Activity, color: 'text-purple-400',
       status: questGenStatus,
-      task: 'Quest Generation',
-      details: `Level ${progression.level} · Rank ${progression.rank} · ${totalStats} total stat points.`
+      task: 'Generation',
+      details: `Level ${progression.level} · Rank ${progression.rank} · ${totalStats} total points.`
     },
     {
-      id: 'statsMonitor', name: 'STATS MONITOR',
+      id: 'statsMonitor', name: 'STATS',
       icon: Monitor, color: 'text-green-400',
       status: 'Analyzing',
-      task: 'Performance Analytics',
-      details: `Level ${progression.level} · ${progression.exp}/${progression.expToNextLevel} XP to next rank.`
+      task: 'Analytics',
+      details: `Level ${progression.level} · ${progression.exp}/${progression.expToNextLevel} XP to next.`
     },
     {
-      id: 'progressTracker', name: 'PROGRESS TRACKER',
+      id: 'progressTracker', name: 'PROGRESS',
       icon: GitCommit, color: 'text-gray-400',
       status: 'Tracking',
-      task: 'Progress Analysis',
-      details: `Longest streak: ${streakData.longestStreak}d · Habits tracked: ${habits.length}`
+      task: 'History',
+      details: `Best streak: ${streakData.longestStreak}d · Habits: ${habits.length}`
     },
     {
       id: 'notifier', name: 'NOTIFIER',
       icon: MessageCircle, color: 'text-pink-400',
       status: 'Online',
-      task: 'Alert System',
-      details: `${activeHabits} active habits · ${addictions} addictions in recovery`
+      task: 'Alerts',
+      details: `${activeHabits} active habits · ${addictions} in recovery`
     },
     {
       id: 'motivator', name: 'MOTIVATOR',
       icon: Award, color: 'text-orange-400',
       status: motivation ? 'Ready' : 'Standby',
-      task: 'Motivational Support',
-      details: motivation ? 'Last insight loaded.' : 'Awaiting operator data...'
+      task: 'Support',
+      details: motivation ? 'Last insight loaded.' : 'Awaiting data...'
     },
     {
-      id: 'bookMastery', name: 'BOOK MASTERY',
+      id: 'bookMastery', name: 'BOOKS',
       icon: BookOpen, color: 'text-amber-700',
       status: 'Ready',
-      task: 'Knowledge Acquisition',
-      details: `${stats.intelligence} INT · Knowledge is power.`
+      task: 'Reading',
+      details: `${stats.intelligence} INT · Knowledge compounds.`
     },
     {
-      id: 'rewardPenalty', name: 'REWARD/PENALTY',
+      id: 'rewardPenalty', name: 'REWARDS',
       icon: Settings, color: 'text-gray-500',
       status: 'Balancing',
-      task: 'Incentive System',
-      details: `${credits} NC available · Reward circuits active.`
+      task: 'Incentives',
+      details: `${credits} NC available · Circuits active.`
     },
   ];
 
@@ -140,10 +140,10 @@ const AgentDashboard: React.FC = () => {
 
       <div className="p-6 bg-black/60 rounded-[40px] border border-white/10">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-display uppercase tracking-[0.3em] text-white">Agent Network Status</h2>
+          <h2 className="text-sm font-display uppercase tracking-[0.3em] text-white">Agent Network</h2>
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[8px] font-mono text-emerald-500/60 uppercase tracking-widest">All Systems Operational</span>
+            <span className="text-[8px] font-mono text-emerald-500/60 uppercase tracking-widest">All Online</span>
           </div>
         </div>
 
@@ -181,14 +181,14 @@ const AgentDashboard: React.FC = () => {
       </div>
 
       <div className="p-6 bg-black/60 rounded-[40px] border border-white/10">
-        <h2 className="text-sm font-display uppercase tracking-[0.3em] text-white mb-4">System Overview</h2>
+        <h2 className="text-sm font-display uppercase tracking-[0.3em] text-white mb-4">Overview</h2>
         <div className="grid grid-cols-2 gap-4 text-[9px] font-mono text-white/40">
           <div><span className="font-display">Active Agents:</span><span className="ml-2">{agents.filter(a => a.status !== 'Standby' && a.status !== 'Offline').length}/{agents.length}</span></div>
-          <div><span className="font-display">System Load:</span><span className="ml-2 text-emerald-400">Optimal</span></div>
-          <div><span className="font-display">Neural Sync:</span><span className="ml-2 text-emerald-400">{totalStats > 200 ? '98.4%' : '87.2%'}</span></div>
-          <div><span className="font-display">Response Time:</span><span className="ml-2 text-emerald-400">{habits.length > 0 ? '12ms' : '8ms'}</span></div>
+          <div><span className="font-display">Load:</span><span className="ml-2 text-emerald-400">Optimal</span></div>
+          <div><span className="font-display">Sync:</span><span className="ml-2 text-emerald-400">{totalStats > 200 ? '98%' : '87%'}</span></div>
+          <div><span className="font-display">Response:</span><span className="ml-2 text-emerald-400">{habits.length > 0 ? '12ms' : '8ms'}</span></div>
           <div><span className="font-display">Total Stats:</span><span className="ml-2 text-emerald-400">{totalStats}</span></div>
-          <div><span className="font-display">Current Streak:</span><span className="ml-2 text-emerald-400">{streakData.currentStreak}d</span></div>
+          <div><span className="font-display">Streak:</span><span className="ml-2 text-emerald-400">{streakData.currentStreak}d</span></div>
         </div>
       </div>
     </div>

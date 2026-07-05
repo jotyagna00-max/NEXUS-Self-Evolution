@@ -1,28 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Skull, Send, SkipForward, RotateCcw } from 'lucide-react';
 import { useGame } from '../GameContext';
 import {
   SHADOW_QUESTIONS,
-  ShadowQuestion,
   ShadowTag,
 } from '../services/shadowQuestions';
-import { ShadowChatEntry, ShadowMemory as ShadowMemoryT } from '../utils/shadowMemory';
+import { ShadowChatEntry } from '../utils/shadowMemory';
 import './ShadowChat.css';
 
-/**
- * ShadowChat – main UI for interacting with the Shadow agent.
- *
- * Behavior:
- *   1. 
- *   1. On first load, begins interrogation (if not yet completed).
- *   2. Shows one question at a time; user answers → advances index.
- *   3. Once interrogation completes → switches to free-form chat mode.
- *   4. Every turn (question answer or chat message) is persisted via
- *      appendShadowChat / recordShadowAnswer so the Shadow builds long-term memory.
- *   5. UI includes a badge that shows a one-line digest of what Shadow knows.
- */
-export const ShadowChat: React.FC = () => {
+const ShadowChat: React.FC = () => {
   const {
     shadowMemory,
+    stats,
     startShadowInterrogation,
     setShadowInterrogationIndex,
     recordShadowAnswer,
@@ -30,66 +20,18 @@ export const ShadowChat: React.FC = () => {
     shadowMemoryDigest,
     resetShadowMemory,
     markShadowInterrogationComplete,
+    streamCommandToAgent,
   } = useGame();
 
-  // Local UI state
   const [inputValue, setInputValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isChatMode, setIsChatMode] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(shadowMemory.interrogationCurrentIndex ?? 0);
+  const [isThinking, setIsThinking] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Simple placeholder response generator - in reality this would call the Shadow agent backend
-  const generateShadowResponse = useCallback((userInput: string, memory: ShadowMemoryT): string => {
-    const lowerInput = userInput.toLowerCase();
-    
-    // Simple pattern matching for demo purposes
-    if (lowerInput.includes('hello') || lowerInput.includes('hi')) {
-      return "State your purpose.";
-    }
-    if (lowerInput.includes('who are you') || lowerInput.includes('what are you')) {
-      return "I am SHADOW. I know what you hide.";
-    }
-    if (lowerInput.includes('help') || lowerInput.includes('lost')) {
-      return "The path forward is through discipline. State your weakness.";
-    }
-    if (lowerInput.includes('thank') || lowerInput.includes('thanks')) {
-      return "Do not thank me. Prove your worth through action.";
-    }
-    if (memory.answers?.callsign && lowerInput.includes(memory.answers.callsign.toLowerCase())) {
-      return `...you speak your designation. Continue.`;
-    }
-    
-    // Default responses - pull from memory if available
-    const aspirations = memory.answers?.identity_aspiration;
-    if (aspirations) {
-      return `You seek to ${aspirations.toLowerCase()}. Prove it.`;
-    }
-    
-    const weakSpot = memory.answers?.weak_spot;
-    if (weakSpot) {
-      return `Your ${weakSpot.toLowerCase()} will be exploited. Strengthen it.`;
-    }
-    
-    // Generic responses
-    const responses = [
-      "Continue.",
-      "Explain further.",
-      "Interesting.",
-      "Your weakness is noted.",
-      "State your objective.",
-      "Persistence is observed.",
-      "The system records this.",
-      "Affirmation requires evidence.",
-    ];
-    
-    return responses[Math.floor(Math.random() * responses.length)];
-  }, []);
-
-  // ------------------------------------------------------------------------
-  // Lifecycle – bootstrap interrogation on first visit
-  // ------------------------------------------------------------------------
+  // Bootstrap interrogation on first visit
   useEffect(() => {
-    // If interrogation never started and not complete → start it
     if (
       shadowMemory.interrogationStatus !== 'in_progress' &&
       shadowMemory.interrogationStatus !== 'complete'
@@ -98,9 +40,11 @@ export const ShadowChat: React.FC = () => {
     }
   }, [shadowMemory.interrogationStatus, startShadowInterrogation]);
 
-  // ------------------------------------------------------------------------
-  // Helpers
-  // ------------------------------------------------------------------------
+  // Auto-scroll on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [shadowMemory.exchanges, streamingText, isThinking]);
+
   const currentQuestion = (() => {
     const idx = shadowMemory.interrogationCurrentIndex ?? 0;
     return idx < SHADOW_QUESTIONS.length ? SHADOW_QUESTIONS[idx] : null;
@@ -108,6 +52,54 @@ export const ShadowChat: React.FC = () => {
 
   const isInterrogationActive =
     shadowMemory.interrogationStatus === 'in_progress' && !!currentQuestion;
+
+  const handleSendChatMessage = useCallback(async (message: string) => {
+    setIsThinking(true);
+    setStreamingText('');
+
+    const userEntry: ShadowChatEntry = {
+      id: Math.random().toString(36).substring(2, 9),
+      role: 'user',
+      text: message,
+      emotional: false,
+      timestamp: new Date().toISOString(),
+    };
+    appendShadowChat(shadowMemory, userEntry);
+
+    let fullResponse = '';
+
+    try {
+      await streamCommandToAgent(
+        'SHADOW',
+        message,
+        (chunk: string) => {
+          fullResponse += chunk;
+          setStreamingText(fullResponse);
+        }
+      );
+
+      const shadowEntry: ShadowChatEntry = {
+        id: Math.random().toString(36).substring(2, 9),
+        role: 'shadow',
+        text: fullResponse,
+        emotional: fullResponse.includes('!') || fullResponse.includes('?'),
+        timestamp: new Date().toISOString(),
+      };
+      appendShadowChat(shadowMemory, shadowEntry);
+    } catch {
+      const fallbackEntry: ShadowChatEntry = {
+        id: Math.random().toString(36).substring(2, 9),
+        role: 'shadow',
+        text: '...the link is unstable. Try again.',
+        emotional: false,
+        timestamp: new Date().toISOString(),
+      };
+      appendShadowChat(shadowMemory, fallbackEntry);
+    } finally {
+      setIsThinking(false);
+      setStreamingText('');
+    }
+  }, [shadowMemory, appendShadowChat, streamCommandToAgent]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,49 +111,18 @@ export const ShadowChat: React.FC = () => {
 
     try {
       if (isChatMode) {
-        // -------- Chat mode --------
-        // Append user message
-        const userEntry: ShadowChatEntry = {
-          id: Math.random().toString(36).substring(2, 9),
-          role: 'user',
-          text: value,
-          emotional: false, // TODO: simple sentiment detection
-          timestamp: new Date().toISOString(),
-        };
-        appendShadowChat(shadowMemory, userEntry);
-
-        // Generate Shadow response (placeholder until real agent integration)
-        const shadowResponse = generateShadowResponse(value, shadowMemory);
-        const shadowEntry: ShadowChatEntry = {
-          id: Math.random().toString(36).substring(2, 9),
-          role: 'shadow',
-          text: shadowResponse,
-          emotional: shadowResponse.includes('*') || shadowResponse.includes('!') || shadowResponse.includes('?'), // crude emotional detection
-          timestamp: new Date().toISOString(),
-        };
-        appendShadowChat(shadowMemory, shadowEntry);
+        await handleSendChatMessage(value);
       } else {
-        // -------- Interrogation mode --------
         if (!currentQuestion) {
           setIsSubmitting(false);
           return;
         }
 
-        // Record answer based on question type
-        let answer: string | string[] | undefined = value;
-        if (currentQuestion.kind === 'single' || currentQuestion.kind === 'multi') {
-          // For MC questions, value should be the selected option's value
-          answer = value; // Assume value is already the option value from UI
-        }
+        recordShadowAnswer(currentQuestion.tag as ShadowTag, value);
 
-        recordShadowAnswer(currentQuestion.tag as ShadowTag, answer);
-
-        // Advance to next question
         const nextIndex = (shadowMemory.interrogationCurrentIndex ?? 0) + 1;
         if (nextIndex >= SHADOW_QUESTIONS.length) {
-          // Interrogation complete
-          const callsign =
-            shadowMemory.answers?.callsign ?? 'Operator'; // fallback
+          const callsign = shadowMemory.answers?.callsign ?? 'Operator';
           markShadowInterrogationComplete(callsign);
           setIsChatMode(true);
         } else {
@@ -177,45 +138,84 @@ export const ShadowChat: React.FC = () => {
     isChatMode,
     shadowMemory,
     currentQuestion,
-    shadowMemory.interrogationCurrentIndex,
     recordShadowAnswer,
     setShadowInterrogationIndex,
-    appendShadowChat,
     markShadowInterrogationComplete,
-    generateShadowResponse,
+    handleSendChatMessage,
   ]);
 
-  // ------------------------------------------------------------------------
-  // Render
-  // ------------------------------------------------------------------------
+  const handleSkip = () => {
+    const nextIndex = (shadowMemory.interrogationCurrentIndex ?? 0) + 1;
+    if (nextIndex >= SHADOW_QUESTIONS.length) {
+      markShadowInterrogationComplete(null);
+      setIsChatMode(true);
+    } else {
+      setShadowInterrogationIndex(nextIndex);
+    }
+  };
+
   return (
     <div className="shadow-chat-container">
+      {/* Header */}
       <header className="shadow-chat-header">
-        <h2>SHADOW</h2>
-        <div className="shadow-memory-badge">{shadowMemoryDigest}</div>
-        <button
-          className="shadow-reset-btn"
-          onClick={() => {
-            if (window.confirm('Reset Shadow memory? This cannot be undone.')) {
-              resetShadowMemory();
-              window.location.reload();
-            }
-          }}
-        >
-          ⟲ Reset
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+            <Skull size={16} className="text-red-400" />
+          </div>
+          <div>
+            <h2 className="text-sm font-display font-bold uppercase tracking-[0.3em] text-white">
+              Shadow <span className="text-red-400">Interface</span>
+            </h2>
+            <span className="text-[8px] font-tech text-white/30 uppercase tracking-[0.2em]">Dark Mirror Protocol</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Memory badge */}
+          <div className="shadow-memory-badge">{shadowMemoryDigest}</div>
+          {/* Reset button */}
+          <button
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/5 text-white/30 hover:text-red-400 hover:border-red-500/20 hover:bg-red-500/5 transition-all text-[9px] font-tech uppercase tracking-wider"
+            onClick={() => {
+              if (window.confirm('Reset Shadow memory? This cannot be undone.')) {
+                resetShadowMemory();
+                window.location.reload();
+              }
+            }}
+          >
+            <RotateCcw size={10} />
+            Reset
+          </button>
+        </div>
       </header>
 
+      {/* Main chat area */}
       <main className="shadow-chat-main">
-        {isChatMode ? (
+        {!isChatMode ? (
+          /* Interrogation phase */
+          <div className="shadow-interrogation-prompt">
+            {currentQuestion?.framing && (
+              <p className="text-[10px] font-tech text-white/20 italic mb-2 tracking-wider">
+                {currentQuestion.framing}
+              </p>
+            )}
+            <p className="shadow-prompt">{currentQuestion?.prompt}</p>
+            {currentQuestion?.follow && (
+              <p className="text-[9px] font-tech text-white/40 italic mt-3">
+                {currentQuestion.follow}
+              </p>
+            )}
+          </div>
+        ) : (
+          /* Chat mode */
           <div className="shadow-chat-messages">
-            {/* Render conversation history */}
             {shadowMemory.exchanges.map((entry) => (
-              <div
+              <motion.div
                 key={entry.id}
-                className={`shadow-message shadow-message--${entry.role}${
-                  entry.emotional ? ' shadow-message--emotional' : ''
-                }`}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className={`shadow-message shadow-message--${entry.role}${entry.emotional ? ' shadow-message--emotional' : ''}`}
               >
                 <div className="shadow-message-content">{entry.text}</div>
                 <div className="shadow-message-time">
@@ -224,35 +224,55 @@ export const ShadowChat: React.FC = () => {
                     minute: '2-digit',
                   })}
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
-        ) : (
-          <div className="shadow-interrogation-prompt">
-            <p className="shadow-framing">{currentQuestion?.framing}</p>
-            <p className="shadow-prompt">{currentQuestion?.prompt}</p>
-          </div>
-        )}
 
-        {!isChatMode && currentQuestion?.follow && (
-          <p className="shadow-follow">{currentQuestion.follow}</p>
+            {/* Streaming indicator */}
+            <AnimatePresence>
+              {isThinking && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="shadow-message shadow-message--shadow"
+                >
+                  {streamingText ? (
+                    <div className="shadow-message-content">{streamingText}</div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-tech text-white/40 uppercase tracking-[0.3em]">Shadow analyzing</span>
+                      <div className="flex gap-1">
+                        <span className="thinking-dot" style={{ animationDelay: '0s' }}>.</span>
+                        <span className="thinking-dot" style={{ animationDelay: '0.2s' }}>.</span>
+                        <span className="thinking-dot" style={{ animationDelay: '0.4s' }}>.</span>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <div ref={messagesEndRef} />
+          </div>
         )}
       </main>
 
-      <form
-        className="shadow-chat-footer"
-        onSubmit={handleSubmit}
-        onReset={() => setInputValue('')}
-      >
+      {/* Footer input */}
+      <form className="shadow-chat-footer" onSubmit={handleSubmit} onReset={() => setInputValue('')}>
         {isChatMode ? (
           <textarea
             className="shadow-input"
-            placeholder="Type your message to Shadow..."
+            placeholder="Address the Shadow..."
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             rows={2}
-            maxLength={500}
-            disabled={isSubmitting}
+            maxLength={800}
+            disabled={isSubmitting || isThinking}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e as any);
+              }
+            }}
           />
         ) : (
           <>
@@ -280,9 +300,7 @@ export const ShadowChat: React.FC = () => {
                       disabled={isSubmitting}
                     />
                     <span>{opt.label}</span>
-                    {opt.hint && (
-                      <span className="shadow-option-hint">({opt.hint})</span>
-                    )}
+                    {opt.hint && <span className="shadow-option-hint">({opt.hint})</span>}
                   </label>
                 ))}
               </div>
@@ -294,7 +312,6 @@ export const ShadowChat: React.FC = () => {
                     <input
                       type="checkbox"
                       value={opt.value}
-                      // For simplicity, we store as comma-separated string
                       checked={inputValue.split(',').includes(opt.value)}
                       onChange={(e) => {
                         const vals = new Set(inputValue.split(',').map((v) => v.trim()));
@@ -305,9 +322,7 @@ export const ShadowChat: React.FC = () => {
                       disabled={isSubmitting}
                     />
                     <span>{opt.label}</span>
-                    {opt.hint && (
-                      <span className="shadow-option-hint">({opt.hint})</span>
-                    )}
+                    {opt.hint && <span className="shadow-option-hint">({opt.hint})</span>}
                   </label>
                 ))}
               </div>
@@ -315,39 +330,31 @@ export const ShadowChat: React.FC = () => {
           </>
         )}
 
-        <button
-          type="submit"
-          className={`shadow-submit-btn${isSubmitting ? ' shadow-submit-btn--loading' : ''}`}
-          disabled={isSubmitting}
-        >
-          {isChatMode ? 'Send' : 'Submit Answer'}
-        </button>
-        {!isChatMode && (
+        <div className="flex gap-2">
           <button
-            type="button"
-            className="shadow-skip-btn"
-            onClick={() => {
-              // Skip current question → advance to next
-              const nextIndex = (shadowMemory.interrogationCurrentIndex ?? 0) + 1;
-              if (nextIndex >= SHADOW_QUESTIONS.length) {
-                // Treat skip-all as complete with anonymous callsign
-                markShadowInterrogationComplete(null);
-                setIsChatMode(true);
-              } else {
-                setShadowInterrogationIndex(nextIndex);
-              }
-            }}
+            type="submit"
+            className={`shadow-submit-btn${isSubmitting || isThinking ? ' shadow-submit-btn--loading' : ''}`}
+            disabled={isSubmitting || isThinking}
           >
-            Skip Question
+            {isChatMode ? (
+              <span className="flex items-center justify-center gap-2">
+                <Send size={12} />
+                Send
+              </span>
+            ) : (
+              'Submit Answer'
+            )}
           </button>
-        )}
-        <button
-          type="reset"
-          className="shadow-clear-btn"
-          disabled={isSubmitting}
-        >
-          Clear
-        </button>
+          {!isChatMode && (
+            <button type="button" className="shadow-skip-btn" onClick={handleSkip}>
+              <SkipForward size={10} />
+              Skip
+            </button>
+          )}
+          <button type="reset" className="shadow-clear-btn" disabled={isSubmitting || isThinking}>
+            Clear
+          </button>
+        </div>
       </form>
     </div>
   );

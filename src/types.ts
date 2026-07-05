@@ -221,6 +221,8 @@ export interface AppNotification {
   description: string;
   icon?: string;
   reward?: { credits?: number; exp?: number };
+  /** If true, also fire as an OS-level notification in Electron. */
+  desktop?: boolean;
   timestamp: string;
 }
 

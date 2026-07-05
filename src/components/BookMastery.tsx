@@ -136,7 +136,7 @@ const BookMastery: React.FC = () => {
             <Book className="text-red-400 relative z-10" size={44} />
           </div>
           <div className="space-y-1">
-            <span className="text-red-500 font-display text-[10px] tracking-[0.3em] uppercase shadow-[0_0_15px_rgba(239,68,68,0.6)] block">Knowledge Acquisition</span>
+            <span className="text-red-500 font-display text-[10px] tracking-[0.3em] uppercase shadow-[0_0_15px_rgba(239,68,68,0.6)] block">Reading</span>
             <h2 className="text-5xl font-display font-black uppercase tracking-tighter text-white leading-none">Book Mastery</h2>
             <p className="text-[10px] text-white/30 font-mono tracking-wider">Credits: {credits} NC</p>
           </div>
@@ -267,8 +267,8 @@ const BookMastery: React.FC = () => {
               <div className="flex items-center gap-4 mb-8">
                 <Brain className="text-purple-400" size={32} />
                 <div>
-                  <h3 className="text-2xl font-display font-bold text-white uppercase tracking-widest">Knowledge Verification</h3>
-                  <p className="text-white/40 text-sm font-tech mt-1">SAGE is testing your comprehension of "{quizBook.title}"</p>
+                  <h3 className="text-2xl font-display font-bold text-white uppercase tracking-widest">Comprehension Check</h3>
+                  <p className="text-white/40 text-sm font-tech mt-1">Quick quiz on what you read "{quizBook.title}"</p>
                 </div>
                 <button onClick={closeQuiz} className="ml-auto text-white/40 hover:text-white transition-colors"><X size={24} /></button>
               </div>
@@ -283,7 +283,7 @@ const BookMastery: React.FC = () => {
                   {quizResult === 'pass' ? (
                     <>
                       <Award size={64} className="mx-auto text-yellow-400 mb-6" />
-                      <h4 className="text-3xl font-display font-black text-emerald-400 uppercase tracking-wider mb-4">Knowledge Verified</h4>
+                      <h4 className="text-3xl font-display font-black text-emerald-400 uppercase tracking-wider mb-4">Passed</h4>
                       <p className="text-white/60 font-tech mb-8">You have demonstrated mastery of this material.</p>
                       <div className="flex justify-center gap-8 mb-8">
                         <div className="text-center"><span className="text-2xl font-display font-black text-yellow-400">+200</span><p className="text-[10px] text-white/30 uppercase tracking-widest">NC Bonus</p></div>
@@ -294,7 +294,7 @@ const BookMastery: React.FC = () => {
                   ) : (
                     <>
                       <BookOpen size={64} className="mx-auto text-red-400 mb-6" />
-                      <h4 className="text-3xl font-display font-black text-red-400 uppercase tracking-wider mb-4">Review Required</h4>
+                      <h4 className="text-3xl font-display font-black text-red-400 uppercase tracking-wider mb-4">Try Again</h4>
                       <p className="text-white/60 font-tech mb-8">Your comprehension needs reinforcement. Re-read and try again.</p>
                     </>
                   )}
@@ -380,7 +380,7 @@ const BookMastery: React.FC = () => {
                       : 'bg-white/5 hover:bg-red-500 hover:text-black border-white/10 hover:border-red-500'
                   }`}>
                   {syncingId === book.id ? (
-                    <span className="flex items-center justify-center gap-2"><Target size={14} className="animate-pulse" /> Syncing...</span>
+                    <span className="flex items-center justify-center gap-2"><Target size={14} className="animate-pulse" /> Saving...</span>
                   ) : book.bookStatus === 'completed' ? (
                     <span className="flex items-center justify-center gap-2"><Award size={14} /> Mastered</span>
                   ) : 'Read Session'}

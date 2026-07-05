@@ -42,7 +42,7 @@ const QuestBoard: React.FC = () => {
             <Swords className="text-yellow-400 relative z-10" size={44} />
           </div>
           <div className="space-y-1">
-            <span className="text-yellow-500 font-display text-[10px] tracking-[0.3em] uppercase shadow-[0_0_15px_rgba(234,179,8,0.6)] block">Operational Objectives</span>
+            <span className="text-yellow-500 font-display text-[10px] tracking-[0.3em] uppercase shadow-[0_0_15px_rgba(234,179,8,0.6)] block">Your Objectives</span>
             <h2 className="text-5xl font-display font-black uppercase tracking-tighter text-white leading-none">Quest Board</h2>
           </div>
         </div>
@@ -180,7 +180,7 @@ const QuestBoard: React.FC = () => {
             {quests.length === 0 && (
               <div className="py-10 text-center border border-dashed border-white/10 rounded-3xl">
                 <Swords size={32} className="mx-auto text-white/10 mb-4" />
-                <p className="text-white/20 font-display uppercase tracking-widest text-xs">No active quests detected</p>
+                <p className="text-white/20 font-display uppercase tracking-widest text-xs">No active quests</p>
               </div>
             )}
           </div>
@@ -229,7 +229,7 @@ const QuestBoard: React.FC = () => {
             ))}
             {tasks.length === 0 && (
               <div className="py-10 text-center border border-dashed border-white/10 rounded-3xl">
-                <p className="text-white/20 font-display uppercase tracking-widest text-xs">No daily tasks assigned</p>
+                <p className="text-white/20 font-display uppercase tracking-widest text-xs">No daily tasks yet</p>
               </div>
             )}
           </div>

@@ -205,7 +205,7 @@ const InitialAssessment: React.FC = () => {
         setStep(s => s + 1);
       } else {
         setPhase('processing_physical');
-        setProcessingMessage('TITAN is analyzing your physical baseline...');
+        setProcessingMessage('Calculating your physical baseline...');
         await processPhysicalAssessment(updatedAnswers);
       }
     } else {
@@ -216,7 +216,7 @@ const InitialAssessment: React.FC = () => {
         setStep(s => s + 1);
       } else {
         setPhase('processing_cognitive');
-        setProcessingMessage('SAGE is evaluating your cognitive profile...');
+        setProcessingMessage('Evaluating your cognitive baseline...');
         await processCognitiveAssessment(updatedAnswers);
       }
     }
@@ -399,7 +399,7 @@ const InitialAssessment: React.FC = () => {
                 transition={{ duration: 0.8, delay: 1.4, ease: [0.23, 1, 0.32, 1] }}
               >
                 <h2 className="text-sm md:text-base font-display font-light uppercase tracking-[0.6em] text-emerald-400/40 mt-4">
-                  Self-Evolution System
+                  Self-Improvement Dashboard
                 </h2>
               </motion.div>
               <motion.div
@@ -431,9 +431,9 @@ const InitialAssessment: React.FC = () => {
                   <Cpu className="text-emerald-400" size={32} />
                 </div>
                 <div className="space-y-2">
-                  <span className="text-emerald-500 font-display text-[10px] tracking-[0.6em] uppercase glow-text-emerald">Initial Calibration Sequence</span>
+                  <span className="text-emerald-500 font-display text-[10px] tracking-[0.6em] uppercase glow-text-emerald">Initial Setup</span>
                   <h1 className="text-5xl font-display font-black text-white tracking-tighter uppercase leading-none">
-                    NEXUS is Testing You
+                    Let's Set Your Baseline
                   </h1>
                 </div>
               </motion.div>
@@ -458,7 +458,7 @@ const InitialAssessment: React.FC = () => {
                   </div>
                   <div className="space-y-2">
                     <div className="text-white text-2xl font-display font-bold uppercase tracking-tight">
-                      {processingAgent} is Analyzing
+                      Analyzing...
                     </div>
                     <p className="text-white/50 text-sm">{processingMessage}</p>
                   </div>
@@ -488,11 +488,11 @@ const InitialAssessment: React.FC = () => {
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
                       <span className={`text-[10px] uppercase tracking-[0.3em] font-display font-semibold ${phase === 'physical' ? 'text-orange-400' : 'text-blue-400'}`}>
-                        {phase === 'physical' ? 'TITAN // Physical Calibration' : 'SAGE // Cognitive Calibration'}
+                        {phase === 'physical' ? 'Physical Assessment' : 'Cognitive Assessment'}
                       </span>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className="text-[8px] text-white/20 uppercase tracking-widest font-display">System Integrity</span>
+                      <span className="text-[8px] text-white/20 uppercase tracking-widest font-display">Status</span>
                       <span className={`text-xs font-mono ${phase === 'physical' ? 'text-orange-400' : 'text-blue-400'}`}>STABLE</span>
                     </div>
                   </div>
@@ -566,7 +566,7 @@ const InitialAssessment: React.FC = () => {
                 className="mt-6 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-center"
               >
                 <p className="text-blue-300 text-xs font-display uppercase tracking-widest">
-                  Physical baseline calibrated. Initiating cognitive profiling...
+                  Physical baseline set. Moving to cognitive assessment...
                 </p>
               </motion.div>
             )}
@@ -586,8 +586,8 @@ const InitialAssessment: React.FC = () => {
                     <Target className="text-emerald-400" size={24} />
                   </div>
                   <div>
-                    <div className="text-white/30 text-[10px] uppercase tracking-[0.4em] font-display mb-1">Final Step — Operator Profile</div>
-                    <div className="text-white text-xl font-display font-bold uppercase tracking-tight">Configure Your Identity</div>
+                    <div className="text-white/30 text-[10px] uppercase tracking-[0.4em] font-display mb-1">Final Step — Your Profile</div>
+                    <div className="text-white text-xl font-display font-bold uppercase tracking-tight">Set Up Your Profile</div>
                   </div>
                 </div>
 
@@ -613,7 +613,7 @@ const InitialAssessment: React.FC = () => {
                   {profileStep === 'identity' && (
                     <motion.div key="identity" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                       <div>
-                        <label className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30 mb-2 block">Operator Designation</label>
+                        <label className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30 mb-2 block">Your Name</label>
                         <input
                           value={profileName}
                           onChange={e => setProfileName(e.target.value)}
@@ -622,7 +622,7 @@ const InitialAssessment: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30 mb-3 block">Archetype Alignment</label>
+                        <label className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30 mb-3 block">Choose Your Coach</label>
                         <div className="grid grid-cols-2 gap-3">
                           {[
                             { id: 'Ayanokoji', label: 'The Strategist', desc: 'Calculated, analytical, self-reliant' },
@@ -802,7 +802,7 @@ const InitialAssessment: React.FC = () => {
                       disabled={!profileName.trim()}
                       className="flex-1 py-4 rounded-2xl font-display text-sm uppercase tracking-[0.3em] font-bold transition-all bg-emerald-500 text-black disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_30px_rgba(16,185,129,0.3)]"
                     >
-                      Initialize Evolution System
+                      Start NEXUS
                     </motion.button>
                   )}
                 </div>

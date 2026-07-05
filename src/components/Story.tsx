@@ -30,10 +30,10 @@ const Story: React.FC = () => {
             <Scroll size={44} className="text-amber-400" />
           </div>
           <div className="space-y-1">
-            <span className="text-amber-500 font-display text-[10px] tracking-[0.3em] uppercase shadow-[0_0_15px_rgba(245,158,11,0.6)] block">Operator Lore</span>
+            <span className="text-amber-500 font-display text-[10px] tracking-[0.3em] uppercase shadow-[0_0_15px_rgba(245,158,11,0.6)] block">Story</span>
             <h2 className="text-5xl font-display font-black uppercase tracking-tighter text-white leading-none">Story Archive</h2>
             <p className="text-[10px] text-white/30 font-mono tracking-wider">
-              {chapters.filter(c => c.read).length} / {chapters.length} chapters transcribed
+              {chapters.filter(c => c.read).length} / {chapters.length} chapters Read
             </p>
           </div>
         </div>
@@ -98,7 +98,7 @@ const Story: React.FC = () => {
                 </div>
                 {isRead && (
                   <span className="text-[8px] font-display uppercase tracking-widest text-emerald-400 flex items-center gap-1">
-                    <Sparkles size={10} /> Transcribed
+                    <Sparkles size={10} /> Read
                   </span>
                 )}
               </div>
@@ -155,7 +155,7 @@ const Story: React.FC = () => {
                   onClick={() => setOpenChapter(null)}
                   className="w-full py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-display uppercase tracking-widest text-xs rounded-xl transition-all"
                 >
-                  Continue Calibration
+                  Continue
                 </button>
               </div>
             </motion.div>

@@ -16,26 +16,26 @@ export type Language = 'en' | 'ja';
 export const STRINGS: Record<Language, Record<string, string>> = {
   en: {
     // Top-level navigation (tabs)
-    'tab.overview':    'System Overview',
-    'tab.trainer':     'AI Trainer Coach',
-    'tab.training':    'Evolution Protocols',
-    'tab.quests':      'Destiny Quests',
-    'tab.story':       'Story Archive',
-    'tab.debrief':     'Mission Debrief',
-    'tab.books':       'Book Mastery',
-    'tab.habits':      'Habit Lab',
-    'tab.store':       'Nexus Store',
-    'tab.feedback':    'System Feedback',
-    'tab.changelog':   'View Changelog',
+    'tab.overview':    'Overview',
+    'tab.trainer':     'AI Coach',
+    'tab.training':    'Training',
+    'tab.quests':      'Quests',
+    'tab.story':       'Story',
+    'tab.debrief':     'Review',
+    'tab.books':       'Books',
+    'tab.habits':      'Habits',
+    'tab.store':       'Store',
+    'tab.feedback':    'Feedback',
+    'tab.changelog':   'Changelog',
 
     // Header
-    'header.systemAccess': 'System Access',
-    'header.neuralInterface': 'Neural Interface',
-    'header.manager':     'Manager',
-    'header.operatorFallback': 'Operator_Nexus',
-    'header.neuralSync':  'Neural Sync',
-    'header.securityLevel': 'Security Level',
-    'header.coreTemp':    'Core Temp',
+    'header.systemAccess': 'Menu',
+    'header.neuralInterface': 'Profile',
+    'header.manager':     'Coach',
+    'header.operatorFallback': 'Your Name',
+    'header.neuralSync':  'AI Status',
+    'header.securityLevel': 'Rank',
+    'header.coreTemp':    'Status',
 
     // Menu overlay
     'menu.main':          'Main Menu',
@@ -43,22 +43,22 @@ export const STRINGS: Record<Language, Record<string, string>> = {
     'menu.checking':      'Checking...',
 
     // Common buttons
-    'btn.addProtocol':    'Add Protocol',
+    'btn.addProtocol':    'Add Routine',
     'btn.logSession':     'Log Session',
-    'btn.logging':        'Logging...',
-    'btn.logReadSession': 'Log Read Session',
+    'btn.logging':        'Saving...',
+    'btn.logReadSession': 'Log Reading',
     'btn.mastered':       'Mastered',
     'btn.refresh':        'Refresh',
-    'btn.acknowledge':    'Acknowledge',
+    'btn.acknowledge':    'Got it',
     'btn.save':           'Save',
     'btn.cancel':         'Cancel',
     'btn.continue':       'Continue',
     'btn.viewChangelog':  'View full changelog',
 
     // Notifications
-    'notif.effortLogged.title': 'Effort Logged',
-    'notif.effortLogged.desc':  '{title} · +{gain} {stat} · Mirror updated',
-    'notif.restTokenSpent.title': 'Rest Token Spent',
+    'notif.effortLogged.title': 'Session Logged',
+    'notif.effortLogged.desc':  '{title} · +{gain} {stat} · Stats updated',
+    'notif.restTokenSpent.title': 'Rest Day Used',
     'notif.restTokenSpent.desc':  'Today is logged as rest. Streak window intact.',
     'notif.levelUp.title': 'Level Up! Now Level {level}',
     'notif.updateAvailable': 'Update v{version} Available',
@@ -69,22 +69,22 @@ export const STRINGS: Record<Language, Record<string, string>> = {
     'trainer.greeting.fallback': '{name}. Sit. We have work to do.',
 
     // Story Archive
-    'story.subtitle':     'Operator Lore',
+    'story.subtitle':     'Story',
     'story.title':        'Story Archive',
-    'story.progress':     '{read} / {total} chapters transcribed',
+    'story.progress':     '{read} / {total} chapters read',
     'story.locked':       'Locked. Requires Level {level}',
-    'story.transcribed':  'Transcribed',
+    'story.transcribed':  'Read',
 
     // Mission Debrief
-    'debrief.subtitle':   'End of Day',
-    'debrief.title':      'Mission Debrief',
+    'debrief.subtitle':   'Daily Review',
+    'debrief.title':      'Daily Review',
     'debrief.progress':   '{done} / {total} efforts logged today',
-    'debrief.manager':    'Manager',
-    'debrief.ackLabel':   'ACKNOWLEDGED',
-    'debrief.cleared':    'CLEARED',
-    'debrief.push':       'PUSH',
-    'debrief.wake':       'WAKE',
-    'debrief.complete':   'Debrief Logged',
+    'debrief.manager':    'Coach',
+    'debrief.ackLabel':   'Acknowledged',
+    'debrief.cleared':    'Rest Day',
+    'debrief.push':       'Push Day',
+    'debrief.wake':       'Wake Up',
+    'debrief.complete':   'Review Logged',
 
     // Calendar Heatmap
     'heatmap.title':      'Effort Heatmap',
@@ -117,13 +117,13 @@ export const STRINGS: Record<Language, Record<string, string>> = {
 
     // Profile
     'profile.title':      'Configure Profile',
-    'profile.archetypes': 'Manager Archetype',
+    'profile.archetypes': 'Coach Persona',
     'profile.save':       'Save Profile',
 
     // Feedback / export
-    'feedback.title':     'Direct Feedback',
-    'feedback.transmitting': 'Transmitting...',
-    'feedback.transmit':  'Initiate Transmission',
+    'feedback.title':     'Feedback',
+    'feedback.transmitting': 'Sending...',
+    'feedback.transmit':  'Send Feedback',
     'feedback.export.full': 'Export Full Backup',
     'feedback.export.csv': 'Export CSV',
     'feedback.export.section': 'Export {label}',

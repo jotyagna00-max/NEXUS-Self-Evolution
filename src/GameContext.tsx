@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import {
-  UserStats, UserProfile, Protocol, Quest, Task, StatType, ProtocolType,
+  UserStats, UserProfile, Protocol, Quest, Task, StatType, ProtocolType, QuestCategory,
   StreakData, Achievement, PenaltyRecord, Habit, MicroQuest,
   ActivePowerUp, Debuff, ShadowState, RaidBoss, AscensionData,
   NarrativeChapter, RiftSchedule, StoreItem, ProgressionState,
@@ -434,6 +434,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const pushNotification = useCallback((n: AppNotification) => {
     setNotifications(prev => [...prev.slice(-9), n]);
+    // Route desktop-worthy notifications to OS-level when running in Electron.
+    if (n.desktop) {
+      const api = (window as any).electronAPI;
+      if (api?.showNotification) {
+        api.showNotification({ title: n.title, body: n.description }).catch(() => {});
+      }
+    }
   }, []);
 
   const dismissNotification = useCallback((id: string) => {
@@ -564,7 +571,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       pushNotification({
         id: `proto_activated_${e.protocolId}_${Date.now()}`,
         type: 'achievement',
-        title: 'Protocol Locked In',
+        title: 'Routine Saved',
         description: `Strategic quest chain queued for ${e.kind} protocol. Open Quest Board.`,
         timestamp: new Date().toISOString(),
       });
@@ -658,6 +665,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setCharacter = async (name: string) => { setSelectedCharacter(name); };
   const setProtocol = async (id: string) => { setCurrentProtocolId(id); };
 
+  const STAT_KEYS = ['strength', 'intelligence', 'agility', 'vitality', 'willpower', 'social'] as const;
+
   const addProtocol = async (protocol: Partial<Protocol>) => {
     const newProtocol: Protocol = {
       id: Date.now().toString(),
@@ -669,6 +678,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...protocol
     };
     setProtocols(prev => [...prev, newProtocol]);
+
+    // HexaGraph coverage analysis
+    const updatedProtocols = [...protocols, newProtocol];
+    const coveredStats = new Set(updatedProtocols.map(p => p.stat).filter(Boolean));
+    const neglectedStats = STAT_KEYS.filter(s => !coveredStats.has(s));
+    const coveredList = STAT_KEYS.filter(s => coveredStats.has(s));
+
+    pushNotification({
+      id: 'coverage_' + Date.now(),
+      type: 'level_up',
+      title: 'Protocol Added: ' + newProtocol.title,
+      description: coveredStats.size >= STAT_KEYS.length
+        ? 'All 6 stat axes are now covered.'
+        : `Covered: ${coveredList.map(s => s[0].toUpperCase() + s.slice(1, 3)).join(', ')}. Neglected: ${neglectedStats.length > 0 ? neglectedStats.map(s => s[0].toUpperCase() + s.slice(1, 3)).join(', ') : 'none'}.${neglectedStats.length > 0 ? ' Consider protocols for these stats.' : ''}`,
+      timestamp: new Date().toISOString()
+    });
+
     // v1.4.0 — fan out to the agent mesh (QuestGen, BookMastery, etc.)
     publishEvent('protocol.activated', {
       protocolId: newProtocol.id,
@@ -723,6 +749,54 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...quest
     }]);
   };
+
+  const STAT_TO_CATEGORY: Record<string, QuestCategory> = {
+    strength: 'fitness',
+    intelligence: 'mental',
+    willpower: 'mental',
+    agility: 'fitness',
+    vitality: 'fitness',
+    social: 'social',
+  };
+
+  /** Spawn a daily quest targeting the Operator's weakest stat. */
+  const generateWeakPointQuest = useCallback(() => {
+    const todayKey = 'nexus_weak_point_quest_' + today();
+    if (localStorage.getItem(todayKey)) return; // already spawned today
+
+    const statValues = STAT_KEYS.map(stat => ({ stat, value: stats[stat as keyof UserStats] as number }));
+    statValues.sort((a, b) => a.value - b.value);
+    const weakest = statValues[0];
+    const secondWeakest = statValues[1];
+
+    const weakPointQuest: Partial<Quest> = {
+      title: `Fortify ${weakest.stat.charAt(0).toUpperCase() + weakest.stat.slice(1)}`,
+      description: `Daily weak-point drill. ${weakest.stat} is your lowest stat at ${weakest.value}. Complete one focused action to strengthen it.`,
+      type: 'daily',
+      category: STAT_TO_CATEGORY[weakest.stat] || 'mental',
+      difficulty: 2,
+      statAffected: weakest.stat,
+      rewardExp: EXP_PER_QUEST * 1.2,
+      rewardCredits: NC_PER_QUEST_BASE * 1.2,
+    };
+
+    addQuest(weakPointQuest);
+    localStorage.setItem(todayKey, 'done');
+
+    pushNotification({
+      id: 'weakpoint_' + Date.now(),
+      type: 'achievement',
+      title: 'Weak Point Detected',
+      description: `Daily quest generated for ${weakest.stat} (${weakest.value}). Next weakest: ${secondWeakest.stat} (${secondWeakest.value}).`,
+      desktop: true,
+      timestamp: new Date().toISOString(),
+    });
+  }, [stats, addQuest, pushNotification]);
+
+  // Daily weak-point quest generation on mount
+  useEffect(() => {
+    generateWeakPointQuest();
+  }, []);
 
   const recordEarning = useCallback((expDelta: number, creditsDelta: number) => {
     if (expDelta === 0 && creditsDelta === 0) return;
@@ -1157,6 +1231,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             type: 'level_up',
             title: 'Manager · Quest Complete',
             description: msg,
+            desktop: true,
             timestamp: now(),
           });
         }).catch(() => {});
@@ -1605,7 +1680,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { response: data.response, reasoning: data.reasoning, actions: [] };
     } catch (error: any) {
       console.error("Agent communication error:", error);
-      throw new Error(error.message || "Neural link unstable. Synchronization failed.");
+      throw new Error(error.message || "AI connection failed. Please try again.");
     }
   };
 
@@ -1631,7 +1706,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error: any) {
       console.error("Streaming agent error:", error);
-      throw new Error(error.message || "Neural link unstable.");
+      throw new Error(error.message || "AI connection failed.");
     }
   };
 

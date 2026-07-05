@@ -1,8 +1,7 @@
 /**
- * Onboarding — the "System Awakening" calibration gate.
+ * Onboarding — the "Awakening" calibration gate.
  *
- * Sits over the existing InitialAssessment to add the Solo-Leveling-style
- * cinematic + 3 calibration questions:
+ * Sits over the existing InitialAssessment to add a cinematic + 3 calibration questions:
  *
  *   QUERY 1 — callsign (drives agent personalization)
  *   QUERY 2 — tone of honesty (drives Shadow voice)
@@ -91,14 +90,14 @@ const SystemAwakening: React.FC<{ onDone: () => void }> = ({ onDone }) => {
               transition={{ duration: 1.4, ease: [0.83, 0, 0.17, 1] }}
               className="h-px w-48 bg-emerald-500 mb-12 origin-left"
             />
-            <motion.span
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6, duration: 0.5 }}
-              className="text-[10px] font-mono tracking-[0.4em] uppercase text-emerald-400 mb-4"
-            >
-              [SYSTEM INITIALIZING...]
-           </motion.span>
+<motion.span
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               transition={{ delay: 0.6, duration: 0.5 }}
+               className="text-[10px] font-mono tracking-[0.4em] uppercase text-emerald-400 mb-4"
+             >
+               [INITIALIZING...]
+            </motion.span>
             <motion.h1
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -107,16 +106,16 @@ const SystemAwakening: React.FC<{ onDone: () => void }> = ({ onDone }) => {
             >
               You have been selected.
            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.8, duration: 0.5 }}
-              className="text-[11px] font-tech text-white/40 mt-6 max-w-md"
-            >
-              Before the System can activate, it must calibrate to your vessel.
-              <br />
-              Answer truthfully. The System will know if you lie.
-           </motion.p>
+<motion.p
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               transition={{ delay: 1.8, duration: 0.5 }}
+               className="text-[11px] font-tech text-white/40 mt-6 max-w-md"
+             >
+               Before we begin, we need to calibrate to you.
+               <br />
+               Answer honestly. We'll know if you're not.
+            </motion.p>
             {bootReady && (
               <motion.button
                 initial={{ opacity: 0 }}
@@ -137,9 +136,9 @@ const SystemAwakening: React.FC<{ onDone: () => void }> = ({ onDone }) => {
             animate={{ opacity: 1, y: 0 }}
             className="relative z-10 max-w-lg w-full"
           >
-            <span className="text-[8px] font-mono tracking-[0.4em] uppercase text-emerald-400 block">SYSTEM QUERY #1</span>
+            <span className="text-[8px] font-mono tracking-[0.4em] uppercase text-emerald-400 block">QUERY #1</span>
             <h2 className="text-2xl font-display font-black uppercase text-white mt-3 mb-1">
-              What do they call you, Operator?
+              What should we call you?
            </h2>
             <p className="text-[10px] font-tech text-white/40 mb-6">
               This will be how the agents address you. Choose a name that means something.
@@ -173,9 +172,9 @@ const SystemAwakening: React.FC<{ onDone: () => void }> = ({ onDone }) => {
             animate={{ opacity: 1, y: 0 }}
             className="relative z-10 max-w-2xl w-full"
           >
-            <span className="text-[8px] font-mono tracking-[0.4em] uppercase text-emerald-400 block">SYSTEM QUERY #2</span>
+            <span className="text-[8px] font-mono tracking-[0.4em] uppercase text-emerald-400 block">QUERY #2</span>
             <h2 className="text-2xl font-display font-black uppercase text-white mt-3 mb-1">
-              How honest do you want the System to be?
+              How honest should we be?
            </h2>
             <p className="text-[10px] font-tech text-white/40 mb-6">
               This dials the Shadow&apos;s voice. You can change it anytime in Settings, but it&apos;s easier to pick now.
@@ -227,9 +226,9 @@ const SystemAwakening: React.FC<{ onDone: () => void }> = ({ onDone }) => {
             animate={{ opacity: 1, y: 0 }}
             className="relative z-10 max-w-xl w-full"
           >
-            <span className="text-[8px] font-mono tracking-[0.4em] uppercase text-emerald-400 block">SYSTEM QUERY #3 — FINAL</span>
+            <span className="text-[8px] font-mono tracking-[0.4em] uppercase text-emerald-400 block">QUERY #3 — FINAL</span>
             <h2 className="text-2xl font-display font-black uppercase text-white mt-3 mb-1">
-              If the Shadow wins in 30 days, what would you have lost?
+              What would you lose if you quit?
            </h2>
             <p className="text-[10px] font-tech text-white/40 mb-6">
               One sentence. We won&apos;t forget it. Your future self will read it during Penalty Zone.
@@ -251,7 +250,7 @@ const SystemAwakening: React.FC<{ onDone: () => void }> = ({ onDone }) => {
                 disabled={!whatWouldYouLose.trim()}
                 className="px-6 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/5 disabled:text-white/20 text-black font-display uppercase tracking-widest text-[10px]"
               >
-                Seal Calibration
+                Begin
              </button>
            </div>
          </motion.div>

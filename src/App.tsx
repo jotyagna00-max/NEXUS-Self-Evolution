@@ -11,7 +11,6 @@ import {
   X,
   MessageCircle,
   LogOut,
-  Brain,
   Hexagon,
   Book,
   ShoppingCart,
@@ -20,9 +19,7 @@ import {
   Download,
   Scroll,
   ClipboardList,
-  Cpu,
   Skull,
-  Shield,
 } from 'lucide-react';
 import { GameProvider, useGame } from './GameContext';
 import HexGraph from './components/HexGraph';
@@ -32,7 +29,6 @@ import TrainingHub from './components/TrainingHub';
 import InitialAssessment from './components/InitialAssessment';
 import BookMastery from './components/BookMastery';
 import Feedback from './components/Feedback';
-import PersonalizedTrainer from './components/PersonalizedTrainer';
 import NexusStore from './components/NexusStore';
 import HabitLab from './components/HabitLab';
 import ConsistencyTracker from './components/ConsistencyTracker';
@@ -49,9 +45,7 @@ import ChangelogPanel from './components/ChangelogPanel';
 import CalendarHeatmap from './components/CalendarHeatmap';
 import ManagerAvatar from './components/ManagerAvatar';
 import DailyBaseline from './components/DailyBaseline';
-import AgentConsole from './components/AgentConsole';
 import ShadowChat from './components/ShadowChat';
-import AppControlPanel from './components/AppControlPanel';
 import PenaltyZone from './components/PenaltyZone';
 import Onboarding from './components/Onboarding';
 import { ModelLoader } from './components/ModelLoader';
@@ -266,7 +260,7 @@ const Dashboard = () => {
     })
     .filter(i => i >= 0);
   const [showSplash, setShowSplash] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'trainer' | 'training' | 'quests' | 'feedback' | 'books' | 'store' | 'habits' | 'story' | 'debrief' | 'console' | 'shadow' | 'discipline'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'training' | 'quests' | 'feedback' | 'books' | 'store' | 'habits' | 'story' | 'debrief' | 'shadow'>('overview');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showSkillModal, setShowSkillModal] = useState(false);
@@ -279,19 +273,16 @@ const Dashboard = () => {
   }
 
   const tabs = [
-    { id: 'overview', label: 'System Overview', icon: LayoutDashboard },
-    { id: 'trainer', label: 'AI Trainer Coach', icon: Brain },
-    { id: 'training', label: 'Evolution Protocols', icon: Activity },
-    { id: 'quests', label: 'Destiny Quests', icon: Sword },
-    { id: 'story', label: 'Story Archive', icon: Scroll },
-    { id: 'debrief', label: 'Mission Debrief', icon: ClipboardList },
-    { id: 'books', label: 'Book Mastery', icon: Book },
-    { id: 'habits', label: 'Habit Lab', icon: Flame },
-    { id: 'store', label: 'Nexus Store', icon: ShoppingCart },
-    { id: 'console', label: 'Agent Console', icon: Cpu },
-    { id: 'shadow', label: 'Shadow Interface', icon: MessageCircle },
-    { id: 'discipline', label: 'Digital Discipline', icon: Shield },
-    { id: 'feedback', label: 'System Feedback', icon: MessageCircle },
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'training', label: 'Training', icon: Activity },
+    { id: 'quests', label: 'Quests', icon: Sword },
+    { id: 'story', label: 'Story', icon: Scroll },
+    { id: 'debrief', label: 'Review', icon: ClipboardList },
+    { id: 'books', label: 'Books', icon: Book },
+    { id: 'habits', label: 'Habits', icon: Flame },
+    { id: 'store', label: 'Store', icon: ShoppingCart },
+    { id: 'shadow', label: 'Shadow Chat', icon: Skull },
+    { id: 'feedback', label: 'Feedback', icon: MessageCircle },
   ];
 
   const addSkillToNewSet = () => {
@@ -468,15 +459,15 @@ const Dashboard = () => {
               className="group flex items-center gap-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 px-6 py-3 rounded-xl transition-all glow-emerald"
             >
               <Menu size={20} className="text-emerald-400 group-hover:rotate-90 transition-transform" />
-              <span className="font-display text-xs uppercase tracking-[0.3em] text-emerald-400">System Access</span>
+              <span className="font-display text-xs uppercase tracking-[0.3em] text-emerald-400">Menu</span>
             </button>
 
             <div className="flex items-center gap-6 border-l border-white/10 pl-10">
               <button onClick={() => setShowProfile(true)} className="flex items-center gap-4 group">
                 <div className="flex flex-col text-left">
-                  <span className="text-[8px] text-white/40 uppercase tracking-[0.3em] font-display">Neural Interface</span>
+                  <span className="text-[8px] text-white/40 uppercase tracking-[0.3em] font-display">Profile</span>
                   <span className="text-lg font-display font-black text-white glow-text-emerald uppercase group-hover:text-emerald-300 transition-colors">
-                    {userProfile.name || 'Operator_Nexus'}
+                    {userProfile.name || 'Your Name'}
                   </span>
                 </div>
                 <div className="w-12 h-12 rounded-xl glass border border-emerald-500/40 flex items-center justify-center relative overflow-hidden group/avatar">
@@ -493,7 +484,7 @@ const Dashboard = () => {
               {/* System Status Indicators */}
               <div className="hidden lg:flex items-center gap-8 ml-6 border-l border-white/10 pl-8">
                 <div className="flex flex-col">
-                  <span className="text-[8px] text-white/30 uppercase tracking-widest font-display mb-1">Neural Sync</span>
+                  <span className="text-[8px] text-white/30 uppercase tracking-widest font-display mb-1">AI Status</span>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((i) => (
                       <div key={i} className={`w-2 h-1 rounded-full ${i <= 4 ? 'bg-emerald-500 glow-emerald' : 'bg-white/10'}`} />
@@ -501,12 +492,8 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[8px] text-white/30 uppercase tracking-widest font-display mb-1">Security Level</span>
+                  <span className="text-[8px] text-white/30 uppercase tracking-widest font-display mb-1">Rank</span>
                   <span className="text-[10px] text-emerald-400 font-tech tracking-wider">OMEGA-7</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[8px] text-white/30 uppercase tracking-widest font-display mb-1">Core Temp</span>
-                  <span className="text-[10px] text-blue-400 font-tech tracking-wider">32.4°C</span>
                 </div>
               </div>
             </div>
@@ -514,7 +501,7 @@ const Dashboard = () => {
 
           <div className="flex items-center gap-6">
             <button
-              onClick={() => { if (confirm('Terminate current session? All progress will be lost.')) resetAllData(); }}
+              onClick={() => { if (confirm('Reset all data? This cannot be undone.')) resetAllData(); }}
               className="p-3 glass border-white/10 text-white/40 hover:text-red-500 hover:border-red-500/30 transition-all rounded-xl"
               title="Reset Session (Clears All Data)"
             >
@@ -620,7 +607,6 @@ const Dashboard = () => {
                   </div>
                 )}
 
-                {activeTab === 'trainer' && <PersonalizedTrainer />}
                 {activeTab === 'training' && <TrainingHub />}
                 {activeTab === 'quests' && <QuestBoard />}
                 {activeTab === 'story' && <Story />}
@@ -628,9 +614,7 @@ const Dashboard = () => {
                 {activeTab === 'books' && <BookMastery />}
                 {activeTab === 'habits' && <HabitLab />}
                 {activeTab === 'store' && <NexusStore />}
-                {activeTab === 'console' && <AgentConsole />}
                 {activeTab === 'shadow' && <ShadowChat />}
-                {activeTab === 'discipline' && <AppControlPanel />}
                 {activeTab === 'feedback' && <Feedback />}
               </motion.div>
             </AnimatePresence>

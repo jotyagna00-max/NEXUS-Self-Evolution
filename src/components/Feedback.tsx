@@ -143,13 +143,13 @@ const Feedback = () => {
           <div className="flex items-center gap-4 mb-8 border-b border-white/5 pb-6">
             <Shield size={32} className="text-emerald-500" />
             <div className="space-y-1">
-              <span className="text-emerald-500 font-display text-[10px] tracking-[0.4em] uppercase">System Communication</span>
+              <span className="text-emerald-500 font-display text-[10px] tracking-[0.4em] uppercase">Feedback</span>
               <h2 className="text-4xl font-display font-black uppercase tracking-tighter text-white">Direct Feedback</h2>
             </div>
           </div>
           
           <p className="text-white/40 text-sm mb-12 max-w-xl font-tech leading-relaxed">
-            Communicate directly with the Nexus System architects. Share your thoughts, report anomalies, or suggest evolution enhancements to strengthen the core protocols.
+            Communicate directly with the the NEXUS team. Share your thoughts, report anomalies, or suggest evolution enhancements to strengthen the the app.
           </p>
 
           {sendError && (

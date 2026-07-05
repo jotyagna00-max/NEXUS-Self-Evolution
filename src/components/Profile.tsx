@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Target, Dumbbell, Brain, Shield, Activity, Zap, TrendingUp, Save, ChevronRight, Edit3, Sword, Eye, Clock, Flame, Trophy, Swords, Star, X, Globe, Languages, Settings, Bell, Plus, Minus, Key, ExternalLink, EyeOff, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { User, Target, Dumbbell, Brain, Shield, Activity, Zap, TrendingUp, Save, ChevronRight, Edit3, Sword, Eye, Clock, Flame, Trophy, Swords, Star, X, Globe, Languages, Settings, Bell, Plus, Minus, Key, ExternalLink, EyeOff, Copy, Check, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { getSecure, setSecure, removeSecure, getSecureSync, SECURE_KEYS } from '../utils/secureStorage';
 import { useGame } from '../GameContext';
 import { HunterRank } from '../types';
 import { ARCHETYPES, ARCHETYPE_ORDER, getArchetype } from '../services/archetypes';
@@ -44,52 +45,63 @@ const StatBar: React.FC<{ label: string; value: number; color: string; icon: Rea
 );
 
 /**
- * Neural Settings — runtime management for the NVIDIA API key.
+ * AI Settings — runtime management for the NVIDIA API key.
  *
- * The key never leaves the browser. It's stored in `localStorage` under
- * `NVIDIA_API_KEY` and read on-demand by `openaiAgentService`. Rotate
- * the key any time by pasting a new one and clicking Save.
- *
- * Why not env-var-baked? Vite inlines `VITE_*` into the production
- * bundle. That would mean every Operator shares the same quota and the
- * same bill, and the key would be readable in the built JS. Putting
- * the key in localStorage at runtime keeps the app genuinely local-first.
+ * The key is stored securely using Electron's safeStorage when available,
+ * falling back to localStorage in development. It never leaves your device.
  */
 const NeuralSettingsPanel: React.FC = () => {
-  const [storedKey, setStoredKey] = useState<string>(() =>
-    typeof window !== 'undefined' ? localStorage.getItem('NVIDIA_API_KEY') || '' : '',
-  );
+  const [storedKey, setStoredKey] = useState<string>('');
   const [draft, setDraft] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getSecure(SECURE_KEYS.NVIDIA_API_KEY).then(key => {
+      setStoredKey(key || '');
+      setLoading(false);
+    });
+  }, []);
 
   const hasKey = !!storedKey;
   const masked = hasKey
     ? `${storedKey.slice(0, 7)}…${storedKey.slice(-4)}`
     : '';
 
-  const save = () => {
+  const save = async () => {
     const trimmed = draft.trim();
     if (!trimmed) return;
-    localStorage.setItem('NVIDIA_API_KEY', trimmed);
+    await setSecure(SECURE_KEYS.NVIDIA_API_KEY, trimmed);
     setStoredKey(trimmed);
     setDraft('');
     setSavedAt(Date.now());
   };
 
-  const clear = () => {
-    localStorage.removeItem('NVIDIA_API_KEY');
+  const clear = async () => {
+    await removeSecure(SECURE_KEYS.NVIDIA_API_KEY);
     setStoredKey('');
     setDraft('');
     setSavedAt(null);
   };
+
+  if (loading) {
+    return (
+      <div className="glass rounded-[32px] p-8 border border-white/10 mt-6" data-testid="neural-settings">
+        <div className="flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-emerald-500/30 border-t-transparent rounded-full animate-spin" />
+          <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">Loading secure storage...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="glass rounded-[32px] p-8 border border-white/10 mt-6" data-testid="neural-settings">
       <div className="flex items-center gap-3 mb-4">
         <Key size={18} className="text-blue-400" />
         <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">
-          Neural Settings
+          AI Settings
        </span>
         <div className="h-px flex-1 bg-white/5" />
         {hasKey ? (
@@ -183,7 +195,7 @@ const NeuralSettingsPanel: React.FC = () => {
 
       {savedAt && (
         <div className="mt-3 text-[9px] font-mono text-emerald-400">
-          ✓ Saved at {new Date(savedAt).toLocaleTimeString()}. Next agent call will use the new key.
+          ✓ Saved at {new Date(savedAt).toLocaleTimeString()}. Next chat will use this key.
        </div>
       )}
    </div>
@@ -321,12 +333,12 @@ const LocalLLMPanel: React.FC = () => {
           </div>
           {nativeStatus?.ready ? (
             <p className="text-[9px] font-tech text-white/40">
-              Phi-4-mini loaded in-app. All AI calls route through the bundled model.
+              Qwen2.5-2B loaded in-app. All AI calls route through the bundled model.
             </p>
           ) : nativeStatus?.downloading ? (
             <div>
               <p className="text-[9px] font-tech text-white/40 mb-2">
-                Downloading Phi-4-mini model ({nativeDlProgress}%)
+              Downloading Qwen2.5-2B model ({nativeDlProgress}%)
               </p>
               <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                 <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${nativeDlProgress}%` }} />
@@ -335,7 +347,7 @@ const LocalLLMPanel: React.FC = () => {
           ) : (
             <div className="flex items-center gap-3">
               <p className="text-[9px] font-tech text-white/40 flex-1">
-                {nativeStatus?.error ? `Error: ${nativeStatus.error}` : 'Download the Phi-4-mini model (~2.5 GB) to run fully offline.'}
+                {nativeStatus?.error ? `Error: ${nativeStatus.error}` : 'Download the Qwen2.5-2B model (~1.5 GB) to run fully offline.'}
               </p>
               <button
                 type="button"
@@ -461,7 +473,7 @@ const Profile: React.FC = () => {
       content: (
         <div className="space-y-6">
           <div>
-            <label className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30 mb-2 block">Operator Designation</label>
+            <label className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30 mb-2 block">Your Name</label>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name or callsign..."
               className="w-full bg-black/50 border border-white/10 rounded-2xl px-4 py-3 text-sm font-mono text-white/80 placeholder:text-white/20 focus:outline-none focus:border-emerald-500/50" />
           </div>
@@ -588,7 +600,7 @@ const Profile: React.FC = () => {
                 <User className="text-emerald-400" size={24} />
               </div>
               <div>
-                <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">Operator Profile</span>
+                <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">Your Profile</span>
                 <h2 className="text-xl font-display font-bold text-white uppercase tracking-tight">Configure Profile</h2>
               </div>
             </div>
@@ -673,7 +685,7 @@ const Profile: React.FC = () => {
             </div>
             <div>
               <h2 className="text-2xl font-display font-black text-white uppercase tracking-tight">
-                {userProfile.name || 'Operator_Nexus'}
+                {userProfile.name || 'Your Name'}
               </h2>
               <div className="flex items-center gap-3 mt-1">
                 <span className={`text-[9px] font-mono ${archetype.colorClass}/70`}>{archetype.shortLabel}</span>
@@ -742,7 +754,7 @@ const Profile: React.FC = () => {
       <div className="glass rounded-[32px] p-8 border border-white/10 mt-6">
         <div className="flex items-center gap-3 mb-6">
           <Eye size={18} className="text-emerald-400" />
-          <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">Operator Stats</span>
+          <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">Your Stats</span>
           <div className="h-px flex-1 bg-white/5" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -904,7 +916,7 @@ const Profile: React.FC = () => {
         </div>
       </div>
 
-      {/* Neural Settings — NVIDIA API key management */}
+      {/* AI Settings — NVIDIA API key management */}
       <NeuralSettingsPanel />
 
       {/* Local LLM — LM Studio / Ollama */}

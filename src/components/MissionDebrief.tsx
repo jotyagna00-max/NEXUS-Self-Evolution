@@ -14,25 +14,25 @@ const TONE_STYLES: Record<string, { border: string; glow: string; chip: string; 
     border: 'border-emerald-500/30',
     glow: 'shadow-[0_0_60px_rgba(16,185,129,0.08)]',
     chip: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    chipLabel: 'ACKNOWLEDGED',
+    chipLabel: 'Acknowledged',
   },
   rest: {
     border: 'border-blue-500/30',
     glow: 'shadow-[0_0_60px_rgba(59,130,246,0.08)]',
     chip: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-    chipLabel: 'CLEARED',
+    chipLabel: 'Rest Day',
   },
   push: {
     border: 'border-amber-500/30',
     glow: 'shadow-[0_0_60px_rgba(245,158,11,0.08)]',
     chip: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-    chipLabel: 'PUSH',
+    chipLabel: 'Push Day',
   },
   warn: {
     border: 'border-red-500/30',
     glow: 'shadow-[0_0_60px_rgba(239,68,68,0.08)]',
     chip: 'bg-red-500/15 text-red-400 border-red-500/30',
-    chipLabel: 'WAKE',
+    chipLabel: 'Wake Up',
   },
 };
 
@@ -95,13 +95,13 @@ const MissionDebrief: React.FC = () => {
         id: `debrief_${todayStr}_${refreshKey}`,
         type: 'level_up',
         title: 'Daily Debrief Available',
-        description: 'The Manager has logged your day. Open Mission Debrief.',
+        description: 'The Manager has logged your day. Open Daily Review.',
         timestamp: new Date().toISOString(),
       });
     }
   }, [showNewDebrief, dismissed, refreshKey, pushNotification, todayStr]);
 
-  // R-12 — automatic bi-weekly OS debrief push. Fires once when the cadence expires
+  // R-12 — automatic bi-weekly OS debrief Push Day. Fires once when the cadence expires
   // (and only when the panel is mounted, which is on first launch / dashboard open).
   useEffect(() => {
     if (!shouldFireDebrief(lastOsPushAt, 14)) return;
@@ -123,7 +123,7 @@ const MissionDebrief: React.FC = () => {
       localStorage.setItem('nexus_lastOsPushAt', nowIso);
       setLastOsPushAt(nowIso);
       setLastPushChannel(res.via);
-      // Always push to in-app as well so the operator can review inside NEXUS
+      // Always Push Day to in-app as well so the operator can review inside NEXUS
       if (res.via === 'in-app') {
         pushNotification(notif);
       }
@@ -162,8 +162,8 @@ const MissionDebrief: React.FC = () => {
             <MessageSquare size={44} className="text-purple-400" />
           </div>
           <div className="space-y-1">
-            <span className="text-purple-500 font-display text-[10px] tracking-[0.3em] uppercase shadow-[0_0_15px_rgba(168,85,247,0.6)] block">End of Day</span>
-            <h2 className="text-5xl font-display font-black uppercase tracking-tighter text-white leading-none">Mission Debrief</h2>
+            <span className="text-purple-500 font-display text-[10px] tracking-[0.3em] uppercase shadow-[0_0_15px_rgba(168,85,247,0.6)] block">Daily Review</span>
+            <h2 className="text-5xl font-display font-black uppercase tracking-tighter text-white leading-none">Daily Review</h2>
             <p className="text-[10px] text-white/30 font-mono tracking-wider">
               {completedToday}/{totalToday} efforts logged today
             </p>
@@ -181,7 +181,7 @@ const MissionDebrief: React.FC = () => {
             onClick={triggerManualPush}
             disabled={pushing}
             className="flex items-center gap-3 px-6 py-4 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 disabled:opacity-50 rounded-2xl text-purple-300 font-display text-xs uppercase tracking-widest transition-all"
-            title="Trigger an OS-level push notification (also fires in-app if OS unsupported)"
+            title="Trigger an OS-level Push Day notification (also fires in-app if OS unsupported)"
           >
             {pushing ? <BellRing size={16} className="animate-pulse" /> : <Bell size={16} />}
             Trigger OS Debrief
@@ -189,7 +189,7 @@ const MissionDebrief: React.FC = () => {
         </div>
         {lastPushChannel && (
           <span className="text-[9px] font-mono text-white/30 mt-2 block">
-            Last push channel: <span className={lastPushChannel === 'os' ? 'text-emerald-400' : 'text-amber-400'}>{lastPushChannel === 'os' ? 'OS notification fired' : 'in-app fallback (OS unsupported)'}</span>
+            Last Push Day channel: <span className={lastPushChannel === 'os' ? 'text-emerald-400' : 'text-amber-400'}>{lastPushChannel === 'os' ? 'OS notification fired' : 'in-app fallback (OS unsupported)'}</span>
           </span>
         )}
       </div>
@@ -207,13 +207,13 @@ const MissionDebrief: React.FC = () => {
             <div className="flex items-start gap-6 mb-8">
               <div className={`w-16 h-16 rounded-2xl flex items-center justify-center border ${
                 debrief.tone === 'warn' ? 'border-red-500/40 bg-red-500/10' :
-                debrief.tone === 'push' ? 'border-amber-500/40 bg-amber-500/10' :
+                debrief.tone === 'Push Day' ? 'border-amber-500/40 bg-amber-500/10' :
                 debrief.tone === 'rest' ? 'border-blue-500/40 bg-blue-500/10' :
                 'border-emerald-500/40 bg-emerald-500/10'
               }`}>
                 <Icon size={28} className={
                   debrief.tone === 'warn' ? 'text-red-400' :
-                  debrief.tone === 'push' ? 'text-amber-400' :
+                  debrief.tone === 'Push Day' ? 'text-amber-400' :
                   debrief.tone === 'rest' ? 'text-blue-400' :
                   'text-emerald-400'
                 } />
@@ -272,7 +272,7 @@ const MissionDebrief: React.FC = () => {
             </div>
             <h3 className="text-xl font-display font-bold text-white uppercase tracking-widest mb-2">Debrief Logged</h3>
             <p className="text-sm font-tech text-white/40 max-w-md mx-auto">
-              The Manager has acknowledged today's session. Come back after the next midnight for a fresh debrief.
+              The Manager has Acknowledged today's session. Come back after the next midnight for a fresh debrief.
             </p>
             <div className="mt-6 grid grid-cols-3 gap-4 max-w-md mx-auto">
               <div className="bg-white/[0.03] rounded-xl p-3 border border-white/5">

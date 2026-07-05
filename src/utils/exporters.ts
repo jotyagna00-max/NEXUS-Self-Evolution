@@ -204,7 +204,7 @@ export function exportCsvFlat(): void {
   }
 
   if (blocks.length === 0) {
-    blocks.push('# No operational data found in localStorage. Run a few protocols first.');
+    blocks.push('# No data found. Complete a few routines first.');
   }
 
   const today = new Date().toISOString().split('T')[0];

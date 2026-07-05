@@ -146,6 +146,25 @@ export async function* streamOpenAIResponse(
   if (local.enabled) {
     try {
       const model = local.model || undefined;
+      const isNativeLLM = !!(window as any).electronAPI && local.baseURL.includes('localhost:3000');
+
+      if (isNativeLLM) {
+        const completion = await getLocalClient(local.baseURL).chat.completions.create({
+          model: model ?? "",
+          messages,
+          temperature,
+          top_p,
+          max_tokens,
+          stream: false,
+        });
+        const content = completion.choices[0]?.message?.content ?? "";
+        if (content) {
+          onChunk?.(content);
+          yield content;
+        }
+        return;
+      }
+
       const stream = await getLocalClient(local.baseURL).chat.completions.create({
         model: model ?? "",
         messages,

@@ -37,10 +37,41 @@ async function startServer() {
   const serverApp = express();
   const PORT = 3000;
 
+  // CSP headers
+  serverApp.use((_req, res, next) => {
+    res.setHeader('Content-Security-Policy',
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src https://fonts.gstatic.com; " +
+      "connect-src 'self' http://localhost:1234 https://integrate.api.nvidia.com http://localhost:3000; " +
+      "img-src 'self' data:; " +
+      "media-src 'self'; " +
+      "object-src 'none'; " +
+      "base-uri 'self'; " +
+      "form-action 'self'; " +
+      "frame-ancestors 'none'; " +
+      "upgrade-insecure-requests;"
+    );
+    next();
+  });
+
   serverApp.use(express.json());
 
   serverApp.post('/api/feedback/send', async (req, res) => {
-    const { category, label, message } = req.body;
+    const { category, label, message } = req.body || {};
+
+    // Input validation
+    if (!label || typeof label !== 'string' || label.length > 100) {
+      return res.status(400).json({ error: 'Invalid label' });
+    }
+    if (!message || typeof message !== 'string' || message.length > 5000) {
+      return res.status(400).json({ error: 'Invalid message' });
+    }
+    if (category && (typeof category !== 'string' || category.length > 50)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+
     try {
       const response = await fetch('https://formspree.io/f/xykqgopw', {
         method: 'POST',

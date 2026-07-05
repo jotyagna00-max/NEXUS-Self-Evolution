@@ -47,7 +47,7 @@ const TrainingHub: React.FC = () => {
       id: `session_${p.id}_${Date.now()}`,
       type: 'level_up',
       title: 'Effort Logged',
-      description: `${p.title} · +${p.gain} ${p.stat.toUpperCase()} · Mirror updated`,
+      description: `${p.title} · +${p.gain} ${p.stat.toUpperCase()} · Stats updated`,
       timestamp: new Date().toISOString(),
     });
     setTimeout(() => setSyncingId(null), 1500);
@@ -94,7 +94,7 @@ const TrainingHub: React.FC = () => {
             <Zap className="text-emerald-400 relative z-10" size={44} />
           </div>
           <div className="space-y-1">
-            <span className="text-emerald-500 font-display text-[10px] tracking-[0.3em] uppercase shadow-[0_0_15px_rgba(16,185,129,0.6)] block">Evolution Protocols</span>
+            <span className="text-emerald-500 font-display text-[10px] tracking-[0.3em] uppercase shadow-[0_0_15px_rgba(16,185,129,0.6)] block">Training Plans</span>
             <h2 className="text-5xl font-display font-black uppercase tracking-tighter text-white leading-none">Training Hub</h2>
             <p className="text-[10px] text-white/30 font-mono tracking-wider">Credits: {credits} NC</p>
           </div>
@@ -106,7 +106,7 @@ const TrainingHub: React.FC = () => {
             className="flex items-center gap-3 px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-display text-xs uppercase tracking-widest transition-all group"
           >
             <Plus size={18} className="group-hover:rotate-90 transition-transform" />
-            Add Protocol
+            Add Routine
           </button>
         </div>
       </div>
@@ -123,7 +123,7 @@ const TrainingHub: React.FC = () => {
               <div className="flex justify-between items-center mb-8">
                 <div className="flex items-center gap-4">
                   <h3 className="text-xl font-display font-bold text-white uppercase tracking-widest">
-                    {newProtocol.type === 'reading' ? 'New Book Entry' : 'New Protocol Entry'}
+                    {newProtocol.type === 'reading' ? 'New Book Entry' : 'New Routine'}
                   </h3>
                   <button onClick={() => setShowPDFUpload(!showPDFUpload)}
                     className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-[9px] font-display text-emerald-400 uppercase tracking-widest transition-all">
@@ -210,7 +210,7 @@ const TrainingHub: React.FC = () => {
 
                   <button type="submit"
                     className="w-full py-5 bg-emerald-500 hover:bg-emerald-400 text-black rounded-2xl font-display font-bold text-sm uppercase tracking-[0.2em] transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)]">
-                    {newProtocol.type === 'reading' ? 'Add to Library' : 'Authorize Protocol'}
+                    {newProtocol.type === 'reading' ? 'Add to Library' : 'Save Routine'}
                   </button>
                 </div>
               </form>
@@ -325,7 +325,7 @@ const TrainingHub: React.FC = () => {
         })}
         {protocols.length === 0 && (
           <div className="col-span-full py-20 text-center">
-            <p className="text-white/20 font-display uppercase tracking-widest italic">No protocols authorized for this sector</p>
+            <p className="text-white/20 font-display uppercase tracking-widest italic">No routines added yet</p>
           </div>
         )}
       </div>

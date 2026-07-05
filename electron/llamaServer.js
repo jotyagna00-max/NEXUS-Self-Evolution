@@ -3,8 +3,8 @@ import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
 
-const MODEL_REPO = 'bartowski/Phi-4-mini-instruct-GGUF';
-const MODEL_FILE = 'Phi-4-mini-instruct-Q4_K_M.gguf';
+const MODEL_REPO = 'mradermacher/Qwen2.5-2B-Instruct-GGUF';
+const MODEL_FILE = 'Qwen2.5-2B-Instruct.Q4_K_M.gguf';
 const MODEL_DIR_NAME = 'llama-models';
 
 function getModelsDir() {

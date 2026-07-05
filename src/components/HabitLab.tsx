@@ -18,7 +18,7 @@ interface TabInfo {
 const TABS: TabInfo[] = [
   { id: 'builder', label: 'Habit Builder', icon: Sparkles, color: 'text-amber-400' },
   { id: 'tracker', label: 'Habit Tracker', icon: Activity, color: 'text-emerald-400' },
-  { id: 'destroyer', label: 'Addiction Destroyer', icon: AlertTriangle, color: 'text-red-400' },
+  { id: 'destroyer', label: 'Break Habits', icon: AlertTriangle, color: 'text-red-400' },
 ];
 
 const HabitLab: React.FC = () => {
@@ -135,7 +135,7 @@ const HabitLab: React.FC = () => {
             <Activity className="text-amber-400 relative z-10" size={36} />
           </div>
           <div className="space-y-1">
-            <span className="text-amber-500 font-display text-[10px] tracking-[0.3em] uppercase shadow-[0_0_15px_rgba(251,191,36,0.6)] block">Behavior Engineering</span>
+            <span className="text-amber-500 font-display text-[10px] tracking-[0.3em] uppercase shadow-[0_0_15px_rgba(251,191,36,0.6)] block">Habit Building</span>
             <h2 className="text-4xl font-display font-black uppercase tracking-tighter text-white leading-none">Habit Lab</h2>
             <p className="text-[10px] text-white/30 font-mono tracking-wider">Credits: {credits} NC</p>
           </div>
@@ -194,7 +194,7 @@ const HabitLab: React.FC = () => {
                           <h3 className="text-lg font-display font-bold text-white uppercase tracking-widest flex items-center gap-3">
                             <Sparkles size={18} className="text-amber-400" />
                             {newHabit.isAddiction ? 'Track Addiction' : 'New Habit'}
-                            {generatingQuests && <span className="text-[8px] text-amber-400/60 font-mono animate-pulse">AI generating micro-quests...</span>}
+                            {generatingQuests && <span className="text-[8px] text-amber-400/60 font-mono animate-pulse">Creating small steps...</span>}
                           </h3>
                           <button onClick={() => setIsAdding(false)} className="text-white/40 hover:text-white transition-colors"><X size={20} /></button>
                         </div>
@@ -305,7 +305,7 @@ const HabitLab: React.FC = () => {
               </div>
             )}
 
-            {/* Tab 2: Addiction Destroyer */}
+            {/* Tab 2: Break Habits */}
             {activeTab === 2 && (
               <div className="space-y-6">
                 <div className="flex items-center gap-3 mb-4">
