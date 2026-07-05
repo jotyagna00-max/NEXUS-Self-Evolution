@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import net from 'net';
 import { fileURLToPath } from 'url';
+import { NativeLLMServer } from './llamaServer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;
@@ -38,37 +39,6 @@ async function startServer() {
 
   serverApp.use(express.json());
 
-  serverApp.post('/api/community/sync', async (req, res) => {
-    const { content, authorName, type, timestamp } = req.body;
-    const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL;
-    if (!discordWebhookUrl) return res.json({ status: 'skipped', reason: 'webhook_not_configured' });
-    try {
-      const response = await fetch(discordWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: 'Nexus Core Community',
-          avatar_url: 'https://picsum.photos/seed/nexus/200/200',
-          embeds: [{
-            title: `New ${type.toUpperCase()} Transmission`,
-            description: content,
-            color: type === 'achievement' ? 0xFBBF24 : type === 'progress' ? 0x3B82F6 : 0x10B981,
-            fields: [
-              { name: 'Operator', value: authorName, inline: true },
-              { name: 'Sync Time', value: new Date(timestamp).toLocaleString(), inline: true },
-            ],
-            footer: { text: 'Nexus Core Neural Link' },
-          }],
-        }),
-      });
-      if (!response.ok) throw new Error(`Discord API responded with ${response.status}`);
-      res.json({ status: 'synced', platform: 'discord' });
-    } catch (error) {
-      console.error('Community Sync Error:', error);
-      res.status(500).json({ error: 'Failed to sync transmission.' });
-    }
-  });
-
   serverApp.post('/api/feedback/send', async (req, res) => {
     const { category, label, message } = req.body;
     try {
@@ -86,6 +56,35 @@ async function startServer() {
       res.json(data);
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // --- Native LLM (node-llama-cpp) OpenAI-compatible API ---
+  const llm = NativeLLMServer.getInstance();
+
+  serverApp.get('/v1/models', (_req, res) => {
+    const status = llm.getStatus();
+    res.json({
+      object: 'list',
+      data: status.modelExists ? [{
+        id: status.modelFile,
+        object: 'model',
+        created: Math.floor(Date.now() / 1000),
+        owned_by: 'local',
+      }] : [],
+    });
+  });
+
+  serverApp.post('/v1/chat/completions', express.json({ limit: '2mb' }), async (req, res) => {
+    if (!llm.ready) {
+      return res.status(503).json({ error: 'LLM not ready', status: llm.getStatus() });
+    }
+    try {
+      const { messages, temperature, top_p, max_tokens } = req.body;
+      const result = await llm.chatCompletion(messages, { temperature, top_p, max_tokens });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
   });
 
@@ -147,9 +146,21 @@ async function createWindow() {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
-  createWindow();
+  await createWindow();
+
+  // Auto-initialize native LLM if model already downloaded
+  const llm = NativeLLMServer.getInstance();
+  if (llm.modelExists()) {
+    llm.initialize()
+      .then(() => {
+        mainWindow?.webContents.send('llm:status-change', llm.getStatus());
+      })
+      .catch(err => {
+        console.error('Failed to auto-init native LLM:', err.message);
+      });
+  }
 });
 
 app.on('window-all-closed', () => {
@@ -277,4 +288,60 @@ ipcMain.handle('update:install', async (event, installerPath) => {
     if (err) console.error('Failed to launch installer:', err);
   });
   app.quit();
+});
+
+// R-12 — Bi-weekly OS-level debrief pushes
+ipcMain.handle('notification:show', async (event, payload) => {
+  try {
+    const { Notification } = await import('electron');
+    if (!Notification || !Notification.isSupported()) {
+      return { supported: false };
+    }
+    const n = new Notification({
+      title: String(payload?.title || 'NEXUS'),
+      body: String(payload?.body || ''),
+      silent: false,
+      urgency: 'normal',
+    });
+    n.on('click', () => {
+      try {
+        mainWindow?.show();
+        mainWindow?.focus();
+        mainWindow?.webContents.send('notification:clicked', payload);
+      } catch {}
+    });
+    n.show();
+    return { supported: true, shown: true };
+  } catch (e) {
+    return { supported: false, error: e.message };
+  }
+});
+
+ipcMain.handle('app:check-debrief-cadence', async () => {
+  return { lastDebriefAt: null, shouldRun: false };
+});
+
+// --- Native LLM IPC ---
+ipcMain.handle('llm:get-status', () => {
+  return NativeLLMServer.getInstance().getStatus();
+});
+
+ipcMain.handle('llm:download', async () => {
+  try {
+    await NativeLLMServer.getInstance().downloadModel((pct) => {
+      mainWindow?.webContents.send('llm:download-progress', pct);
+    });
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('llm:initialize', async () => {
+  try {
+    await NativeLLMServer.getInstance().initialize();
+    return { success: true, status: NativeLLMServer.getInstance().getStatus() };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
