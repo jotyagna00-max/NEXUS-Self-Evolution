@@ -17,7 +17,12 @@ import {
   ShoppingCart,
   Flame,
   ArrowUpCircle,
-  Download
+  Download,
+  Scroll,
+  ClipboardList,
+  Cpu,
+  Skull,
+  Shield,
 } from 'lucide-react';
 import { GameProvider, useGame } from './GameContext';
 import HexGraph from './components/HexGraph';
@@ -38,6 +43,18 @@ import SplashScreen from './components/SplashScreen';
 import UpdateToast from './components/UpdateToast';
 import NotificationToast from './components/NotificationToast';
 import ParticleBackground from './components/ParticleBackground';
+import Story from './components/Story';
+import MissionDebrief from './components/MissionDebrief';
+import ChangelogPanel from './components/ChangelogPanel';
+import CalendarHeatmap from './components/CalendarHeatmap';
+import ManagerAvatar from './components/ManagerAvatar';
+import DailyBaseline from './components/DailyBaseline';
+import AgentConsole from './components/AgentConsole';
+import ShadowChat from './components/ShadowChat';
+import AppControlPanel from './components/AppControlPanel';
+import PenaltyZone from './components/PenaltyZone';
+import Onboarding from './components/Onboarding';
+import { ModelLoader } from './components/ModelLoader';
 
 const MenuOverlay = ({
   isOpen,
@@ -45,12 +62,14 @@ const MenuOverlay = ({
   activeTab,
   setActiveTab,
   tabs,
+  onShowChangelog,
 }: {
   isOpen: boolean,
   onClose: () => void,
   activeTab: string,
   setActiveTab: (id: any) => void,
   tabs: any[],
+  onShowChangelog: () => void,
 }) => {
   const { stats, consistency, pushNotification } = useGame();
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -134,6 +153,7 @@ const MenuOverlay = ({
                   <button
                     key={tab.id}
                     onClick={() => { setActiveTab(tab.id); onClose(); }}
+                    data-tab={tab.id}
                     className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all group border ${
                       activeTab === tab.id
                         ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400'
@@ -173,6 +193,19 @@ const MenuOverlay = ({
                 <ChevronRight size={13} className="text-white/20 group-hover:translate-x-1 group-hover:text-emerald-400 transition-transform" />
               </button>
 
+              <button
+                onClick={() => { onShowChangelog(); onClose(); }}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all group border border-transparent text-white/40 hover:bg-blue-500/10 hover:border-blue-500/25 hover:text-blue-400"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/5 text-white/30 group-hover:bg-blue-500/15 group-hover:text-blue-400 transition-all">
+                    <Scroll size={15} />
+                  </div>
+                  <span className="font-display uppercase tracking-[0.2em] text-[10px]">View Changelog</span>
+                </div>
+                <ChevronRight size={13} className="text-white/20 group-hover:translate-x-1 group-hover:text-blue-400 transition-transform" />
+              </button>
+
               <div className="h-px bg-gradient-to-r from-emerald-500/20 via-white/5 to-transparent" />
 
               <div className="grid grid-cols-2 gap-3">
@@ -202,9 +235,28 @@ const MenuOverlay = ({
 };
 
 const Dashboard = () => {
-  const { stats, quests, hasCompletedAssessment, customSkillSets, addCustomSkillSet, removeCustomSkillSet, userProfile, canAscend, performAscension, lastStatUpdates, consistency, recommendations, generateRecommendations, resetAllData } = useGame();
+  const { stats, quests, hasCompletedAssessment, customSkillSets, addCustomSkillSet, removeCustomSkillSet, userProfile, selectedCharacter, canAscend, performAscension, lastStatUpdates, consistency, recommendations, generateRecommendations, resetAllData, currentMode, penaltyZoneReason, exitPenaltyZone } = useGame();
 
-  useEffect(() => { generateRecommendations(); }, []);
+  // Penalty Zone lockout — when currentMode is penalty_zone, render a
+  // fullscreen survival protocol instead of the regular dashboard. The
+  // Operator must clear ONE challenge to regain the Command Center.
+  // This is the entire point of the design from onboarding-design.md:
+  // consequences feel like challenges, not punishments.
+  if (currentMode === 'penalty_zone' && hasCompletedAssessment) {
+    return (
+      <>
+        <PenaltyZone onSurrender={() => {
+          if (window.confirm('Surrender? You will not earn rewards for clearing the Penalty Zone.')) {
+            exitPenaltyZone();
+          }
+        }} />
+        <UpdateToast />
+        <NotificationToast />
+      </>
+    );
+  }
+
+  useEffect(() => { generateRecommendations(); }, [generateRecommendations]);
   const statKeys: (keyof typeof stats)[] = ['strength', 'intelligence', 'agility', 'vitality', 'willpower', 'social'];
   const decayingIndices = statKeys
     .map((k, i) => {
@@ -214,11 +266,12 @@ const Dashboard = () => {
     })
     .filter(i => i >= 0);
   const [showSplash, setShowSplash] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'trainer' | 'training' | 'quests' | 'feedback' | 'books' | 'store' | 'habits'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'trainer' | 'training' | 'quests' | 'feedback' | 'books' | 'store' | 'habits' | 'story' | 'debrief' | 'console' | 'shadow' | 'discipline'>('overview');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showSkillModal, setShowSkillModal] = useState(false);
   const [showAscension, setShowAscension] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
   const [newSkillSet, setNewSkillSet] = useState<{ name: string; skills: { name: string; value: number }[] }>({ name: '', skills: [] });
 
   if (!hasCompletedAssessment) {
@@ -230,9 +283,14 @@ const Dashboard = () => {
     { id: 'trainer', label: 'AI Trainer Coach', icon: Brain },
     { id: 'training', label: 'Evolution Protocols', icon: Activity },
     { id: 'quests', label: 'Destiny Quests', icon: Sword },
+    { id: 'story', label: 'Story Archive', icon: Scroll },
+    { id: 'debrief', label: 'Mission Debrief', icon: ClipboardList },
     { id: 'books', label: 'Book Mastery', icon: Book },
     { id: 'habits', label: 'Habit Lab', icon: Flame },
     { id: 'store', label: 'Nexus Store', icon: ShoppingCart },
+    { id: 'console', label: 'Agent Console', icon: Cpu },
+    { id: 'shadow', label: 'Shadow Interface', icon: MessageCircle },
+    { id: 'discipline', label: 'Digital Discipline', icon: Shield },
     { id: 'feedback', label: 'System Feedback', icon: MessageCircle },
   ];
 
@@ -272,6 +330,7 @@ const Dashboard = () => {
   };
 
   return (<>
+    <ModelLoader />
     {/* Add More Skills Modal */}
     {showSkillModal && (
       <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-6" onClick={() => { if (newSkillSet.skills.length === 0) setShowSkillModal(false); }}>
@@ -373,6 +432,7 @@ const Dashboard = () => {
     )}
 
     <AscensionCeremony show={showAscension} onComplete={() => { setShowAscension(false); }} />
+    <ChangelogPanel open={showChangelog} onClose={() => setShowChangelog(false)} />
 
     <AnimatePresence>
       {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
@@ -396,6 +456,7 @@ const Dashboard = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         tabs={tabs}
+        onShowChangelog={() => setShowChangelog(true)}
       />
 
       <div className="relative z-10 min-h-screen flex flex-col">
@@ -423,6 +484,11 @@ const Dashboard = () => {
                   <User size={24} className="text-emerald-400 relative z-10" />
                 </div>
               </button>
+
+              {/* Manager archetype chip */}
+              <div className="border-l border-white/10 pl-6 hidden md:block">
+                <ManagerAvatar archetypeId={selectedCharacter} />
+              </div>
 
               {/* System Status Indicators */}
               <div className="hidden lg:flex items-center gap-8 ml-6 border-l border-white/10 pl-8">
@@ -535,17 +601,36 @@ const Dashboard = () => {
                       </div>
                     </div>
 
-                    {/* Row 2: Consistency */}
-                    <ConsistencyTracker data={consistency} />
+                    {/* Row 2: Consistency + Calendar Heatmap */}
+                    <div className="grid grid-cols-12 gap-8">
+                      <div className="col-span-12 lg:col-span-7">
+                        <ConsistencyTracker data={consistency} />
+                      </div>
+                      <div className="col-span-12 lg:col-span-5">
+                        <CalendarHeatmap />
+                      </div>
+                    </div>
+
+                    {/* Row 3: Daily Baseline */}
+                    <div className="grid grid-cols-12 gap-8">
+                      <div className="col-span-12">
+                        <DailyBaseline />
+                      </div>
+                    </div>
                   </div>
                 )}
 
                 {activeTab === 'trainer' && <PersonalizedTrainer />}
                 {activeTab === 'training' && <TrainingHub />}
                 {activeTab === 'quests' && <QuestBoard />}
+                {activeTab === 'story' && <Story />}
+                {activeTab === 'debrief' && <MissionDebrief />}
                 {activeTab === 'books' && <BookMastery />}
                 {activeTab === 'habits' && <HabitLab />}
                 {activeTab === 'store' && <NexusStore />}
+                {activeTab === 'console' && <AgentConsole />}
+                {activeTab === 'shadow' && <ShadowChat />}
+                {activeTab === 'discipline' && <AppControlPanel />}
                 {activeTab === 'feedback' && <Feedback />}
               </motion.div>
             </AnimatePresence>
@@ -561,7 +646,9 @@ const Dashboard = () => {
 export default function App() {
   return (
     <GameProvider>
-      <Dashboard />
+      <Onboarding>
+        <Dashboard />
+    </Onboarding>
     </GameProvider>
   );
 }

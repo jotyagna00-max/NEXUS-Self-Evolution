@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Brain, Dumbbell, Clock, Cpu, Lightbulb, ArrowRight, Zap, Target } from 'lucide-react';
 import { AgentRecommendation, Quest } from '../types';
+import { getAgentDomainStat } from '../services/agentService';
 
 const AGENT_ICONS: Record<string, React.FC<{ size?: number; className?: string }>> = {
   SAGE: Brain, TITAN: Dumbbell, CHRONOS: Clock, MANAGER: Cpu,
@@ -109,6 +110,14 @@ const AgentBriefing: React.FC<{
                           }`}>
                             {PRIORITY_LABELS[rec.priority]}
                           </span>
+                          {(() => {
+                            const dom = getAgentDomainStat(rec.agent);
+                            return (
+                              <span className={`text-[7px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-white/5 ${dom.color}`}>
+                                {rec.agent} · {dom.label}
+                              </span>
+                            );
+                          })()}
                         </div>
                         <p className="text-[9px] font-tech text-white/50 leading-relaxed">{rec.description}</p>
                       </div>
@@ -166,6 +175,14 @@ const AgentBriefing: React.FC<{
                           <span className={`text-[7px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-md ${diffStyle}`}>
                             {diffLabel}
                           </span>
+                          {(() => {
+                            const dom = getAgentDomainStat(agent);
+                            return (
+                              <span className={`text-[7px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-white/5 ${dom.color}`}>
+                                {agent} · {dom.label}
+                              </span>
+                            );
+                          })()}
                         </div>
                         <p className="text-[9px] font-tech text-white/50 leading-relaxed">
                           {quest.narrative || quest.description}

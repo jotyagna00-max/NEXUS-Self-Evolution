@@ -18,6 +18,12 @@ export class QuestGeneratorAgent extends AgentBase {
    * @param questType - The type of quest to generate (daily, weekly, main_scenario, etc.)
    * @param context - Current state.
    * @param adjustments - Optional adjustments to difficulty and rewards from reward/penalty analysis.
+   * @param source - Optional provenance info — when present, the quest is
+   *                 auto-spawned from a protocol/book/habit. The prompt is
+   *                 biased so the resulting quest is type-specific (e.g.
+   *                 hypertrophy instead of generic exercise) and the returned
+   *                 quest is stamped with `sourceType` / `sourceId` /
+   *                 `sourceTitle` for the Quest Board lineage chip.
    * @returns The generated quest.
    */
   async generateQuest(
@@ -28,7 +34,8 @@ export class QuestGeneratorAgent extends AgentBase {
       rewardExpAdjustment?: number;
       rewardStatPointsAdjustment?: number;
       focusStat?: keyof UserStats;
-    }
+    },
+    source?: { id: string; type: 'protocol' | 'book' | 'habit' | 'addiction'; title: string; hint?: string }
   ): Promise<EnhancedQuest> {
     let systemInstruction = `
 You are the QUEST_GENERATOR agent, responsible for creating personalized quests that align with the Operator's goals, barriers, and current stat levels. Your quests should be challenging yet achievable, designed to promote growth in specific areas.
@@ -53,6 +60,15 @@ Consider the Operator's:
 - Profile: ${JSON.stringify(context.profile)}
 - Existing quests to avoid duplication: ${context.existingQuests.length} quests already exist
 `;
+
+    if (source) {
+      systemInstruction += `
+CRITICAL — QUEST LINEAGE:
+This quest is auto-spawned from a ${source.type} titled "${source.title}" (id: ${source.id}).
+${source.hint ? `Specific guidance: ${source.hint}` : ''}
+The quest MUST be specific to "${source.title}" — not a generic stand-in. If it's a "Muscle Builder" protocol, talk about hypertrophy and tempo; if it's a "Meditation" book, talk about active reading and chapter summarization; if it's a habit, talk about the trigger → replacement loop. Make the operator feel that the system understood the source.
+`;
+    }
 
     if (adjustments) {
       systemInstruction += `
@@ -81,13 +97,11 @@ Make the quest specific, actionable, and tied to the Operator's primary goals an
       { temperature: 0.8, max_tokens: 1024 }
     );
 
-    // Parse the JSON from the response
-    let questData: Partial<EnhancedQuest>;
-    try {
-      questData = JSON.parse(content);
-    } catch (e) {
-      // Fallback to a generic quest
-      questData = {
+    // Parse the JSON from the response. Falls back to a generic quest if the
+    // model wraps it in fences or returns prose.
+    let questData: Partial<EnhancedQuest> = AgentBase.parseJson<Partial<EnhancedQuest>>(
+      content,
+      {
         title: "Daily Self-Improvement Quest",
         description: "Complete a set of activities aimed at improving your overall well-being.",
         type: questType,
@@ -96,8 +110,8 @@ Make the quest specific, actionable, and tied to the Operator's primary goals an
         rewardExp: 100,
         rewardStatPoints: 1,
         statAffected: "multiple",
-      };
-    }
+      },
+    );
 
     // Apply adjustments if provided
     let finalDifficulty = questData.difficulty ?? 50;
@@ -138,6 +152,10 @@ Make the quest specific, actionable, and tied to the Operator's primary goals an
       completed: false,
       failed: false,
       completedAt: undefined,
+      sourceType: source?.type,
+      sourceId: source?.id,
+      sourceTitle: source?.title,
+      lineageLabel: source ? `${source.type}: ${source.title}` : undefined,
     };
 
     return quest;
@@ -153,11 +171,9 @@ Make the quest specific, actionable, and tied to the Operator's primary goals an
     context: QuestGeneratorContext,
     count: number = 3
   ): Promise<EnhancedQuest[]> {
-    const quests: EnhancedQuest[] = [];
-    for (let i = 0; i < count; i++) {
-      const quest = await this.generateQuest("daily", context);
-      quests.push(quest);
-    }
+    const quests = await Promise.all(
+      Array.from({ length: count }, () => this.generateQuest("daily", context))
+    );
     return quests;
   }
 }

@@ -2,6 +2,9 @@ import React, { useState, useRef } from 'react';
 import { motion } from 'motion/react';
 import { Upload, FileText, Loader2, X, Brain } from 'lucide-react';
 import { useGame } from '../GameContext';
+import * as pdfjsLib from 'pdfjs-dist';
+import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 interface PDFUploaderProps {
   onResult: (data: { title: string; description: string; type: string; stat: string; gain: number }) => void;

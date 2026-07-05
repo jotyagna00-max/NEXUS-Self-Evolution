@@ -1,234 +1,338 @@
-import React, { useState, useEffect, useRef } from 'react';
+/**
+ * AgentConsole — direct line to the specialist agents.
+ *
+ * Lets the Operator pick from MANAGER / SAGE / TITAN / CHRONOS / SHADOW
+ * and chat. Uses the existing `sendTrainerRequest` / `sendCommandToAgent`
+ * from GameContext (which routes through AgentOrchestrator → specialist).
+ *
+ * Why agent tabs and not just one big chat? Because the agents have
+ * different "personalities" and you want to talk to THEM directly —
+ * SAGE for learning, TITAN for body, SHADOW for the truth you don't
+ * want to hear. One fused voice hides that.
+ */
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Terminal, Cpu, Zap, Brain, Dumbbell, Clock, User } from 'lucide-react';
-import { AgentType } from '../services/agentService';
+import { Send, Brain, Dumbbell, Clock, Cpu, Skull, Loader2, ChevronDown } from 'lucide-react';
 import { useGame } from '../GameContext';
 
-const NeuralFlow: React.FC<{ activeAgent: AgentType; isProcessing: boolean }> = ({ activeAgent, isProcessing }) => {
-  const specialists: AgentType[] = ['SAGE', 'TITAN', 'CHRONOS'];
+type AgentKey = 'MANAGER' | 'SAGE' | 'TITAN' | 'CHRONOS' | 'SHADOW';
 
-  return (
-    <div className="relative h-36 w-full flex items-center justify-center bg-black/20 rounded-2xl border border-emerald-500/5 mb-6 overflow-hidden">
-      <div className="relative z-10 flex flex-col items-center">
-        <motion.div
-          animate={
-            isProcessing
-              ? {
-                scale: [1, 1.05, 1],
-              }
-              : {}
-          }
-          transition={{ duration: 2, repeat: Infinity }}
-          className={`w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border flex items-center justify-center transition-colors ${activeAgent === 'MANAGER' ? 'border-emerald-500/40 text-emerald-400' : 'border-white/10 text-white/40'
-            }`}
-        >
-          <Cpu size={22} />
-        </motion.div>
-        <span className="text-[8px] font-display uppercase tracking-widest mt-2 text-white/30">Neural Manager</span>
-      </div>
+interface AgentMeta {
+  key: AgentKey;
+  label: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  blurb: string;
+  accent: string;
+}
 
-      <div className="absolute inset-0 flex items-center justify-around px-12">
-        {specialists.map((type, i) => {
-          const Icon = type === 'SAGE' ? Brain : type === 'TITAN' ? Dumbbell : Clock;
-          const isActive = activeAgent === type || (activeAgent === 'MANAGER' && isProcessing);
+const AGENTS: AgentMeta[] = [
+  { key: 'MANAGER', label: 'Manager', icon: Cpu, blurb: 'Supreme orchestrator. Coordinates all specialists.', accent: 'text-emerald-400' },
+  { key: 'SAGE',    label: 'Sage',    icon: Brain, blurb: 'Intelligence, learning, books, mental strategies.', accent: 'text-blue-400' },
+  { key: 'TITAN',   label: 'Titan',   icon: Dumbbell, blurb: 'Physical training, hypertrophy, recovery, fuel.', accent: 'text-red-400' },
+  { key: 'CHRONOS', label: 'Chronos', icon: Clock, blurb: 'Time audits, scheduling, focus windows.', accent: 'text-purple-400' },
+  { key: 'SHADOW',  label: 'Shadow',  icon: Skull, blurb: 'Your dark mirror. Antagonistic. Truth that hurts.', accent: 'text-red-500' },
+];
 
-          return (
-            <div key={type} className="flex flex-col items-center gap-2">
-              <motion.div
-                animate={
-                  isActive && isProcessing
-                    ? { y: [0, -3, 0] }
-                    : {}
-                }
-                transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
-                className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${isActive
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                    : 'bg-white/[0.03] border-white/5 text-white/20'
-                  }`}
-              >
-                <Icon size={16} />
-              </motion.div>
-              <span className="text-[7px] font-mono uppercase tracking-tighter text-white/25">{type}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
+interface ChatMsg {
+  id: string;
+  role: 'user' | 'agent';
+  agent: AgentKey;
+  text: string;
+  pending?: boolean;
+}
 
 const AgentConsole: React.FC = () => {
-  const { streamCommandToAgent } = useGame();
-  const [activeAgent, setActiveAgent] = useState<AgentType>('MANAGER');
+  const {
+    stats,
+    userProfile,
+    protocols,
+    selectedCharacter,
+    chatHistory,
+    sendTrainerRequest,
+    sendCommandToAgent,
+  } = useGame();
+  const [activeAgent, setActiveAgent] = useState<AgentKey>('SAGE');
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<{ role: 'user' | 'agent'; text: string; agentType?: AgentType }>([
-    { role: 'agent', text: 'Neural Manager online. All specialists standing by.', agentType: 'MANAGER' },
-  ]);
-  const [isTyping, setIsTyping] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [sending, setSending] = useState(false);
+  const [messages, setMessages] = useState<ChatMsg[]>(() => {
+    if (chatHistory && chatHistory.length > 0) {
+      return chatHistory.slice(-10).flatMap((h: any, i: number) => {
+        const out: ChatMsg[] = [];
+        if (h.command) {
+          out.push({ id: `pre_${i}_u`, role: 'user', agent: h.agentType, text: h.command });
+        }
+        if (h.response) {
+          out.push({ id: `pre_${i}_a`, role: 'agent', agent: h.agentType, text: h.response });
+        }
+        return out;
+      });
+    }
+    return [];
+  });
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const lastChatHistoryLength = useRef(chatHistory?.length || 0);
 
-  const agents: { type: AgentType; icon: any; color: string; label: string }[] = [
-    { type: 'MANAGER', icon: Cpu, color: 'text-emerald-400', label: 'Manager' },
-    { type: 'SAGE', icon: Brain, color: 'text-blue-400', label: 'Sage' },
-    { type: 'TITAN', icon: Dumbbell, color: 'text-red-400', label: 'Titan' },
-    { type: 'CHRONOS', icon: Clock, color: 'text-yellow-400', label: 'Chronos' },
-    { type: 'VOICE', icon: Zap, color: 'text-purple-400', label: 'Voice' },
-  ];
+  // Only append new messages when chatHistory grows (don't replace all messages)
+  useEffect(() => {
+    if (chatHistory && chatHistory.length > lastChatHistoryLength.current) {
+      const newEntries = chatHistory.slice(lastChatHistoryLength.current);
+      const newMessages: ChatMsg[] = newEntries.flatMap((h: any, i: number) => {
+        const out: ChatMsg[] = [];
+        const idx = lastChatHistoryLength.current + i;
+        if (h.command) {
+          out.push({ id: `pre_${idx}_u`, role: 'user', agent: h.agentType, text: h.command });
+        }
+        if (h.response) {
+          out.push({ id: `pre_${idx}_a`, role: 'agent', agent: h.agentType, text: h.response });
+        }
+        return out;
+      });
+      setMessages(prev => [...prev, ...newMessages]);
+      lastChatHistoryLength.current = chatHistory.length;
+    }
+  }, [chatHistory]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages.length]);
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
-
-    const userMsg = input;
+  const send = async () => {
+    const text = input.trim();
+    if (!text || sending) return;
+    const id = `m_${Date.now()}`;
+    setMessages(prev => [...prev, { id, role: 'user', agent: activeAgent, text }]);
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', text: userMsg }]);
-    setIsTyping(true);
-
+    setSending(true);
+    setMessages(prev => [
+      ...prev,
+      { id: `${id}_r`, role: 'agent', agent: activeAgent, text: '', pending: true },
+    ]);
     try {
-      let currentResponse = '';
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'agent',
-          text: '',
-          agentType: activeAgent,
-        },
-      ]);
-
-      await streamCommandToAgent(activeAgent, userMsg, (chunk) => {
-        currentResponse += chunk;
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          const lastMsg = newMessages[newMessages.length - 1];
-          if (lastMsg && lastMsg.role === 'agent') {
-            lastMsg.text = currentResponse;
-          }
-          return newMessages;
-        });
-      });
-    } catch (error: any) {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'agent', text: error.message || 'Neural link unstable. Synchronization failed.', agentType: activeAgent },
-      ]);
+      // Try the orchestrator route first (routed + coordinated).
+      // Falls back to the direct agent endpoint if anything throws.
+      try {
+        const data = await sendTrainerRequest(text);
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === `${id}_r`
+              ? {
+                  ...m,
+                  text: data.response,
+                  agent: (data.agentUsed || activeAgent) as AgentKey,
+                  pending: false,
+                }
+              : m,
+          ),
+        );
+      } catch {
+        const direct = await sendCommandToAgent(activeAgent, text);
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === `${id}_r` ? { ...m, text: direct.response, pending: false } : m,
+          ),
+        );
+      }
+    } catch (err: any) {
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === `${id}_r`
+            ? { ...m, text: err?.message || 'Neural link unstable.', pending: false }
+            : m,
+        ),
+      );
     } finally {
-      setIsTyping(false);
+      setSending(false);
     }
   };
 
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  };
+
+  const filtered = messages.filter(m => m.agent === activeAgent).slice(-20);
+  const activeMeta = AGENTS.find(a => a.key === activeAgent)!;
+  const ActiveIcon = activeMeta.icon;
+
   return (
-    <div className="flex flex-col h-[700px] bg-[#0a0a0a] rounded-[32px] border border-emerald-500/10 overflow-hidden relative shadow-[0_0_80px_rgba(16,185,129,0.04)]">
-      {/* Gemini-style gradient header */}
-      <div className="p-6 border-b border-emerald-500/10 flex items-center justify-between bg-gradient-to-r from-emerald-500/[0.03] via-transparent to-emerald-500/[0.03]">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/20 flex items-center justify-center">
-            <Terminal size={20} className="text-emerald-400" />
-          </div>
-          <div>
-            <h2 className="text-sm font-display uppercase tracking-[0.3em] text-white">Neural Console</h2>
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[8px] font-mono text-emerald-500/60 uppercase tracking-widest">System Synchronized</span>
-            </div>
-          </div>
-        </div>
+    <div className="space-y-6">
+      <header>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <Cpu size={22} className="text-emerald-400" />
+            <div>
+              <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30 block">
+                Neural Link
+             </span>
+              <h2 className="text-2xl font-display font-black uppercase tracking-tight text-white">
+                Agent Console
+             </h2>
+           </div>
+         </div>
+          <span data-testid="active-agent-indicator" className="text-[9px] font-mono text-white/30">
+            Active protocol: {selectedCharacter || 'Ayanokoji'}
+         </span>
+       </div>
+        <p className="text-[10px] font-tech text-white/40 max-w-3xl">
+          Speak directly with the specialist agents. Each has its own domain, tone, and
+          memory. The Manager routes only when you're not sure who to ask.
+       </p>
+     </header>
 
-        <div className="flex gap-2">
-          {agents.map((agent) => (
+      {/* Agent tabs */}
+      <div className="glass rounded-[24px] border border-white/10 p-2 grid grid-cols-2 md:grid-cols-5 gap-2">
+        {AGENTS.map(a => {
+          const selected = activeAgent === a.key;
+          const Icon = a.icon;
+          return (
             <button
-              key={agent.type}
-              onClick={() => setActiveAgent(agent.type)}
-              className={`p-3 rounded-2xl transition-all border ${activeAgent === agent.type
-                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
-                  : 'bg-white/[0.03] border-transparent text-white/30 hover:text-white/60 hover:bg-white/[0.06]'
-                }`}
-              title={agent.label}
-              aria-label={agent.label}
+              key={a.key}
+              onClick={() => setActiveAgent(a.key)}
+              data-agentkey={a.key}
+              className={`flex items-center gap-2.5 p-3 rounded-2xl border transition-all text-left ${
+                selected
+                  ? `bg-emerald-500/10 border-emerald-500/40 ${a.accent}`
+                  : 'bg-white/[0.02] border-transparent text-white/40 hover:text-white/70 hover:border-white/10'
+              }`}
             >
-              <agent.icon size={18} />
-            </button>
-          ))}
-        </div>
-      </div>
+              <Icon size={16} className={selected ? a.accent : ''} />
+              <div className="min-w-0">
+                <span className="block text-[10px] font-display uppercase tracking-wider">
+                  {a.label}
+               </span>
+                <span className="block text-[8px] font-tech text-white/30 truncate">
+                  {a.blurb}
+               </span>
+             </div>
+           </button>
+          );
+        })}
+     </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col p-6">
-        <NeuralFlow activeAgent={activeAgent} isProcessing={isTyping} />
+      {/* Chat surface */}
+      <div className="glass rounded-[24px] border border-white/10 overflow-hidden flex flex-col h-[520px]">
+        <div className="flex items-center justify-between p-4 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <ActiveIcon size={16} className={activeMeta.accent} />
+            <span className="text-[10px] font-display uppercase tracking-wider text-white/70">
+              {activeMeta.label} · Live Channel
+           </span>
+         </div>
+          <span className="text-[8px] font-mono text-white/30">
+            STATS {Object.keys(stats).length} · PROTOCOLS {protocols.length}
+         </span>
+       </div>
 
-        <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-          {messages.map((msg, i) => (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              key={i}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div className={`max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <div
-                  className={`flex items-center gap-2 text-[8px] uppercase tracking-widest text-white/30 mb-1.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                    }`}
-                >
-                  {msg.role === 'user' ? <User size={10} /> : <Cpu size={10} />}
-                  <span>{msg.role === 'user' ? 'Operator' : `${msg.agentType} Agent`}</span>
-                </div>
-
-                <div
-                  className={`p-5 rounded-2xl border ${msg.role === 'user'
-                      ? 'bg-emerald-500/10 border-emerald-500/25 text-white'
-                      : 'bg-white/[0.04] border-white/5 text-white/90'
-                    }`}
-                >
-                  <p className="leading-relaxed text-sm font-tech whitespace-pre-wrap">{msg.text}</p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-
-          {isTyping && (
-            <div className="flex justify-start">
-              <div className="bg-white/[0.04] border border-emerald-500/10 p-4 rounded-2xl flex items-center gap-3">
-                <div className="flex gap-1">
-                  {[0, 1, 2].map((i) => (
-                    <motion.div
-                      key={i}
-                      animate={{ y: [0, -4, 0] }}
-                      transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1 }}
-                      className="w-1.5 h-1.5 bg-emerald-400 rounded-full"
-                    />
-                  ))}
-                </div>
-                <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Generating reply...</span>
-              </div>
-            </div>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+          {filtered.length === 0 && (
+            <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
+              <ActiveIcon size={42} className={activeMeta.accent} />
+              <p className="text-[11px] font-tech text-white/40 mt-3 max-w-sm">
+                The channel is open. Send a message to {activeMeta.label}.
+                <br />
+                <br />
+                Example prompts:
+                {activeAgent === 'SAGE' && (
+                  <>
+                    <br />• What should I read next
+                  </>
+                )}
+                {activeAgent === 'TITAN' && (
+                  <>
+                    <br />• Can I train today or is it a recovery day
+                  </>
+                )}
+                {activeAgent === 'CHRONOS' && (
+                  <>
+                    <br />• Audit how I spent my morning
+                  </>
+                )}
+                {activeAgent === 'SHADOW' && (
+                  <>
+                    <br />• Tell me what I missed this week
+                  </>
+                )}
+                {activeAgent === 'MANAGER' && (
+                  <>
+                    <br />• I'm overwhelmed — where do I start
+                  </>
+                )}
+             </p>
+           </div>
           )}
+          <AnimatePresence initial={false}>
+            {filtered.map(m => (
+              <motion.div
+                key={m.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                layout
+                className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[88%] p-3.5 rounded-2xl border ${
+                    m.role === 'user'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-50'
+                      : 'bg-white/[0.04] border-white/10 text-white/80'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[8px] font-display uppercase tracking-widest text-white/40">
+                      {m.role === 'user'
+                        ? `Operator · ${userProfile.name || 'Operator'}`
+                        : `${m.agent} · ${AGENTS.find(a => a.key === m.agent)?.label || 'Agent'}`}
+                   </span>
+                 </div>
+                  <div className="text-[12px] font-tech leading-relaxed whitespace-pre-wrap">
+                    {m.pending ? (
+                      <span className="inline-flex items-center gap-1.5 text-white/40">
+                        <Loader2 size={12} className="animate-spin" />
+                        Synchronizing…
+                     </span>
+                    ) : (
+                      m.text
+                    )}
+                 </div>
+               </div>
+             </motion.div>
+            ))}
+         </AnimatePresence>
+       </div>
 
-          <div ref={chatEndRef} />
-        </div>
-      </div>
-
-      <div className="p-6 border-t border-emerald-500/10 bg-gradient-to-r from-emerald-500/[0.02] via-transparent to-emerald-500/[0.02]">
-        <div className="relative max-w-4xl mx-auto">
-          <input
-            type="text"
+        <div className="border-t border-white/5 p-3 flex items-end gap-2">
+          <textarea
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={`Message ${activeAgent.toLowerCase()}...`}
-            className="w-full bg-black/60 border border-emerald-500/15 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-emerald-500/40 font-mono text-sm transition-all pr-16 placeholder:text-white/15"
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={onKey}
+            placeholder={`Message ${activeMeta.label}…`}
+            rows={1}
+            className="flex-1 resize-none bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm font-tech text-white placeholder:text-white/20 focus:outline-none focus:border-emerald-500/40 max-h-32"
           />
           <button
-            onClick={handleSend}
-            disabled={!input.trim() || isTyping}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black p-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            aria-label="Send message"
+            onClick={send}
+            disabled={sending || !input.trim()}
+            className="h-12 w-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/5 disabled:text-white/20 text-black flex items-center justify-center transition-all disabled:cursor-not-allowed"
           >
-            <Send size={20} />
-          </button>
-        </div>
-      </div>
-    </div>
+            {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+         </button>
+       </div>
+     </div>
+
+      <details className="text-[10px] font-tech text-white/40">
+        <summary className="cursor-pointer hover:text-white/70 flex items-center gap-1">
+          <ChevronDown size={12} /> System prompt context this turn
+       </summary>
+        <pre className="mt-3 p-3 bg-black/40 border border-white/5 rounded-xl text-[9px] overflow-x-auto whitespace-pre-wrap">
+{`OPERATOR: ${userProfile.name || 'Operator'} (${selectedCharacter || 'Ayanokoji'} archetype)
+STATS: ${JSON.stringify(stats, null, 2)}
+PROFILE: ${JSON.stringify(userProfile, null, 2).slice(0, 280)}…`}
+       </pre>
+     </details>
+   </div>
   );
 };
 

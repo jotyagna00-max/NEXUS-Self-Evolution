@@ -112,19 +112,18 @@ Return a JSON object with:
       { temperature: 0.5, max_tokens: 512 }
     );
 
-    try {
-      const parsed = JSON.parse(content);
-      return {
-        estimatedDays: parseInt(parsed.estimatedDays) || null,
-        confidence: parsed.confidence || "low",
-        reasoning: parsed.reasoning || "No reasoning provided.",
-      };
-    } catch (e) {
-      return {
-        estimatedDays: null,
-        confidence: "low",
-        reasoning: "Failed to parse prediction result.",
-      };
-    }
+    const parsed = AgentBase.parseJson<{
+      estimatedDays?: number | null;
+      confidence?: "low" | "medium" | "high";
+      reasoning?: string;
+    }>(
+      content,
+      { estimatedDays: null, confidence: "low", reasoning: "Failed to parse prediction result." },
+    );
+    return {
+      estimatedDays: typeof parsed.estimatedDays === 'number' ? parsed.estimatedDays : null,
+      confidence: parsed.confidence || "low",
+      reasoning: parsed.reasoning || "No reasoning provided.",
+    };
   }
 }

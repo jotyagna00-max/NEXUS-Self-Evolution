@@ -32,15 +32,15 @@ export class HabitMasterAgent extends AgentBase {
       { temperature: 0.7, max_tokens: 1024 }
     );
 
-    try {
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-
-    return [
+    const parsed = AgentBase.parseJson<{ title: string; description: string; difficulty: number }[]>(
+      content,
+      [
+        { title: `Basic ${habitTitle}`, description: `Spend 5 minutes on ${habitTitle}`, difficulty: 1 },
+        { title: `Focused ${habitTitle}`, description: `Deep practice of ${habitTitle} for 15 minutes`, difficulty: 2 },
+        { title: `Master ${habitTitle}`, description: `Extended ${habitTitle} session for 30 minutes`, difficulty: 3 },
+      ],
+    );
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [
       { title: `Basic ${habitTitle}`, description: `Spend 5 minutes on ${habitTitle}`, difficulty: 1 },
       { title: `Focused ${habitTitle}`, description: `Deep practice of ${habitTitle} for 15 minutes`, difficulty: 2 },
       { title: `Master ${habitTitle}`, description: `Extended ${habitTitle} session for 30 minutes`, difficulty: 3 },
@@ -61,15 +61,15 @@ export class HabitMasterAgent extends AgentBase {
       { temperature: 0.8, max_tokens: 1024 }
     );
 
-    try {
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-
-    return [
+    const parsed = AgentBase.parseJson<{ trigger: string; replacement: string; difficulty: number }[]>(
+      content,
+      [
+        { trigger: 'Urge to engage', replacement: `Take 5 deep breaths and drink water instead of ${addictionName}`, difficulty: 3 },
+        { trigger: 'Boredom', replacement: 'Go for a 5-minute walk or do 10 pushups', difficulty: 2 },
+        { trigger: 'Stress', replacement: 'Write in a journal for 3 minutes about what is causing stress', difficulty: 3 },
+      ],
+    );
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [
       { trigger: 'Urge to engage', replacement: `Take 5 deep breaths and drink water instead of ${addictionName}`, difficulty: 3 },
       { trigger: 'Boredom', replacement: 'Go for a 5-minute walk or do 10 pushups', difficulty: 2 },
       { trigger: 'Stress', replacement: 'Write in a journal for 3 minutes about what is causing stress', difficulty: 3 },

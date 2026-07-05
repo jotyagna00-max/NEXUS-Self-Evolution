@@ -1,9 +1,23 @@
 import type OpenAI from 'openai';
-import { AgentType } from '../types';
+import { AgentType, StatType } from '../types';
 import { generateOpenAIResponse, streamOpenAIResponse } from './openaiAgentService';
+import { getArchetype } from './archetypes';
 
 // Re-export AgentType so consumers can `import { AgentType } from './agentService'`
 export type { AgentType } from '../types';
+
+// Domain stat ownership per agent (R-05). Used by UI to render the SAGE/TITAN/CHRONOS
+// domain-stat badge so the Operator sees which dimension each specialist governs.
+export const AGENT_DOMAIN_STAT: Record<string, { stat: StatType; label: string; color: string }> = {
+  SAGE:    { stat: 'intelligence', label: 'INT', color: 'text-blue-400'   },
+  TITAN:   { stat: 'strength',    label: 'STR', color: 'text-red-400'    },
+  CHRONOS: { stat: 'agility',     label: 'AGI', color: 'text-emerald-400' },
+  MANAGER: { stat: 'willpower',   label: 'WIL', color: 'text-purple-400' },
+};
+
+export function getAgentDomainStat(agent: string) {
+  return AGENT_DOMAIN_STAT[agent] || AGENT_DOMAIN_STAT.MANAGER;
+}
 
 export const AGENT_PROMPTS: Record<string, string> = {
   MANAGER: `You are the NEXUS Neural Manager, the supreme orchestrator of the System and the Operator's Personal Coach.
@@ -80,8 +94,13 @@ export const generateAgentResponse = async (
   if (agentType && AGENT_PROMPTS[agentType]) {
     systemInstruction += `\n\n### SPECIALIST CONTEXT: ${agentType}\n${AGENT_PROMPTS[agentType]}`;
   }
+  // R-04 — append the active archetype's voice to the MANAGER prompt.
+  // The character may be a coarse id ("Ayanokoji") that the trainerService
+  // also consumes; either way, resolve to the canonical Archetype record.
+  const arch = getArchetype(context.character);
+  systemInstruction += `\n\n### ARCHETYPE VOICE\nYou are speaking as ${arch.displayName}. Use this voice for the entire response.\n${arch.systemPrompt}`;
   if (context.character) {
-    systemInstruction += `\n\n### PERSONA OVERRIDE\nAdopt the persona of ${context.character} while performing your duties.`;
+    systemInstruction += `\nAddress the Operator as "${arch.honorific}".`;
   }
   if (context.profile) {
     systemInstruction += `\n\n### OPERATOR PROFILE\nUse this profile to personalize every recommendation and accountability strategy:\n${JSON.stringify(context.profile, null, 2)}`;
@@ -127,8 +146,10 @@ export const streamAgentResponse = async (
   if (agentType && AGENT_PROMPTS[agentType]) {
     systemInstruction += `\n\n### SPECIALIST CONTEXT: ${agentType}\n${AGENT_PROMPTS[agentType]}`;
   }
+  const arch = getArchetype(context.character);
+  systemInstruction += `\n\n### ARCHETYPE VOICE\nYou are speaking as ${arch.displayName}. Use this voice for the entire response.\n${arch.systemPrompt}`;
   if (context.character) {
-    systemInstruction += `\n\n### PERSONA OVERRIDE\nAdopt the persona of ${context.character} while performing your duties.`;
+    systemInstruction += `\nAddress the Operator as "${arch.honorific}".`;
   }
   if (context.profile) {
     systemInstruction += `\n\n### OPERATOR PROFILE\nUse this profile to personalize every recommendation and accountability strategy:\n${JSON.stringify(context.profile, null, 2)}`;

@@ -261,9 +261,18 @@ const InitialAssessment: React.FC = () => {
       very_active: "Very active daily life",
     };
     const readableAnswers = answers.map(a => ({ question: a.question, answer: readableMap[a.answer] || a.answer }));
+    
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Agent call timeout')), 10000);
+    });
+    
     try {
       const agent = new PhysicalTrainerAgent();
-      const result = await agent.assessPhysicalBaseline(readableAnswers);
+      const result = await Promise.race([
+        agent.assessPhysicalBaseline(readableAnswers),
+        timeoutPromise
+      ]);
       setAgentReasoning(result.reasoning);
       setProcessingMessage('');
 
@@ -272,7 +281,8 @@ const InitialAssessment: React.FC = () => {
         agility: result.agility,
         vitality: result.vitality,
       }));
-    } catch {
+    } catch (err) {
+      console.warn('Physical assessment agent failed, using computed stats:', err);
       localStorage.setItem('nexus_physical_assessment', JSON.stringify(computed));
     }
     setPhysicalAnswers(answers);
@@ -299,14 +309,24 @@ const InitialAssessment: React.FC = () => {
     };
     const readableAnswers = answers.map(a => ({ question: a.question, answer: readableCognitiveMap[a.answer] || a.answer }));
 
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Agent call timeout')), 10000);
+    });
+
     try {
       const agent = new MentalTrainerAgent();
-      const result = await agent.assessCognitiveBaseline(readableAnswers);
+      const result = await Promise.race([
+        agent.assessCognitiveBaseline(readableAnswers),
+        timeoutPromise
+      ]);
       setAgentReasoning(result.reasoning);
       intelligence = result.intelligence;
       willpower = result.willpower;
       social = result.social;
-    } catch {}
+    } catch (err) {
+      console.warn('Cognitive assessment agent failed, using computed stats:', err);
+    }
 
     localStorage.removeItem('nexus_physical_assessment');
     setProcessingMessage('');

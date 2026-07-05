@@ -99,12 +99,16 @@ const HabitLab: React.FC = () => {
   const analyzeHabit = async (habit: Habit) => {
     setAnalyzing(habit.id);
     try {
-      const insight = await habitMaster.analyzePattern({
-        title: habit.title,
-        streak: habit.streak,
-        relapses: habit.relapses,
-        microQuests: habit.microQuests,
-      });
+      const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000));
+      const insight = await Promise.race([
+        habitMaster.analyzePattern({
+          title: habit.title,
+          streak: habit.streak,
+          relapses: habit.relapses,
+          microQuests: habit.microQuests,
+        }),
+        timeout
+      ]);
       setAiInsight(insight);
     } catch {
       setAiInsight('Keep building momentum. Consistency is the key to transformation.');

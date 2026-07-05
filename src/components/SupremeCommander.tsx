@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, MicOff, Terminal, X, Volume2, Cpu, Zap, Shield, Activity, Network, Brain, Dumbbell, Award, Monitor, Sparkles } from 'lucide-react';
+import { Mic, MicOff, Terminal, X, Volume2, Cpu, Zap, Activity, Network, Brain, Dumbbell, Award, Monitor, Sparkles } from 'lucide-react';
 import { useGame } from '../GameContext';
 import { AgentOrchestrator } from '../agents/AgentOrchestrator';
 
@@ -39,22 +39,13 @@ const SupremeCommander: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [response, setResponse] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeAgents, setActiveAgents] = useState<string[]>([]);
-  const [orchestrator, setOrchestrator] = useState<AgentOrchestrator | null>(null);
+  const orchestratorRef = useRef<AgentOrchestrator | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Web Speech API setup
   const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
   const recognition = useRef<any>(null);
   const handleVoiceCommandRef = useRef<(text: string) => Promise<void>>(async () => {});
-
-  useEffect(() => {
-    const initOrchestrator = async () => {
-      const orch = new AgentOrchestrator();
-      await orch.initialize();
-      setOrchestrator(orch);
-    };
-    initOrchestrator();
-  }, []);
 
   useEffect(() => {
     if (SpeechRecognition) {
@@ -124,19 +115,19 @@ const SupremeCommander: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       
       setActiveAgents(agents);
 
-      if (orchestrator) {
-        const context = {
-          stats,
-          profile: {},
-          quests: [],
-          enhancedQuests: [],
-          tasks: [],
-        };
-
-        fullResponse = await orchestrator.processUserMessage(text, context);
-      } else {
-        fullResponse = "Neural orchestrator not initialized. Please wait...";
+      if (!orchestratorRef.current) {
+        orchestratorRef.current = new AgentOrchestrator();
+        await orchestratorRef.current.initialize();
       }
+      const context = {
+        stats,
+        profile: {},
+        quests: [],
+        enhancedQuests: [],
+        tasks: [],
+      };
+
+      fullResponse = await orchestratorRef.current.processUserMessage(text, context);
 
       setResponse(fullResponse);
 

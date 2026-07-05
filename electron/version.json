@@ -1,6 +1,41 @@
 {
-  "latestVersion": "1.2.0",
-  "downloadUrl": "https://github.com/jotyagna00-max/nexus-releases/releases/download/v1.2.0/NEXUS-Setup-1.2.0.exe",
-  "releaseNotes": "Manual update button in main menu, logout clears all data, Splash boot animation, 3-section HabitLab, multi-agent orchestrator wiring.",
-  "minSchemaVersion": 1
+  "latestVersion": "1.3.0",
+  "downloadUrl": "https://github.com/jotyagna00-max/nexus-releases/releases/download/v1.3.0/NEXUS-Setup-1.3.0.exe",
+  "releaseNotes": "Effort-mirror tone, 3-of-7 streak window with rest tokens, agent domain-stat badges, Story + Mission Debrief + Changelog tabs, dead code removed.",
+  "minSchemaVersion": 1,
+  "changelog": [
+    {
+      "version": "1.3.0",
+      "date": "2026-06-29",
+      "notes": [
+        "Effort-mirror tone: Sync → Log. Manager copy reframed around effort, not points.",
+        "3-of-7 streak window. Rest tokens now spendable from the Consistency tracker.",
+        "SAGE · INT, TITAN · STR, CHRONOS · AGI, MANAGER · WIL domain-stat badges.",
+        "Story Archive tab — read narrative chapters for XP and NC rewards.",
+        "Mission Debrief tab — daily Manager message at end of day.",
+        "Changelog panel — see what changed in each version.",
+        "Dead code removed (@google/genai, Discord sync route)."
+      ]
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-05-20",
+      "notes": [
+        "Manual update button in main menu.",
+        "Logout clears all data.",
+        "Splash boot animation.",
+        "3-section HabitLab.",
+        "Multi-agent orchestrator wiring."
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-04-12",
+      "notes": [
+        "Initial public release of NEXUS Self-Evolution.",
+        "6 stats, 24 components, multi-agent AI orchestration.",
+        "Auto-update from GitHub Gist."
+      ]
+    }
+  ]
 }

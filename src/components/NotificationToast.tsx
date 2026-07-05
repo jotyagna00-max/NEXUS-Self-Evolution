@@ -1,18 +1,20 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, ArrowUpCircle, Sparkles, Zap, X } from 'lucide-react';
+import { Trophy, ArrowUpCircle, Sparkles, Zap, X, AlertTriangle } from 'lucide-react';
 import { useGame } from '../GameContext';
 
 const ICONS: Record<string, React.ReactNode> = {
   achievement: <Trophy size={16} className="text-yellow-400" />,
   level_up: <ArrowUpCircle size={16} className="text-emerald-400" />,
   ascension_ready: <Sparkles size={16} className="text-purple-400" />,
+  penalty: <AlertTriangle size={16} className="text-red-400" />,
 };
 
 const BG_CLASSES: Record<string, string> = {
   achievement: 'border-yellow-500/30 bg-yellow-500/5',
   level_up: 'border-emerald-500/30 bg-emerald-500/5',
   ascension_ready: 'border-purple-500/30 bg-purple-500/5',
+  penalty: 'border-red-500/30 bg-red-500/5',
 };
 
 const NotificationToast: React.FC = () => {

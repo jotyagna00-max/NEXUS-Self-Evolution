@@ -1,5 +1,5 @@
 import { AgentBase } from "./AgentBase";
-import { UserStats, UserProfile } from "../types";
+import { UserStats, UserProfile, EnhancedQuest } from "../types";
 
 export interface BookMasteryContext {
   stats: UserStats;
@@ -71,15 +71,14 @@ Example: { "intelligence": 4, "reasoning": "Completed reading and applying conce
       { temperature: 0.5, max_tokens: 256 }
     );
 
-    try {
-      const parsed = JSON.parse(content);
-      return {
-        intelligence: parsed.intelligence,
-        reasoning: parsed.reasoning || "No reasoning provided.",
-      };
-    } catch (e) {
-      return { intelligence: undefined, reasoning: "Failed to parse intelligence update from book activity." };
-    }
+    const parsed = AgentBase.parseJson<{ intelligence?: number; reasoning?: string }>(
+      content,
+      { intelligence: undefined, reasoning: "Failed to parse intelligence update from book activity." },
+    );
+    return {
+      intelligence: parsed.intelligence,
+      reasoning: parsed.reasoning || "No reasoning provided.",
+    };
   }
 
   /**
@@ -89,7 +88,7 @@ Example: { "intelligence": 4, "reasoning": "Completed reading and applying conce
    */
   async generateReadingQuest(
     context: BookMasteryContext
-  ): Promise<any> { // We'll return an EnhancedQuest-like object
+  ): Promise<EnhancedQuest> {
     const systemInstruction = `
 You are the BOOK_MASTERY agent. Generate a quest that encourages the Operator to engage in book mastery activities aligned with their goals and current stats.
 
@@ -119,29 +118,26 @@ Consider the Operator's:
       { temperature: 0.8, max_tokens: 1024 }
     );
 
-    let questData: any;
-    try {
-      questData = JSON.parse(content);
-    } catch (e) {
-      questData = {
-        title: "Book Mastery Quest",
-        description: "Read a chapter from a relevant book and apply one concept.",
-        category: "mental",
-        difficulty: 60,
-        rewardExp: 150,
-        rewardStatPoints: 2,
-        statAffected: "intelligence",
-      };
-    }
+    let questData: any = AgentBase.parseJson<any>(content, {
+      title: "Book Mastery Quest",
+      description: "Read a chapter from a relevant book and apply one concept.",
+      category: "mental",
+      difficulty: 60,
+      rewardExp: 150,
+      rewardStatPoints: 2,
+      statAffected: "intelligence",
+    });
 
     // Return a quest-like object (the system will convert to EnhancedQuest)
     return {
       id: `book_quest_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       title: questData.title || "Book Mastery Quest",
       description: questData.description || "Engage in book mastery activities.",
+      type: 'daily' as const,
       category: questData.category || "mental",
       difficulty: questData.difficulty ?? 60,
       rewardExp: questData.rewardExp ?? 150,
+      rewardCredits: Math.floor((questData.rewardExp ?? 150) * 0.6),
       rewardStatPoints: questData.rewardStatPoints ?? 2,
       statAffected: questData.statAffected || "intelligence",
       timeLimit: questData.timeLimit,
@@ -166,15 +162,8 @@ Focus on key concepts, themes, and practical takeaways from the book.`;
       { temperature: 0.7, max_tokens: 1024 }
     );
 
-    try {
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const questions = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(questions) && questions.length >= 2) return questions;
-      }
-    } catch (e) {
-      console.error('Failed to parse quiz JSON:', e);
-    }
+    const questions = AgentBase.parseJson<any[]>(content, []);
+    if (Array.isArray(questions) && questions.length >= 2) return questions;
 
     return [
       { question: `What is a key concept from "${bookTitle}"?`, options: ['Discipline', 'Talent', 'Luck', 'Genetics'], correctIndex: 0 },

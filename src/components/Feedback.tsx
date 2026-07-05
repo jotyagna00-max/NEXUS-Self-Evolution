@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  MessageCircle, 
-  Send, 
-  CheckCircle2, 
-  AlertCircle, 
-  Clock, 
+import {
+  MessageCircle,
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
   Shield,
   HelpCircle,
   Bug,
@@ -13,7 +13,12 @@ import {
   MessageSquare,
   Download,
   Upload,
+  ChevronDown,
+  FileJson,
+  FileSpreadsheet,
+  Layers,
 } from 'lucide-react';
+import { exportJsonFull, exportJsonSection, exportCsvFlat, validateImport, IMPORTABLE_SECTIONS } from '../utils/exporters';
 
 interface FeedbackItem {
   id: string;
@@ -85,6 +90,45 @@ const Feedback = () => {
       case 'improvement': return <MessageSquare size={14} />;
       default: return <HelpCircle size={14} />;
     }
+  };
+
+  // R-08 — export controls
+  const [exportFormat, setExportFormat] = useState<'json' | 'csv' | 'section'>('json');
+  const [exportSection, setExportSection] = useState<string>(IMPORTABLE_SECTIONS[0].key);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importNotice, setImportNotice] = useState<string | null>(null);
+
+  const handleExport = () => {
+    if (exportFormat === 'json') exportJsonFull();
+    else if (exportFormat === 'csv') exportCsvFlat();
+    else if (exportFormat === 'section') exportJsonSection(exportSection);
+  };
+
+  const handleImportFile = (file: File) => {
+    setImportError(null);
+    setImportNotice(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const raw = ev.target?.result as string;
+      const err = validateImport(raw);
+      if (err) { setImportError(err); return; }
+      try {
+        const data = JSON.parse(raw);
+        let count = 0;
+        const ALLOWED_PREFIXES = ['nexus_', 'feedback'];
+        for (const [key, val] of Object.entries(data)) {
+          if (typeof val === 'string' && ALLOWED_PREFIXES.some(p => key.startsWith(p))) {
+            localStorage.setItem(key, val);
+            count++;
+          }
+        }
+        setImportNotice(`Imported ${count} keys. Reloading…`);
+        setTimeout(() => window.location.reload(), 800);
+      } catch (e: any) {
+        setImportError(`Parse error: ${e?.message || 'unknown'}`);
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -241,56 +285,109 @@ const Feedback = () => {
           </div>
         </div>
         <p className="text-white/40 text-sm mb-8 max-w-xl font-tech leading-relaxed">
-          Backup your entire NEXUS profile or restore from a previous backup.
+          Backup your NEXUS data — full JSON snapshot, flat CSV, or per-section JSON. Restore from a full backup at any time.
         </p>
-        <div className="flex flex-wrap gap-4">
-          <button
-            onClick={() => {
-              const data: Record<string, string> = {};
-              for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key) data[key] = localStorage.getItem(key) || '';
-              }
-              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `nexus_backup_${new Date().toISOString().split('T')[0]}.json`;
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-            className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-[10px] font-display uppercase tracking-widest"
-          >
-            <Download size={18} />
-            Export All Data
-          </button>
-          <label className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20 transition-all text-[10px] font-display uppercase tracking-widest cursor-pointer">
-            <Upload size={18} />
-            Import Backup
-            <input
-              type="file"
-              accept=".json"
-              className="hidden"
-              onChange={e => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                  try {
-                    const data = JSON.parse(ev.target?.result as string);
-                    Object.entries(data).forEach(([key, val]) => {
-                      if (typeof val === 'string') localStorage.setItem(key, val);
-                    });
-                    alert('Data imported successfully. Reloading...');
-                    window.location.reload();
-                  } catch {
-                    alert('Invalid backup file.');
-                  }
-                };
-                reader.readAsText(file);
-              }}
-            />
-          </label>
+
+        {/* Segmented format control */}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2 p-1 rounded-2xl bg-white/[0.03] border border-white/10 w-fit">
+            <button
+              onClick={() => setExportFormat('json')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-display uppercase tracking-widest transition-all border ${
+                exportFormat === 'json' ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400' : 'border-transparent text-white/40 hover:text-white/70'
+              }`}
+            >
+              <FileJson size={14} /> JSON · full
+            </button>
+            <button
+              onClick={() => setExportFormat('csv')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-display uppercase tracking-widest transition-all border ${
+                exportFormat === 'csv' ? 'bg-amber-500/15 border-amber-500/40 text-amber-400' : 'border-transparent text-white/40 hover:text-white/70'
+              }`}
+            >
+              <FileSpreadsheet size={14} /> CSV · flat
+            </button>
+            <button
+              onClick={() => setExportFormat('section')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-display uppercase tracking-widest transition-all border ${
+                exportFormat === 'section' ? 'bg-blue-500/15 border-blue-500/40 text-blue-400' : 'border-transparent text-white/40 hover:text-white/70'
+              }`}
+            >
+              <Layers size={14} /> Section
+            </button>
+          </div>
+
+          {exportFormat === 'section' && (
+            <div className="flex flex-wrap items-center gap-3 p-4 rounded-2xl bg-white/[0.03] border border-blue-500/15">
+              <span className="text-[10px] font-display uppercase tracking-widest text-white/40">Pick section</span>
+              <div className="relative">
+                <select
+                  value={exportSection}
+                  onChange={e => setExportSection(e.target.value)}
+                  className="appearance-none bg-black/40 border border-white/10 rounded-xl pl-4 pr-10 py-2 text-[11px] font-mono text-white focus:outline-none focus:border-blue-500/50"
+                >
+                  {IMPORTABLE_SECTIONS.map(s => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-3 items-center">
+            <button
+              onClick={handleExport}
+              className={`flex items-center gap-3 px-6 py-4 rounded-2xl transition-all text-[10px] font-display uppercase tracking-widest border ${
+                exportFormat === 'json' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20' :
+                exportFormat === 'csv' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20' :
+                'bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20'
+              }`}
+            >
+              <Download size={18} />
+              {exportFormat === 'json' && 'Export Full Backup'}
+              {exportFormat === 'csv' && 'Export CSV'}
+              {exportFormat === 'section' && `Export ${IMPORTABLE_SECTIONS.find(s => s.key === exportSection)?.label || exportSection}`}
+            </button>
+
+            <label className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-all text-[10px] font-display uppercase tracking-widest cursor-pointer">
+              <Upload size={18} />
+              Import Backup
+              <input
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImportFile(file);
+                  e.currentTarget.value = '';
+                }}
+              />
+            </label>
+          </div>
+
+          <AnimatePresence>
+            {importError && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="px-4 py-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-mono flex items-center gap-2"
+              >
+                <AlertCircle size={14} /> {importError}
+              </motion.div>
+            )}
+            {importNotice && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono flex items-center gap-2"
+              >
+                <CheckCircle2 size={14} /> {importNotice}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

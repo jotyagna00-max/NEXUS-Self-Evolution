@@ -1,5 +1,6 @@
 import { AgentBase } from "./AgentBase";
 import { UserStats, UserProfile } from "../types";
+import type { BehaviorProfile } from "./BehaviorProfile";
 
 export interface MotivatorContext {
   stats: UserStats;
@@ -48,6 +49,35 @@ Consider the occasion if provided: '${occasion || "general motivation"}'.
     );
 
     return content;
+  }
+
+  /**
+   * v1.4.0 — Generate a short motivational ping when the operator completes a
+   * quest. Personalized with the quest's stat and the operator's behavior
+   * profile. Falls back to generateMotivation() if the profile is too thin.
+   */
+  async motivateCompletion(
+    quest: { title: string; statAffected?: string; difficulty?: number; rewardExp?: number },
+    context: MotivatorContext,
+    profile?: BehaviorProfile,
+  ): Promise<string> {
+    const statNote = quest.statAffected && quest.statAffected !== 'multiple'
+      ? ` Focus stat: ${quest.statAffected}.`
+      : '';
+    const profileNote = profile?.preferredFocusStat
+      ? ` Operator's current focus: ${profile.preferredFocusStat}.`
+      : '';
+    const diffNote = quest.difficulty ? ` Difficulty: ${quest.difficulty}/100.` : '';
+
+    const occasion = `quest_completed:${quest.title}${statNote}${diffNote}${profileNote}`;
+
+    // If we have enough profile data, generate a targeted message
+    if (profile && profile.completionStreakProfile) {
+      return this.generateMotivation(context, occasion);
+    }
+
+    // Fallback to generic motivation
+    return this.generateMotivation(context, 'quest_completed');
   }
 
   /**

@@ -5,13 +5,52 @@ import {
   ActivePowerUp, Debuff, ShadowState, RaidBoss, AscensionData,
   NarrativeChapter, RiftSchedule, StoreItem, ProgressionState,
   CustomSkillSet, CustomSkill, AppNotification,
-  ConsistencyData, AgentRecommendation,
+  ConsistencyData, AgentRecommendation, ThemeColor, ExpHistoryEntry,
   calculateExpToNextLevel, getRankFromLevel, DEFAULT_ACHIEVEMENTS,
-  STORE_ITEMS, NARRATIVE_CHAPTERS
+  STORE_ITEMS, NARRATIVE_CHAPTERS,
+  DailyBaseline, DailyBaselineTask, BaselineMode, DEFAULT_FIXED_BASELINE
 } from './types';
+import type { Language } from './i18n/strings';
 import { generateAgentResponse, streamAgentResponse, AgentType } from './services/agentService';
 import { generateTrainerResponse, streamTrainerResponse } from './services/trainerService';
 import { AgentOrchestrator } from './agents/AgentOrchestrator';
+import { eventBus, getEventLog, clearEventLog, NexusEvent } from './agents/EventBus';
+import {
+  BehaviorProfile, emptyBehaviorProfile, loadProfile, persistProfile,
+  recordEvent as recordBehaviorEvent, ReminderWindow, DEFAULT_REMINDER_WINDOWS,
+} from './agents/BehaviorProfile';
+import { saveWindows as saveReminderWindows, loadLastFired } from './agents/ReminderScheduler';
+import {
+  onProtocolActivated as strategicOnProtocolActivated,
+  onBookActivated as strategicOnBookActivated,
+  onHabitCreated as strategicOnHabitCreated,
+  onHabitDestroyed as strategicOnHabitDestroyed,
+  loadAutoQuestConfig,
+  AutoQuestConfig,
+} from './agents/strategicQuestService';
+import {
+  buildEmptyWindow,
+  coerceWindow,
+  markToday,
+  scoreFromWindow,
+  windowCompletions,
+  type DayCompletion,
+} from './utils/consistency';
+import {
+  loadShadowMemory,
+  recordAnswer as recordShadowAnswerUtil,
+  markInterrogationComplete as markShadowInterrogationCompleteUtil,
+  startInterrogation as startShadowInterrogationUtil,
+  setInterrogationIndex as setShadowInterrogationIndexUtil,
+  declineInterrogation as declineShadowInterrogationUtil,
+  appendChat as appendShadowChatUtil,
+  clearShadowMemory,
+  formatMemoryDigest,
+  answeredCount as answeredShadowCount,
+  type ShadowMemory,
+  type ShadowChatEntry,
+} from './utils/shadowMemory';
+import type { ShadowTag } from './services/shadowQuestions';
 
 const NC_PER_TASK = 10;
 const NC_PER_QUEST_BASE = 50;
@@ -72,6 +111,7 @@ interface GameContextType {
   addExp: (amount: number) => void;
   checkLevelUp: () => void;
   updateStreak: () => void;
+  spendRestToken: () => void;
   checkStreak: () => void;
   applyPenalty: (type: PenaltyRecord['type'], reason: string, amount: number) => void;
   checkAchievements: () => void;
@@ -106,9 +146,50 @@ interface GameContextType {
   consistency: ConsistencyData;
   recommendations: AgentRecommendation[];
   generateRecommendations: () => Promise<void>;
+  expHistory: ExpHistoryEntry[];
+  theme: ThemeColor;
+  setTheme: (t: ThemeColor) => void;
+  language: Language;
+  setLanguage: (l: Language) => void;
   getAgentMotivation: () => Promise<string>;
   getQuestGeneratorStatus: () => string;
   resetAllData: () => void;
+  // v1.4.0 — agent mesh
+  eventLog: Array<{ at: string; event: NexusEvent }>;
+  publishEvent: <E extends NexusEvent['type']>(
+    event: E,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    payload: any,
+  ) => void;
+  behaviorProfile: BehaviorProfile;
+  reminderWindows: ReminderWindow[];
+  setReminderWindows: (windows: ReminderWindow[]) => void;
+  dailyBaseline: DailyBaseline;
+  toggleBaselineMode: () => void;
+  toggleBaselineTask: (taskId: string) => void;
+  addCustomBaselineTask: (task: Omit<DailyBaselineTask, 'id' | 'completed'>) => void;
+  removeCustomBaselineTask: (taskId: string) => void;
+  resetDailyBaseline: () => void;
+
+  // v1.4.x — Penalty Zone lockout mode. When `currentMode === 'penalty_zone'`
+  // the dashboard shows a fullscreen survival-protocol screen instead of
+  // the normal command center.
+  currentMode: 'normal' | 'survival' | 'penalty_zone';
+  penaltyZoneReason: string | null;
+  enterPenaltyZone: (reason: string) => void;
+  exitPenaltyZone: () => void;
+
+  // Shadow interrogation + long-term memory
+  shadowMemory: ShadowMemory;
+  shadowMemoryDigest: string;
+  recordShadowAnswer: (tag: ShadowTag, answer: string | string[] | undefined) => void;
+  markShadowInterrogationComplete: (callSign: string | null) => void;
+  startShadowInterrogation: () => void;
+  setShadowInterrogationIndex: (index: number) => void;
+  declineShadowInterrogation: () => void;
+  appendShadowChat: (entry: ShadowChatEntry) => void;
+  resetShadowMemory: () => void;
+  shadowAnsweredCount: number;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -161,8 +242,33 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [consistency, setConsistency] = useState<ConsistencyData>(() => {
     const saved = localStorage.getItem('nexus_consistency');
-    if (saved) return JSON.parse(saved);
-    return { score: 100, totalDays: 0, completedDays: 0, currentRun: 0, longestRun: 0, recoveryCount: 0, last7Days: [true, true, true, true, true, true, true], graceDaysRemaining: 2 };
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Migrate the sliding-window shape — old boolean[] day-of-week
+        // buckets are dropped and replaced with a fresh empty window
+        // (the operator hasn't actually completed anything yet).
+        return {
+          ...parsed,
+          last7Days: coerceWindow(parsed.last7Days),
+          score: typeof parsed.score === 'number' ? parsed.score : 0,
+        };
+      } catch {
+        /* fall through to default */
+      }
+    }
+    // Fresh operator: real zero, empty window. Don't show "100%" before
+    // they have done anything.
+    return {
+      score: 0,
+      totalDays: 0,
+      completedDays: 0,
+      currentRun: 0,
+      longestRun: 0,
+      recoveryCount: 0,
+      last7Days: buildEmptyWindow(),
+      graceDaysRemaining: 2,
+    };
   });
 
   const [recommendations, setRecommendations] = useState<AgentRecommendation[]>(() => {
@@ -257,10 +363,74 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ];
   });
 
+  /** v1.4.0 — isPro is now a dormant flag. Pro subscription removed from store.
+   *  Retained in localStorage for future real billing (Stripe/PayPal). */
   const [isPro, setIsPro] = useState<boolean>(() => localStorage.getItem('nexus_pro') === 'true');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const canAscend = (Object.values(stats) as number[]).every(s => s >= 100);
   const prevLevelRef = useRef(progression.level);
+
+  // R-03 — calendar heatmap data (date → {exp, credits} earned) and theme color
+  const [expHistory, setExpHistory] = useState<ExpHistoryEntry[]>(() => {
+    const saved = localStorage.getItem('nexus_exp_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [theme, setThemeState] = useState<ThemeColor>(() => {
+    const saved = localStorage.getItem('nexus_theme') as ThemeColor | null;
+    return saved === 'sapphire' || saved === 'crimson' ? saved : 'emerald';
+  });
+
+  const setTheme = useCallback((t: ThemeColor) => {
+    setThemeState(t);
+    localStorage.setItem('nexus_theme', t);
+  }, []);
+
+  // R-09 — language overlay
+  const [language, setLanguageState] = useState<Language>(() => {
+    const saved = localStorage.getItem('nexus_language') as Language | null;
+    return saved === 'ja' ? 'ja' : 'en';
+  });
+
+  const setLanguage = useCallback((l: Language) => {
+    setLanguageState(l);
+    localStorage.setItem('nexus_language', l);
+  }, []);
+
+  // v1.4.0 — Agent mesh: behavior profile + reminder windows + event log
+  const [behaviorProfile, setBehaviorProfile] = useState<BehaviorProfile>(() => loadProfile());
+  const [reminderWindows, setReminderWindowsState] = useState<ReminderWindow[]>(() => {
+    try {
+      const raw = localStorage.getItem('nexus_reminder_windows');
+      if (!raw) return DEFAULT_REMINDER_WINDOWS;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_REMINDER_WINDOWS;
+    } catch {
+      return DEFAULT_REMINDER_WINDOWS;
+    }
+  });
+  const [eventLog, setEventLog] = useState<Array<{ at: string; event: NexusEvent }>>(() => getEventLog());
+
+  const setReminderWindows = useCallback((windows: ReminderWindow[]) => {
+    setReminderWindowsState(windows);
+    saveReminderWindows(windows);
+    localStorage.setItem('nexus_reminder_windows', JSON.stringify(windows));
+  }, []);
+
+  /** Publish a typed event into the bus. All subscribed agents will react. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const publishEvent = useCallback(<E extends NexusEvent['type']>(event: E, payload: any) => {
+    eventBus.publish(event, payload);
+    // refresh event log so the UI can introspect
+    setEventLog(getEventLog());
+    // record into behavior profile (fire and forget)
+    const full: NexusEvent = { ...payload, type: event } as NexusEvent;
+    setBehaviorProfile(prev => {
+      const next = recordBehaviorEvent(prev, full);
+      persistProfile(next);
+      return next;
+    });
+  }, []);
 
   const pushNotification = useCallback((n: AppNotification) => {
     setNotifications(prev => [...prev.slice(-9), n]);
@@ -274,6 +444,88 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const saved = localStorage.getItem('nexus_custom_skills');
     return saved ? JSON.parse(saved) : [];
   });
+
+  const [dailyBaseline, setDailyBaseline] = useState<DailyBaseline>(() => {
+    const saved = localStorage.getItem('nexus_daily_baseline');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return {
+      mode: 'fixed',
+      fixedTasks: DEFAULT_FIXED_BASELINE.map(t => ({ ...t, completed: false })),
+      customTasks: [],
+      lastCompletedDate: null,
+      completionHistory: [],
+    };
+  });
+
+  // v1.4.x — Penalty Zone lockout state. Persisted so a reload doesn't
+  // reset the suspense (the whole point of a penalty is that you cannot
+  // escape by app-restarting).
+  const [currentMode, setCurrentMode] = useState<'normal' | 'survival' | 'penalty_zone'>(() => {
+    const saved = localStorage.getItem('nexus_mode');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return saved === 'penalty_zone' || saved === 'survival' ? saved : 'normal';
+  });
+  const [penaltyZoneReason, setPenaltyZoneReason] = useState<string | null>(() => {
+    return localStorage.getItem('nexus_penalty_reason');
+  });
+
+  const enterPenaltyZone = useCallback((reason: string) => {
+    setCurrentMode('penalty_zone');
+    setPenaltyZoneReason(reason);
+    localStorage.setItem('nexus_mode', 'penalty_zone');
+    localStorage.setItem('nexus_penalty_reason', reason);
+  }, []);
+
+  const exitPenaltyZone = useCallback(() => {
+    setCurrentMode('normal');
+    setPenaltyZoneReason(null);
+    localStorage.removeItem('nexus_mode');
+    localStorage.removeItem('nexus_penalty_reason');
+  }, []);
+
+  // Shadow long-term memory — persisted in localStorage by the util.
+  // We mirror it into a React state for re-render-driven UI updates.
+  const [shadowMemory, setShadowMemory] = useState<ShadowMemory>(() => loadShadowMemory());
+
+  const recordShadowAnswer = useCallback(
+    (tag: ShadowTag, answer: string | string[] | undefined) => {
+      const next = recordShadowAnswerUtil(shadowMemory, tag, answer);
+      setShadowMemory(next);
+    },
+    [shadowMemory],
+  );
+
+  const markShadowInterrogationComplete = useCallback((callSign: string | null) => {
+    const next = markShadowInterrogationCompleteUtil(shadowMemory, callSign);
+    setShadowMemory(next);
+  }, [shadowMemory]);
+
+  const startShadowInterrogation = useCallback(() => {
+    setShadowMemory(prev => startShadowInterrogationUtil(prev));
+  }, []);
+
+  const setShadowInterrogationIndex = useCallback((index: number) => {
+    setShadowMemory(prev => setShadowInterrogationIndexUtil(prev, index));
+  }, []);
+
+  const declineShadowInterrogation = useCallback(() => {
+    setShadowMemory(prev => declineShadowInterrogationUtil(prev));
+  }, []);
+
+  const appendShadowChat = useCallback((entry: ShadowChatEntry) => {
+    const next = appendShadowChatUtil(shadowMemory, entry);
+    setShadowMemory(next);
+  }, [shadowMemory]);
+
+  const resetShadowMemory = useCallback(() => {
+    clearShadowMemory();
+    setShadowMemory(loadShadowMemory());
+  }, []);
+
+  const shadowMemoryDigest = formatMemoryDigest(shadowMemory);
+  const shadowAnsweredCount = answeredShadowCount(shadowMemory);
 
   const [quests, setQuests] = useState<Quest[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -299,6 +551,70 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   });
 
+  // v1.4.0 — wire the agent mesh to the bus. This effect mounts once on
+  // provider mount and survives for the lifetime of the app. Subscribers
+  // are intentionally lightweight: notification-style pings + behavior
+  // updates only. Heavy AI work (quest generation, motivational messages)
+  // is triggered explicitly elsewhere.
+  useEffect(() => {
+    const orch = getOrchestrator();
+    const unsubs: Array<() => void> = [];
+
+    unsubs.push(eventBus.subscribe('protocol.activated', (e) => {
+      pushNotification({
+        id: `proto_activated_${e.protocolId}_${Date.now()}`,
+        type: 'achievement',
+        title: 'Protocol Locked In',
+        description: `Strategic quest chain queued for ${e.kind} protocol. Open Quest Board.`,
+        timestamp: new Date().toISOString(),
+      });
+    }));
+
+    unsubs.push(eventBus.subscribe('book.activated', (e) => {
+      pushNotification({
+        id: `book_activated_${e.bookId}_${Date.now()}`,
+        type: 'achievement',
+        title: 'Reading Quest Generated',
+        description: `Book mastery chain initialized for "${e.title}".`,
+        timestamp: new Date().toISOString(),
+      });
+    }));
+
+    unsubs.push(eventBus.subscribe('habit.created', (e) => {
+      pushNotification({
+        id: `habit_created_${e.habitId}_${Date.now()}`,
+        type: 'achievement',
+        title: e.isAddiction ? 'Addiction Targeted' : 'Habit Under Construction',
+        description: `3 micro-quests auto-generated for "${e.title}".`,
+        timestamp: new Date().toISOString(),
+      });
+    }));
+
+    unsubs.push(eventBus.subscribe('habit.destroyed', (e) => {
+      pushNotification({
+        id: `habit_destroyed_${e.habitId}_${Date.now()}`,
+        type: 'penalty',
+        title: 'Replacement Rituals Generated',
+        description: `Holding the line on "${e.title}". Replacement quests queued.`,
+        timestamp: new Date().toISOString(),
+      });
+    }));
+
+    unsubs.push(eventBus.subscribe('streak.broken', (e) => {
+      pushNotification({
+        id: `streak_broken_${Date.now()}`,
+        type: 'penalty',
+        title: 'Streak Reset',
+        description: `You held a ${e.previousStreak}-day run. The Manager has logged it.`,
+        timestamp: new Date().toISOString(),
+      });
+    }));
+
+    return () => {
+      unsubs.forEach(fn => fn());
+    };
+  }, []); // mount-only
+
   useEffect(() => {
     localStorage.setItem('selectedCharacter', selectedCharacter || '');
     localStorage.setItem('protocols', JSON.stringify(protocols));
@@ -322,7 +638,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('nexus_lastStatUpdates', JSON.stringify(lastStatUpdates));
     localStorage.setItem('nexus_pro', isPro.toString());
     localStorage.setItem('nexus_assessment_complete', hasCompletedAssessment.toString());
-  }, [hasCompletedAssessment, selectedCharacter, protocols, stats, credits, progression, streakData, achievements, penaltyRecords, habits, activePowerUps, debuffs, shadowState, raidBoss, ascensionData, narrativeChapters, riftSchedules, customSkillSets, isPro, appPermissions, userProfile, lastStatUpdates]);
+    localStorage.setItem('nexus_exp_history', JSON.stringify(expHistory));
+    localStorage.setItem('nexus_theme', theme);
+    localStorage.setItem('nexus_language', language);
+    localStorage.setItem('nexus_reminder_windows', JSON.stringify(reminderWindows));
+  }, [hasCompletedAssessment, selectedCharacter, protocols, stats, credits, progression, streakData, achievements, penaltyRecords, habits, activePowerUps, debuffs, shadowState, raidBoss, ascensionData, narrativeChapters, riftSchedules, customSkillSets, isPro, appPermissions, userProfile, lastStatUpdates, expHistory, theme, language, reminderWindows]);
+
+  useEffect(() => {
+    localStorage.setItem('nexus_daily_baseline', JSON.stringify(dailyBaseline));
+  }, [dailyBaseline]);
 
   const completeAssessment = async (initialStats: UserStats) => {
     setStats(initialStats);
@@ -345,6 +669,30 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...protocol
     };
     setProtocols(prev => [...prev, newProtocol]);
+    // v1.4.0 — fan out to the agent mesh (QuestGen, BookMastery, etc.)
+    publishEvent('protocol.activated', {
+      protocolId: newProtocol.id,
+      stat: newProtocol.stat,
+      kind: newProtocol.type,
+    });
+    if (newProtocol.type === 'reading') {
+      publishEvent('book.activated', {
+        bookId: newProtocol.id,
+        title: newProtocol.title,
+      });
+    }
+    // v1.4.0 — strategic quest auto-generation
+    const ctx = { stats, profile: userProfile, quests, enhancedQuests: [], tasks, level: progression.level, exp: progression.exp, expToNextLevel: progression.expToNextLevel };
+    try {
+      const autoQuests = newProtocol.type === 'reading'
+        ? await strategicOnBookActivated(newProtocol, ctx)
+        : await strategicOnProtocolActivated(newProtocol, ctx);
+      if (autoQuests.length > 0) {
+        setQuests(prev => [...prev, ...autoQuests]);
+      }
+    } catch (err) {
+      console.warn('[addProtocol] strategic quest generation failed:', err);
+    }
   };
 
   const removeProtocol = (id: string) => {
@@ -376,8 +724,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }]);
   };
 
+  const recordEarning = useCallback((expDelta: number, creditsDelta: number) => {
+    if (expDelta === 0 && creditsDelta === 0) return;
+    const d = today();
+    setExpHistory(prev => {
+      const existing = prev.find(e => e.date === d);
+      if (existing) {
+        return prev.map(e => e.date === d ? { ...e, exp: e.exp + expDelta, credits: e.credits + creditsDelta } : e);
+      }
+      return [...prev, { date: d, exp: expDelta, credits: creditsDelta }];
+    });
+  }, []);
+
   const addCredits = (amount: number) => {
+    if (amount === 0) return;
     setCredits(prev => Math.max(0, prev + amount));
+    recordEarning(0, amount);
   };
 
   const spendCredits = (amount: number): boolean => {
@@ -422,6 +784,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         statPoints: newStatPoints
       };
     });
+    recordEarning(amount, 0);
   };
 
   const checkLevelUp = useCallback(() => {
@@ -480,6 +843,33 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
+  // R-02 — explicit user action: spend a rest token to mark today as
+  // "rest" so the 3-of-7 streak window stays alive without requiring
+  // effort logged.
+  const spendRestToken = useCallback(() => {
+    setConsistency(prev => {
+      if (prev.graceDaysRemaining <= 0) return prev;
+      // Mark today as completed (rest counts as completion) using the
+      // sliding-window helper so the array stays valid.
+      const nextWindow: DayCompletion[] = markToday(prev.last7Days, true);
+      const completedCount = windowCompletions(nextWindow);
+      const score = scoreFromWindow(nextWindow);
+      return {
+        ...prev,
+        graceDaysRemaining: prev.graceDaysRemaining - 1,
+        last7Days: nextWindow,
+        score,
+      };
+    });
+    pushNotification({
+      id: `rest_${today()}_${Date.now()}`,
+      type: 'achievement',
+      title: 'Rest Token Spent',
+      description: 'Today is logged as rest. Streak window intact. Recover — then return.',
+      timestamp: new Date().toISOString(),
+    });
+  }, [pushNotification]);
+
   const checkStreak = useCallback(() => {
     const d = today();
     setStreakData(prev => {
@@ -495,20 +885,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const updateConsistency = useCallback((completed: boolean) => {
-    const d = today();
     setConsistency(prev => {
-      const dayIndex = new Date(d).getDay();
-      const newLast7 = [...prev.last7Days];
-      if (completed) {
-        newLast7[dayIndex] = true;
-      } else if (!newLast7[dayIndex]) {
-        newLast7[dayIndex] = false;
-      }
+      // Rotate the sliding window so it always reflects the last 7
+      // calendar days, then mark today.
+      const nextWindow: DayCompletion[] = markToday(prev.last7Days, completed);
+      const completedCount = windowCompletions(nextWindow);
+      const score = scoreFromWindow(nextWindow);
 
-      const completedCount = newLast7.filter(Boolean).length;
-      const score = Math.round((completedCount / 7) * 100);
+      // R-02 — 3-of-7 grace window: the run survives as long as ≥3 of
+      // the last 7 days are active. A miss only resets the run when:
+      //   1) the 3-of-7 alive threshold fails AND
+      //   2) no grace tokens remain to soften the blow.
+      const windowAlive = completedCount >= 3 || prev.graceDaysRemaining > 0;
+      const newCurrentRun = completed
+        ? prev.currentRun + 1
+        : (windowAlive ? prev.currentRun : 0);
 
-      const newCurrentRun = completed ? prev.currentRun + 1 : (prev.graceDaysRemaining > 0 ? prev.currentRun : 0);
       const newGrace = completed ? prev.graceDaysRemaining : Math.max(0, prev.graceDaysRemaining - 1);
       const newRecovery = completed && prev.graceDaysRemaining === 0 && prev.currentRun === 0 && prev.completedDays > 0
         ? prev.recoveryCount + 1 : prev.recoveryCount;
@@ -521,7 +913,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentRun: newCurrentRun,
         longestRun: Math.max(prev.longestRun, newCurrentRun),
         recoveryCount: newRecovery,
-        last7Days: newLast7,
+        last7Days: nextWindow,
         graceDaysRemaining: newGrace,
       };
     });
@@ -689,6 +1081,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             reward: { credits: a.rewardCredits, exp: a.rewardExp },
             timestamp: now(),
           });
+          publishEvent('achievement.unlocked', {
+            achievementId: a.id,
+            category: a.category,
+          });
           return { ...a, progress: a.requirement, unlocked: true, unlockedAt: now() };
         }
         return { ...a, progress: Math.min(progress, a.requirement) };
@@ -714,40 +1110,79 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
     setLastStatUpdates(prev => ({ ...prev, [targetStat]: now() }));
 
+    // Update quest state (pure state transformation only)
     setQuests(prev => prev.map(q => {
       if (q.id !== id || q.completed) return q;
-
-      addCredits(q.rewardCredits);
-      addExp(q.rewardExp);
-      updateConsistency(true);
-      updateStreak();
-      checkStreak();
-      updateShadow(false);
-
-      const missedCount = penaltyRecords.filter(p => p.type === 'missed' && p.date === today()).length;
-      if (missedCount > 0) {
-        const forgiven = Math.min(missedCount, 1);
-        setPenaltyRecords(prev => {
-          const toRemove = prev.filter(p => p.type === 'missed' && p.date === today()).slice(0, forgiven);
-          return prev.filter(p => !toRemove.includes(p));
-        });
-        addCredits(NC_MISS_PENALTY_BASE * forgiven);
-      }
-
       return { ...q, completed: true, completedAt: now() };
     }));
+
+    // Side effects moved outside updater
+    addCredits(quest.rewardCredits);
+    addExp(quest.rewardExp);
+    updateConsistency(true);
+    updateStreak();
+    checkStreak();
+    updateShadow(false);
+
+    const missedCount = penaltyRecords.filter(p => p.type === 'missed' && p.date === today()).length;
+    if (missedCount > 0) {
+      const forgiven = Math.min(missedCount, 1);
+      setPenaltyRecords(prev => {
+        const toRemove = prev.filter(p => p.type === 'missed' && p.date === today()).slice(0, forgiven);
+        return prev.filter(p => !toRemove.includes(p));
+      });
+      addCredits(NC_MISS_PENALTY_BASE * forgiven);
+    }
+
+    publishEvent('quest.completed', {
+      questId: id,
+      stat: targetStat,
+      difficulty: quest.difficulty,
+    });
+    publishEvent('exp.gained', { amount: quest.rewardExp, stat: targetStat });
+    publishEvent('stat.increased', { stat: targetStat, delta: 1, newValue: stats[targetStat] + 1 });
+
+    // v1.4.0 — conditional Motivator ping on quest complete (Phase 12)
+    // Only fire for significant quests to avoid noise
+    if (quest.rewardExp >= 50 || quest.difficulty >= 40) {
+      const orch = getOrchestrator();
+      setTimeout(() => {
+        orch.generateMotivation({
+          stats,
+          profile: userProfile,
+          recentAchievements: [],
+        }, `quest_completed:${quest.title || 'unknown'}`).then(msg => {
+          pushNotification({
+            id: `motivate_${Date.now()}`,
+            type: 'level_up',
+            title: 'Manager · Quest Complete',
+            description: msg,
+            timestamp: now(),
+          });
+        }).catch(() => {});
+      }, 1200);
+    }
   };
 
   const failQuest = async (id: string) => {
+    const quest = quests.find(q => q.id === id);
+    if (!quest || quest.completed || quest.failed) return;
+
+    // Update quest state (pure state transformation only)
     setQuests(prev => prev.map(q => {
-      if (q.id !== id || q.completed) return q;
-      applyPenalty('failed', `Failed quest: ${q.title}`, Math.floor(q.rewardCredits * 0.5));
-      updateShadow(true);
+      if (q.id !== id || q.completed || q.failed) return q;
       return { ...q, failed: true };
     }));
+
+    // Side effects moved outside updater
+    applyPenalty('failed', `Failed quest: ${quest.title}`, Math.floor(quest.rewardCredits * 0.5));
+    updateShadow(true);
   };
 
   const completeTask = async (id: string) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task || task.completed) return;
+
     const gainMultiplier = ascensionData.multiplier;
     const powerUpMultiplier = activePowerUps.filter(p => new Date(p.expiresAt) > new Date()).reduce((m, p) => m * p.multiplier, 1);
     const totalMultiplier = gainMultiplier * powerUpMultiplier;
@@ -758,27 +1193,35 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
     setLastStatUpdates(prev => ({ ...prev, willpower: now() }));
 
+    // Update task state (pure state transformation only)
     setTasks(prev => prev.map(t => {
       if (t.id !== id || t.completed) return t;
-
-      addCredits(t.rewardCredits);
-      addExp(t.rewardExp);
-      updateConsistency(true);
-      checkStreak();
-      updateShadow(false);
-
       return { ...t, completed: true };
     }));
+
+    // Side effects moved outside updater
+    addCredits(task.rewardCredits);
+    addExp(task.rewardExp);
+    updateConsistency(true);
+    checkStreak();
+    updateShadow(false);
+
+    publishEvent('task.completed', {
+      taskId: id,
+      stat: 'willpower',
+      difficulty: task.difficulty,
+    });
+    publishEvent('exp.gained', { amount: task.rewardExp, stat: 'willpower' });
   };
 
   const failTask = async (id: string) => {
-    setTasks(prev => prev.map(t => {
-      if (t.id !== id || t.completed) return t;
-      applyPenalty('missed', `Missed task: ${t.title}`, NC_MISS_PENALTY_BASE);
-      updateShadow(true);
-      updateConsistency(false);
-      return t;
-    }));
+    const task = tasks.find(t => t.id === id);
+    if (!task || task.completed) return;
+
+    // Side effects moved outside updater
+    applyPenalty('missed', `Missed task: ${task.title}`, NC_MISS_PENALTY_BASE);
+    updateShadow(true);
+    updateConsistency(false);
   };
 
   const toggleAppPermission = async (appName: string) => {
@@ -862,6 +1305,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       weeklyTarget: habit.weeklyTarget || 5,
     };
     setHabits(prev => [...prev, newHabit]);
+    publishEvent('habit.created', {
+      habitId: newHabit.id,
+      title: newHabit.title,
+      isAddiction: newHabit.isAddiction,
+    });
+    // v1.4.0 — strategic quest auto-generation
+    const ctx = { stats, profile: userProfile, quests, enhancedQuests: [], tasks, level: progression.level, exp: progression.exp, expToNextLevel: progression.expToNextLevel };
+    strategicOnHabitCreated(newHabit, ctx).then(autoQuests => {
+      if (autoQuests.length > 0) {
+        setQuests(prev => [...prev, ...autoQuests]);
+      }
+    }).catch(err => console.warn('[addHabit] strategic quest generation failed:', err));
   };
 
   const completeMicroQuest = (habitId: string, questId: string) => {
@@ -919,7 +1374,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeHabit = (id: string) => {
+    const target = habits.find(h => h.id === id);
     setHabits(prev => prev.filter(h => h.id !== id));
+    if (target) {
+      publishEvent('habit.destroyed', {
+        habitId: id,
+        title: target.title,
+      });
+      // v1.4.0 — strategic quest auto-generation (replacement rituals)
+      if (target.isAddiction) {
+        const ctx = { stats, profile: userProfile, quests, enhancedQuests: [], tasks, level: progression.level, exp: progression.exp, expToNextLevel: progression.expToNextLevel };
+        strategicOnHabitDestroyed(target, ctx).then(autoQuests => {
+          if (autoQuests.length > 0) {
+            setQuests(prev => [...prev, ...autoQuests]);
+          }
+        }).catch(err => console.warn('[removeHabit] strategic quest generation failed:', err));
+      }
+    }
   };
 
   const activatePowerUp = (item: StoreItem) => {
@@ -1072,21 +1543,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (body) {
         newTasks.push({
-          id: `t_${d}_1`, title: `Sync ${body.title}`, description: `Complete your ${body.title} protocol.`, category: 'fitness', difficulty: body.difficulty || 1, points: (body.gain || 2) * 5, rewardCredits: 10 + (body.difficulty || 1) * 3, rewardExp: 15 + (body.difficulty || 1) * 3, completed: false, date: d,
+          id: `t_${d}_1`, title: `Log: ${body.title}`, description: `Show up for ${body.title}. The mirror is watching.`, category: 'fitness', difficulty: body.difficulty || 1, points: (body.gain || 2) * 5, rewardCredits: 10 + (body.difficulty || 1) * 3, rewardExp: 15 + (body.difficulty || 1) * 3, completed: false, date: d,
         });
       } else {
         newTasks.push({
-          id: `t_${d}_1`, title: 'Complete a training protocol', description: 'Sync any body protocol to advance your stats.', category: 'fitness', difficulty: 1, points: 10, rewardCredits: 10, rewardExp: 15, completed: false, date: d,
+          id: `t_${d}_1`, title: 'Log any body protocol', description: 'Show up for one body session today.', category: 'fitness', difficulty: 1, points: 10, rewardCredits: 10, rewardExp: 15, completed: false, date: d,
         });
       }
 
       if (mind) {
         newTasks.push({
-          id: `t_${d}_2`, title: `Sync ${mind.title}`, description: `Complete your ${mind.title} protocol.`, category: 'mental', difficulty: mind.difficulty || 1, points: (mind.gain || 2) * 5, rewardCredits: 10 + (mind.difficulty || 1) * 3, rewardExp: 15 + (mind.difficulty || 1) * 3, completed: false, date: d,
+          id: `t_${d}_2`, title: `Log: ${mind.title}`, description: `Show up for ${mind.title}. The mirror is watching.`, category: 'mental', difficulty: mind.difficulty || 1, points: (mind.gain || 2) * 5, rewardCredits: 10 + (mind.difficulty || 1) * 3, rewardExp: 15 + (mind.difficulty || 1) * 3, completed: false, date: d,
         });
       } else {
         newTasks.push({
-          id: `t_${d}_2`, title: 'Read or study for 20 minutes', description: 'Expand your knowledge base.', category: 'mental', difficulty: 1, points: 10, rewardCredits: 10, rewardExp: 15, completed: false, date: d,
+          id: `t_${d}_2`, title: 'Read or study for 20 minutes', description: 'Expand your knowledge base. The mirror is watching.', category: 'mental', difficulty: 1, points: 10, rewardCredits: 10, rewardExp: 15, completed: false, date: d,
         });
       }
 
@@ -1165,7 +1636,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const sendTrainerRequest = async (message: string) => {
-    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    const apiKey = localStorage.getItem('NVIDIA_API_KEY');
 
     try {
       const data = await generateTrainerResponse(
@@ -1197,7 +1668,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const streamTrainerRequest = async (message: string, onChunk: (text: string) => void) => {
-    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    const apiKey = localStorage.getItem('NVIDIA_API_KEY');
 
     try {
       const data = await streamTrainerResponse(
@@ -1238,16 +1709,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkRifts();
     generateDailyTasks();
     generateProtocolQuests();
+  }, [progression.level, quests, stats]);
+
+  // Shadow isDominant polling — use refs to avoid re-creating interval on every shadowState change
+  const statsRef = useRef(stats);
+  const shadowStateRef = useRef(shadowState);
+  useEffect(() => { statsRef.current = stats; }, [stats]);
+  useEffect(() => { shadowStateRef.current = shadowState; }, [shadowState]);
+
+  useEffect(() => {
     const shadowInterval = setInterval(() => {
-      const shadowAvg = [shadowState.strength, shadowState.intelligence, shadowState.agility, shadowState.vitality, shadowState.willpower, shadowState.social].reduce((a: number, b: number) => a + b, 0) / 6;
-      const userAvg = (Object.values(stats) as number[]).reduce((a: number, b: number) => a + b, 0) / 6;
-      if (shadowAvg > userAvg && !shadowState.isDominant) {
+      const s = shadowStateRef.current;
+      const u = statsRef.current;
+      const shadowAvg = [s.strength, s.intelligence, s.agility, s.vitality, s.willpower, s.social].reduce((a: number, b: number) => a + b, 0) / 6;
+      const userAvg = (Object.values(u) as number[]).reduce((a: number, b: number) => a + b, 0) / 6;
+      if (shadowAvg > userAvg && !s.isDominant) {
         setShadowState(prev => ({ ...prev, isDominant: true }));
       }
     }, 30000);
 
     return () => clearInterval(shadowInterval);
-  }, [progression.level, quests, stats, shadowState]);
+  }, []);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -1279,7 +1761,51 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       k === 'appPermissions'
     );
     keys.forEach(k => localStorage.removeItem(k));
+    clearEventLog();
     window.location.reload();
+  }, []);
+
+  const toggleBaselineMode = useCallback(() => {
+    setDailyBaseline(prev => ({
+      ...prev,
+      mode: prev.mode === 'fixed' ? 'custom' : 'fixed',
+    }));
+  }, []);
+
+  const toggleBaselineTask = useCallback((taskId: string) => {
+    setDailyBaseline(prev => {
+      const tasks = prev.mode === 'fixed' ? prev.fixedTasks : prev.customTasks;
+      const updated = tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t);
+      const completedCount = updated.filter(t => t.completed).length;
+      const today = new Date().toISOString().split('T')[0];
+      return {
+        ...prev,
+        ...(prev.mode === 'fixed' ? { fixedTasks: updated } : { customTasks: updated }),
+        lastCompletedDate: completedCount > 0 ? today : prev.lastCompletedDate,
+      };
+    });
+  }, []);
+
+  const addCustomBaselineTask = useCallback((task: Omit<DailyBaselineTask, 'id' | 'completed'>) => {
+    setDailyBaseline(prev => ({
+      ...prev,
+      customTasks: [...prev.customTasks, { ...task, id: `custom_${Date.now()}`, completed: false }],
+    }));
+  }, []);
+
+  const removeCustomBaselineTask = useCallback((taskId: string) => {
+    setDailyBaseline(prev => ({
+      ...prev,
+      customTasks: prev.customTasks.filter(t => t.id !== taskId),
+    }));
+  }, []);
+
+  const resetDailyBaseline = useCallback(() => {
+    setDailyBaseline(prev => ({
+      ...prev,
+      fixedTasks: prev.fixedTasks.map(t => ({ ...t, completed: false })),
+      customTasks: prev.customTasks.map(t => ({ ...t, completed: false })),
+    }));
   }, []);
 
   return (
@@ -1291,11 +1817,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       narrativeChapters, riftSchedules, customSkillSets, isPro,
       notifications, canAscend, lastStatUpdates,
       consistency, recommendations, generateRecommendations,
+      expHistory, theme, setTheme,
+      language, setLanguage,
+      eventLog, publishEvent, behaviorProfile, reminderWindows, setReminderWindows,
       completeAssessment, setCharacter, setProtocol, addProtocol, removeProtocol, updateProtocol,
       addCustomSkillSet, removeCustomSkillSet, updateCustomSkillValue,
       updateUserProfile, addQuest, completeQuest, failQuest, completeTask, failTask,
       toggleAppPermission, updateStat, addCredits, spendCredits, addExp, checkLevelUp,
-      updateStreak, checkStreak, applyPenalty, checkAchievements,
+      updateStreak, spendRestToken, checkStreak, applyPenalty, checkAchievements,
       addHabit, completeMicroQuest, recordRelapse, removeHabit,
       activatePowerUp, checkPowerUps, addDebuff, checkDebuffs,
       damageRaidBoss, completeRaidBoss, generateNewRaidBoss, performAscension,
@@ -1304,7 +1833,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sendCommandToAgent, streamCommandToAgent,
       sendTrainerRequest, streamTrainerRequest,
       getAgentMotivation, getQuestGeneratorStatus,
-      resetAllData
+      resetAllData,
+      dailyBaseline, toggleBaselineMode, toggleBaselineTask, addCustomBaselineTask, removeCustomBaselineTask, resetDailyBaseline,
+      currentMode, penaltyZoneReason, enterPenaltyZone, exitPenaltyZone,
+      shadowMemory, shadowMemoryDigest, shadowAnsweredCount,
+      recordShadowAnswer, markShadowInterrogationComplete,
+      startShadowInterrogation, setShadowInterrogationIndex, declineShadowInterrogation,
+      appendShadowChat, resetShadowMemory,
     }}>
       {children}
     </GameContext.Provider>

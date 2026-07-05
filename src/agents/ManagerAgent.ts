@@ -25,6 +25,35 @@ export class ManagerAgent extends AgentBase {
     userMessage: string,
     context: ManagerAgentContext
   ): Promise<{ primary: string; secondary: string[] }> {
+    const lower = userMessage.toLowerCase();
+
+    // Fast local routing for common patterns — avoids expensive API call
+    if (/\b(workout|exercise|pushup|squat|run|gym|strength|muscle|cardio)\b/.test(lower)) {
+      return { primary: 'PHYSICAL_TRAINER', secondary: ['MANAGER'] };
+    }
+    if (/\b(focus|learn|read|study|memory|think|concentrate|mind)\b/.test(lower)) {
+      return { primary: 'MENTAL_TRAINER', secondary: ['MANAGER'] };
+    }
+    if (/\b(quest|task|mission|daily|challenge)\b/.test(lower)) {
+      return { primary: 'QUEST_GENERATOR', secondary: ['MANAGER'] };
+    }
+    if (/\b(book|reading|chapter|summarize)\b/.test(lower)) {
+      return { primary: 'BOOK_MASTERY', secondary: ['MANAGER'] };
+    }
+    if (/\b(habit|streak|consistency|discipline|addiction)\b/.test(lower)) {
+      return { primary: 'HABIT_MASTER', secondary: ['MANAGER'] };
+    }
+    if (/\b(protocol|training plan|regimen)\b/.test(lower)) {
+      return { primary: 'PROTOCOL_GENERATOR', secondary: ['MANAGER'] };
+    }
+    if (/\b(motivat|encourag|inspire|pep talk)\b/.test(lower)) {
+      return { primary: 'MOTIVATOR', secondary: ['MANAGER'] };
+    }
+    if (/\b(stat|progress|trend|analyze|monitor)\b/.test(lower)) {
+      return { primary: 'STATS_MONITOR', secondary: ['PROGRESS_TRACKER'] };
+    }
+
+    // Fallback to AI delegation for ambiguous requests
     const systemInstruction = `
 You are the NEXUS Neural Manager, the supreme orchestrator of the System and the Operator's Personal Coach.
 Your mission is to build a complete self-improvement ecosystem for the Operator and to act as a life coach, fitness mentor, mental strategist, and emotional accountability partner.
@@ -65,19 +94,17 @@ If the request is general or requires overall coordination, use MANAGER as prima
         enhancedQuestsCount: context.enhancedQuests.length,
         tasksCount: context.tasks.length,
       },
-      { temperature: 0.3, max_tokens: 500 } // Low temperature for consistent delegation
+      { temperature: 0.3, max_tokens: 500 }
     );
 
-    // Parse the JSON from the response
     let delegation: { primary: string; secondary: string[] };
-    try {
-      delegation = JSON.parse(content);
-    } catch (e) {
-      // Fallback to MANAGER if parsing fails
-      delegation = { primary: "MANAGER", secondary: [] };
-    }
+    // Robust parse — handles ```json fences, leading prose, and partial JSON
+    // that Llama/Mistral sometimes return.
+    delegation = AgentBase.parseJson<{ primary: string; secondary: string[] }>(
+      content,
+      { primary: "MANAGER", secondary: [] },
+    );
 
-    // Validate the primary agent key
     const validAgents = [
       "MANAGER",
       "PHYSICAL_TRAINER",
@@ -90,11 +117,12 @@ If the request is general or requires overall coordination, use MANAGER as prima
       "PROGRESS_TRACKER",
       "BOOK_MASTERY",
       "REWARD_PENALTY",
+      "HABIT_MASTER",
+      "PROTOCOL_GENERATOR",
     ];
     if (!validAgents.includes(delegation.primary)) {
       delegation.primary = "MANAGER";
     }
-    // Filter secondary to valid agents
     delegation.secondary = delegation.secondary.filter((agent) =>
       validAgents.includes(agent)
     );
@@ -145,16 +173,8 @@ If the request is general or requires overall coordination, use MANAGER as prima
     }
 
     // Combine into a final response
-    return `
-**Primary Assessment** (from ${primaryAgent.getAgentName()}):
+    return `**Primary Assessment** (from ${primaryAgent.getAgentName()}):
 ${primaryResponse.content}
-${supportingInsights}
-
-**Actionable Plan**:
-[The primary agent should include actionable steps in their response. If not, we can add a generic reminder to consult the specific agent for detailed plans.]
-
-**Checkpoint**:
-[How to measure progress - again, the primary agent should include this.]
-`;
+${supportingInsights}`;
   }
 }

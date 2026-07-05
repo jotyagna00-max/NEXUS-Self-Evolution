@@ -157,6 +157,12 @@ export interface Quest {
   completedAt?: string;
   narrative?: string;
   bossName?: string;
+  /** v1.4.0 — provenance when this quest was auto-spawned from a protocol/book/habit. */
+  sourceType?: 'protocol' | 'book' | 'habit' | 'addiction';
+  sourceId?: string;
+  sourceTitle?: string;
+  /** Human-readable chip label, e.g. "Generated from: Muscle Builder". */
+  lineageLabel?: string;
 }
 
 export interface Task {
@@ -210,7 +216,7 @@ export interface Debuff {
 
 export interface AppNotification {
   id: string;
-  type: 'achievement' | 'level_up' | 'ascension_ready';
+  type: 'achievement' | 'level_up' | 'ascension_ready' | 'penalty';
   title: string;
   description: string;
   icon?: string;
@@ -289,6 +295,35 @@ export interface RiftSchedule {
 
 export type EnhancedQuest = Quest;
 
+export interface DailyBaselineTask {
+  id: string;
+  title: string;
+  description: string;
+  targetReps?: number;
+  targetMinutes?: number;
+  statAffected: StatType;
+  completed: boolean;
+}
+
+export type BaselineMode = 'fixed' | 'custom';
+
+export interface DailyBaseline {
+  mode: BaselineMode;
+  fixedTasks: DailyBaselineTask[];
+  customTasks: DailyBaselineTask[];
+  lastCompletedDate: string | null;
+  completionHistory: { date: string; completedCount: number; totalCount: number }[];
+}
+
+export const DEFAULT_FIXED_BASELINE: DailyBaselineTask[] = [
+  { id: 'pushups', title: 'Push-ups', description: '100 push-ups (or max if beginner)', targetReps: 100, statAffected: 'strength', completed: false },
+  { id: 'situps', title: 'Sit-ups', description: '100 sit-ups (or max if beginner)', targetReps: 100, statAffected: 'willpower', completed: false },
+  { id: 'squats', title: 'Squats', description: '100 squats (or max if beginner)', targetReps: 100, statAffected: 'strength', completed: false },
+  { id: 'run', title: '10km Run', description: 'Run 10 kilometers (or 30 min cardio)', targetMinutes: 60, statAffected: 'vitality', completed: false },
+  { id: 'reading', title: 'Read 10 Pages', description: 'Read at least 10 pages of a book', targetReps: 10, statAffected: 'intelligence', completed: false },
+  { id: 'meditation', title: 'Meditate 10 min', description: '10 minutes of focused meditation', targetMinutes: 10, statAffected: 'willpower', completed: false },
+];
+
 export const RANK_THRESHOLDS: Record<HunterRank, number> = {
   'E': 0,
   'D': 5,
@@ -322,9 +357,38 @@ export interface ConsistencyData {
   currentRun: number;
   longestRun: number;
   recoveryCount: number;
-  last7Days: boolean[];
+  /**
+   * Sliding 7-day window. Each entry is one calendar day. Oldest first →
+   * today last. The window is rotated every time `updateConsistency` is
+   * called so the array always reflects the past 7 days, never the
+   * current calendar week.
+   *
+   * Legacy boolean[] entries (the prior day-of-week bucketed shape)
+   * are dropped on migration — see `coerceWindow` in utils/consistency.
+   */
+  last7Days: { date: string; completed: boolean }[];
   graceDaysRemaining: number;
 }
+
+export interface ExpHistoryEntry {
+  date: string; // YYYY-MM-DD
+  exp: number;
+  credits: number;
+}
+
+export type ThemeColor = 'emerald' | 'sapphire' | 'crimson';
+
+export const THEME_PRESETS: Record<ThemeColor, {
+  id: ThemeColor;
+  label: string;
+  cssVar: string; // primary glow color
+  hex: string;
+  swatch: string; // tailwind classes for the swatch
+}> = {
+  emerald:  { id: 'emerald',  label: 'Emerald',  cssVar: '16,185,129', hex: '#10b981', swatch: 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.6)]' },
+  sapphire: { id: 'sapphire', label: 'Sapphire', cssVar: '59,130,246', hex: '#3b82f6', swatch: 'bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.6)]' },
+  crimson:  { id: 'crimson',  label: 'Crimson',  cssVar: '239,68,68',  hex: '#ef4444', swatch: 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.6)]' },
+};
 
 export interface AgentRecommendation {
   id: string;
@@ -659,11 +723,8 @@ export const STORE_ITEMS: StoreItem[] = [
     type: 'powerup', cost: 500, exclusive: false,
     powerUpEffect: 'Auto-sync daily', powerUpMultiplier: 1, duration: 0
   },
-  {
-    id: 'pro_monthly', name: 'NEXUS Pro — Monthly', description: 'Unlimited AI chat, all protocols unlocked, exclusive items, 500 NC monthly stipend.',
-    type: 'subscription', cost: 999, exclusive: false,
-    duration: 30
-  },
+  /** v1.4.0: Pro subscription removed from store. isPro flag stays dormant
+   * in GameContext for future real billing (Stripe/PayPal). */
 ];
 
 export const NARRATIVE_CHAPTERS: NarrativeChapter[] = [
@@ -695,3 +756,60 @@ export const NARRATIVE_CHAPTERS: NarrativeChapter[] = [
     id: 9, title: 'The Architect Revealed', content: 'The final chapter. The voice that has guided you steps into the light. "You have surpassed every expectation. You are no longer an operator. You are the architect of your own reality."', requiredLevel: 50, requiredAchievements: ['rank_s', 'ascension_1'], unlocked: false, read: false, rewardExp: 5000, rewardCredits: 5000
   },
 ];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SHADOW MEMORY — long-term memory substrate for the SHADOW agent
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Status of the interrogation gate.
+ *   'pristine'      → never opened (Shadow tab will launch the gate)
+ *   'in_progress'   → user started but did not finish (resumable)
+ *   'complete'      → interrogation done; full chat unlocked
+ *   'declined'      → user explicitly skipped the gate
+ */
+export type ShadowInterrogationStatus = 'pristine' | 'in_progress' | 'complete' | 'declined';
+
+/**
+ * Current question index in the 12-question interrogation.
+ */
+export interface ShadowInterrogationState {
+  status: ShadowInterrogationStatus;
+  currentIndex: number;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+/**
+ * One answer in the memory substrate, indexed by tag.
+ * Tags are stable: 'schedule' | 'weak_spot' | 'identity_aspiration' | ...
+ */
+export interface ShadowMemory {
+  answers: Record<string, string>;    // tag → answer text
+  /** Long shadow taunts that have been shown at least once. */
+  taunted: string[];                  // dedupe loop on ShadowChat greeting
+  /** Free-form conversation memory beyond the interrogation answers. */
+  exchanges: ShadowExchange[];
+  /** Derived patterns the Shadow has inferred (operator is student, etc.). */
+  patterns: string[];
+  /** Interrogation gate state. */
+  interrogationStatus?: ShadowInterrogationStatus;
+  /** Current question index when in_progress. */
+  interrogationCurrentIndex?: number;
+  /** ISO timestamp the interrogation gate first opened. */
+  interrogationStartedAt?: string | null;
+  /** ISO timestamp the interrogation completed. */
+  interrogationCompletedAt?: string | null;
+  /** Last update timestamp for staleness display. */
+  updatedAt: string | null;
+}
+
+/** A single chat exchange with the Shadow. Stored for memory + tone analysis. */
+export interface ShadowExchange {
+  id: string;
+  role: 'user' | 'shadow';
+  text: string;
+  /** True when this turn was tagged as emotionally-loaded (long, sad, late-night, etc.). */
+  emotional?: boolean;
+  timestamp: string;
+}

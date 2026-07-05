@@ -80,17 +80,16 @@ Return format:
       { temperature: 0.3, max_tokens: 512 }
     );
 
-    try {
-      const parsed = JSON.parse(content.replace(/```json|```/g, "").trim());
-      return {
-        strength: Math.max(1, Math.min(100, parsed.strength ?? 25)),
-        agility: Math.max(1, Math.min(100, parsed.agility ?? 25)),
-        vitality: Math.max(1, Math.min(100, parsed.vitality ?? 25)),
-        reasoning: parsed.reasoning || "Baseline assessed by TITAN.",
-      };
-    } catch {
-      return { strength: 25, agility: 25, vitality: 25, reasoning: "Fallback: default baseline applied." };
-    }
+    const parsed = AgentBase.parseJson<{ strength: number; agility: number; vitality: number; reasoning: string }>(
+      content,
+      { strength: 25, agility: 25, vitality: 25, reasoning: "Fallback: default baseline applied." },
+    );
+    return {
+      strength: Math.max(1, Math.min(100, parsed.strength ?? 25)),
+      agility: Math.max(1, Math.min(100, parsed.agility ?? 25)),
+      vitality: Math.max(1, Math.min(100, parsed.vitality ?? 25)),
+      reasoning: parsed.reasoning || "Baseline assessed by TITAN.",
+    };
   }
 
   /**
@@ -120,15 +119,14 @@ Example: { "strength": 2, "vitality": 1, "reasoning": "Completed a 45-minute str
       { temperature: 0.5, max_tokens: 256 }
     );
 
-    try {
-      const parsed = JSON.parse(content);
-      return {
-        strength: parsed.strength,
-        vitality: parsed.vitality,
-        reasoning: parsed.reasoning || "No reasoning provided.",
-      };
-    } catch (e) {
-      return { strength: undefined, vitality: undefined, reasoning: "Failed to parse stat update suggestions." };
-    }
+    const parsed = AgentBase.parseJson<{ strength?: number; vitality?: number; reasoning?: string }>(
+      content,
+      { strength: undefined, vitality: undefined, reasoning: "Failed to parse stat update suggestions." },
+    );
+    return {
+      strength: parsed.strength,
+      vitality: parsed.vitality,
+      reasoning: parsed.reasoning || "No reasoning provided.",
+    };
   }
 }

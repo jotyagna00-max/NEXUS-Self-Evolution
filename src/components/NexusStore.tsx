@@ -1,28 +1,28 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { ShoppingCart, Brain, Dumbbell, Wind, Moon, Shield, Zap, Crown, Star, Timer, Check, Lock, Sparkles, Book, Activity } from 'lucide-react';
 import { useGame } from '../GameContext';
 import { STORE_ITEMS, StoreItem } from '../types';
 
 const typeIcons: Record<string, any> = {
-  protocol: Brain, powerup: Zap, cosmetic: Star, subscription: Crown, book: Book,
+  protocol: Brain, powerup: Zap, cosmetic: Star, book: Book,
   mental: Brain, physical: Dumbbell, agility: Wind, willpower: Moon, reading: Book, habit: Activity,
 };
 
 const typeColors: Record<string, string> = {
-  protocol: 'text-blue-400', powerup: 'text-yellow-400', cosmetic: 'text-pink-400', subscription: 'text-purple-400', book: 'text-red-400',
+  protocol: 'text-blue-400', powerup: 'text-yellow-400', cosmetic: 'text-pink-400', book: 'text-red-400',
   mental: 'text-blue-400', physical: 'text-red-400', agility: 'text-green-400', willpower: 'text-purple-400', reading: 'text-red-400', habit: 'text-amber-400',
 };
 
+/** v1.4.0-updated NexusStore: Pro subscription removed. isPro stays dormant in GameContext. */
 const NexusStore: React.FC = () => {
-  const { credits, purchaseStoreItem, isPro, setProStatus, protocols, addProtocol, spendCredits } = useGame();
-  const [filter, setFilter] = useState<'all' | 'protocol' | 'book' | 'powerup' | 'subscription'>('all');
+  const { credits, purchaseStoreItem, isPro, setProStatus, protocols } = useGame();
+  const [filter, setFilter] = useState<'all' | 'protocol' | 'book' | 'powerup'>('all');
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
 
   const filteredItems = STORE_ITEMS.filter(item => {
     if (filter !== 'all' && item.type !== filter) return false;
-    if (item.type === 'subscription' && isPro) return false;
     if ((item.type === 'protocol' || item.type === 'book') && protocols.some(p => p.isStoreItem && p.title === item.protocolData?.title)) return false;
     return true;
   });
@@ -30,21 +30,8 @@ const NexusStore: React.FC = () => {
   const handlePurchase = async (item: StoreItem) => {
     setPurchasing(item.id);
     await new Promise(r => setTimeout(r, 500));
-
-    if (item.type === 'subscription') {
-      if (credits >= item.cost) {
-        if (!spendCredits(item.cost)) {
-          setPurchasing(null);
-          return;
-        }
-        setProStatus(true);
-        setPurchaseSuccess(item.id);
-      }
-    } else {
-      const success = purchaseStoreItem(item);
-      if (success) setPurchaseSuccess(item.id);
-    }
-
+    const success = purchaseStoreItem(item);
+    if (success) setPurchaseSuccess(item.id);
     setPurchasing(null);
     setTimeout(() => setPurchaseSuccess(null), 2000);
   };
@@ -64,20 +51,17 @@ const NexusStore: React.FC = () => {
             <h2 className="text-5xl font-display font-black uppercase tracking-tighter text-white leading-none">App Store</h2>
             <div className="flex items-center gap-4 mt-2">
               <span className="text-yellow-400 font-display font-black text-lg">{credits} NC</span>
-              {isPro && (
-                <span className="px-3 py-1 bg-purple-500/20 border border-purple-500/40 rounded-lg text-[8px] text-purple-400 font-display uppercase tracking-widest">Pro</span>
-              )}
             </div>
           </div>
         </div>
 
         <div className="flex gap-3">
-          {(['all', 'protocol', 'book', 'powerup', 'subscription'] as const).map(f => (
+          {(['all', 'protocol', 'book', 'powerup'] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={`px-6 py-3 rounded-xl font-display text-[10px] uppercase tracking-widest transition-all border ${
                 filter === f ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-white/5 text-white/40 border-white/10 hover:text-white'
               }`}>
-              {f === 'all' ? 'All Items' : f === 'protocol' ? 'Protocols' : f === 'book' ? 'Books' : f === 'powerup' ? 'Power-Ups' : 'Pro'}
+              {f === 'all' ? 'All Items' : f === 'protocol' ? 'Protocols' : f === 'book' ? 'Books' : 'Power-Ups'}
             </button>
           ))}
         </div>
@@ -114,10 +98,6 @@ const NexusStore: React.FC = () => {
               whileHover={{ y: -6, scale: 1.02 }}
               className="group relative hologram-card rounded-[32px] p-8 overflow-hidden transition-all border border-white/5 hover:border-yellow-500/30"
             >
-              <div className={`absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity ${color}`}>
-                <Icon size={120} />
-              </div>
-
               <div className="relative z-10">
                 <div className="flex items-center gap-4 mb-6">
                   <div className={`w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center ${color} group-hover:shadow-[0_0_20px_rgba(234,179,8,0.3)] transition-all`}>
@@ -127,11 +107,7 @@ const NexusStore: React.FC = () => {
                     <span className="text-[8px] font-display text-white/30 uppercase tracking-[0.3em]">{item.type}</span>
                     <h3 className="text-lg font-display font-bold text-white uppercase tracking-tight leading-none mt-1">{item.name}</h3>
                   </div>
-                  {item.exclusive && (
-                    <div className="ml-auto px-2 py-1 bg-purple-500/20 border border-purple-500/40 rounded">
-                      <span className="text-[7px] text-purple-400 font-display uppercase tracking-widest">Pro</span>
-                    </div>
-                  )}
+                  {/* v1.4.0: Removed Pro pill — subscription no longer gated */}
                 </div>
 
                 <p className="text-xs text-white/40 font-tech leading-relaxed mb-4 min-h-[40px]">
@@ -148,7 +124,7 @@ const NexusStore: React.FC = () => {
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => handlePurchase(item)}
-                    disabled={purchasing === item.id || purchaseSuccess === item.id || (item.exclusive && !isPro) || credits < item.cost}
+                    disabled={purchasing === item.id || purchaseSuccess === item.id || credits < item.cost}
                     className={`flex-1 py-4 rounded-2xl font-display font-bold text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 border ${
                       purchaseSuccess === item.id
                         ? 'bg-emerald-500 text-black border-emerald-500'
@@ -164,7 +140,7 @@ const NexusStore: React.FC = () => {
                     ) : (
                       <span className="flex items-center justify-center gap-2">
                         <ShoppingCart size={14} />
-                        {item.exclusive && !isPro ? 'Pro Required' : 'Buy'}
+                        Buy
                       </span>
                     )}
                   </button>

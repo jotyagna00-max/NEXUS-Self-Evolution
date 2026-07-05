@@ -1,7 +1,15 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { CheckCircle2, Circle, Trophy, Zap, Flame, Star, Target, ChevronRight, Activity, Swords } from 'lucide-react';
+import { CheckCircle2, Circle, Trophy, Zap, Flame, Star, Target, ChevronRight, Activity, Swords, BookOpen, Dumbbell, Sparkles } from 'lucide-react';
 import { useGame } from '../GameContext';
+
+/** Map sourceType → icon + color for lineage chips */
+const lineageIcons: Record<string, { icon: React.FC<any>; color: string; bg: string }> = {
+  protocol: { icon: Dumbbell, color: 'text-blue-400', bg: 'bg-blue-500/15 border-blue-500/30' },
+  book: { icon: BookOpen, color: 'text-emerald-400', bg: 'bg-emerald-500/15 border-emerald-500/30' },
+  habit: { icon: Target, color: 'text-amber-400', bg: 'bg-amber-500/15 border-amber-500/30' },
+  addiction: { icon: Sparkles, color: 'text-purple-400', bg: 'bg-purple-500/15 border-purple-500/30' },
+};
 
 const QuestBoard: React.FC = () => {
   const { quests, tasks, completeQuest, completeTask, credits, progression, streakData, applyPenalty, failTask } = useGame();
@@ -128,6 +136,18 @@ const QuestBoard: React.FC = () => {
                       )}
                     </div>
                     <p className="text-xs text-white/40 font-tech leading-relaxed">{quest.description}</p>
+                    {/* v1.4.0 — Lineage chip: "Generated from: <protocol title>" */}
+                    {quest.sourceType && quest.lineageLabel && (() => {
+                      const lc = lineageIcons[quest.sourceType];
+                      if (!lc) return null;
+                      const LIcon = lc.icon;
+                      return (
+                        <span className={`inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded border text-[8px] font-display uppercase tracking-widest ${lc.bg} ${lc.color}`}>
+                          <LIcon size={10} />
+                          {quest.lineageLabel}
+                        </span>
+                      );
+                    })()}
                     <div className="flex items-center gap-4 mt-2">
                       <span className="text-[9px] text-yellow-400/60 font-tech">+{quest.rewardCredits} NC</span>
                       <span className="text-[9px] text-emerald-400/60 font-tech">+{quest.rewardExp} EXP</span>

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Send, Sparkles, StopCircle, AlertTriangle } from 'lucide-react';
 import { useGame } from '../GameContext';
 import { streamTrainerResponse } from '../services/trainerService';
+import { getArchetype } from '../services/archetypes';
 
 interface Message {
   id: string;
@@ -20,12 +21,15 @@ const AGENT_MAP: Record<string, { label: string; color: string }> = {
 };
 
 const PersonalizedTrainer: React.FC = () => {
-  const { stats, userProfile, protocols, credits, spendCredits, isPro } = useGame();
+  const { stats, userProfile, protocols, credits, spendCredits, isPro, selectedCharacter } = useGame();
+  const archetype = getArchetype(selectedCharacter);
+  const opName = userProfile.name || 'Operator';
+  const archetypeGreeting = archetype.greetingTemplate.replace('{name}', opName);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'init',
       role: 'trainer',
-      text: `Welcome back, ${userProfile.name || 'Operator'}.`,
+      text: archetypeGreeting,
       agentType: 'MANAGER',
     },
   ]);

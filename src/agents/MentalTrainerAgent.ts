@@ -78,17 +78,16 @@ Return format:
       { temperature: 0.3, max_tokens: 512 }
     );
 
-    try {
-      const parsed = JSON.parse(content.replace(/```json|```/g, "").trim());
-      return {
-        intelligence: Math.max(1, Math.min(100, parsed.intelligence ?? 25)),
-        willpower: Math.max(1, Math.min(100, parsed.willpower ?? 25)),
-        social: Math.max(1, Math.min(100, parsed.social ?? 25)),
-        reasoning: parsed.reasoning || "Baseline assessed by SAGE.",
-      };
-    } catch {
-      return { intelligence: 25, willpower: 25, social: 25, reasoning: "Fallback: default baseline applied." };
-    }
+    const parsed = AgentBase.parseJson<{ intelligence: number; willpower: number; social: number; reasoning: string }>(
+      content,
+      { intelligence: 25, willpower: 25, social: 25, reasoning: "Fallback: default baseline applied." },
+    );
+    return {
+      intelligence: Math.max(1, Math.min(100, parsed.intelligence ?? 25)),
+      willpower: Math.max(1, Math.min(100, parsed.willpower ?? 25)),
+      social: Math.max(1, Math.min(100, parsed.social ?? 25)),
+      reasoning: parsed.reasoning || "Baseline assessed by SAGE.",
+    };
   }
 
   /**
@@ -118,14 +117,13 @@ Example: { "intelligence": 3, "reasoning": "Completed a 30-minute session of adv
       { temperature: 0.5, max_tokens: 256 }
     );
 
-    try {
-      const parsed = JSON.parse(content);
-      return {
-        intelligence: parsed.intelligence,
-        reasoning: parsed.reasoning || "No reasoning provided.",
-      };
-    } catch (e) {
-      return { intelligence: undefined, reasoning: "Failed to parse intelligence update suggestion." };
-    }
+    const parsed = AgentBase.parseJson<{ intelligence?: number; reasoning?: string }>(
+      content,
+      { intelligence: undefined, reasoning: "Failed to parse intelligence update suggestion." },
+    );
+    return {
+      intelligence: parsed.intelligence,
+      reasoning: parsed.reasoning || "No reasoning provided.",
+    };
   }
 }

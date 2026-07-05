@@ -14,22 +14,28 @@ import { UserStats } from '../types';
 
 interface StatGraphProps {
   stats: UserStats;
+  statsHistory?: { date: string; stats: UserStats }[];
 }
 
-const StatGraph: React.FC<StatGraphProps> = ({ stats }) => {
-  // Generate mock historical data based on current stats
+const StatGraph: React.FC<StatGraphProps> = ({ stats, statsHistory }) => {
   const generateData = () => {
+    if (statsHistory && statsHistory.length > 0) {
+      return statsHistory.map((entry) => ({
+        name: entry.date,
+        intelligence: entry.stats.intelligence,
+        strength: entry.stats.strength,
+        agility: entry.stats.agility,
+        vitality: entry.stats.vitality,
+      }));
+    }
     const days = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
-    return days.map((day, index) => {
-      const progressFactor = (index + 1) / 7;
-      return {
-        name: day,
-        intelligence: Math.floor(stats.intelligence * (0.7 + progressFactor * 0.3)),
-        strength: Math.floor(stats.strength * (0.6 + progressFactor * 0.4)),
-        agility: Math.floor(stats.agility * (0.8 + progressFactor * 0.2)),
-        vitality: Math.floor(stats.vitality * (0.5 + progressFactor * 0.5)),
-      };
-    });
+    return days.map((day) => ({
+      name: day,
+      intelligence: stats.intelligence,
+      strength: stats.strength,
+      agility: stats.agility,
+      vitality: stats.vitality,
+    }));
   };
 
   const data = generateData();

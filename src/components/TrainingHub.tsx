@@ -6,7 +6,7 @@ import { Protocol, ProtocolType, StatType } from '../types';
 import PDFUploader from './PDFUploader';
 
 const TrainingHub: React.FC = () => {
-  const { updateStat, protocols, addProtocol, credits, updateProtocol, addCredits } = useGame();
+  const { updateStat, protocols, addProtocol, credits, updateProtocol, addCredits, pushNotification } = useGame();
   const [isAdding, setIsAdding] = useState(false);
   const [showPDFUpload, setShowPDFUpload] = useState(false);
   const [newProtocol, setNewProtocol] = useState({
@@ -43,6 +43,13 @@ const TrainingHub: React.FC = () => {
     if (p.type === 'reading') {
       addCredits(25);
     }
+    pushNotification({
+      id: `session_${p.id}_${Date.now()}`,
+      type: 'level_up',
+      title: 'Effort Logged',
+      description: `${p.title} · +${p.gain} ${p.stat.toUpperCase()} · Mirror updated`,
+      timestamp: new Date().toISOString(),
+    });
     setTimeout(() => setSyncingId(null), 1500);
   };
 
@@ -282,16 +289,16 @@ const TrainingHub: React.FC = () => {
                     {syncingId === p.id ? (
                       <span className="flex items-center justify-center gap-2">
                         <Activity size={14} className="animate-pulse" />
-                        Syncing...
+                        Logging...
                       </span>
                     ) : p.type === 'reading' ? (
                       p.bookStatus === 'completed'
                         ? <span className="flex items-center justify-center gap-2"><Check size={14} /> Mastered</span>
-                        : <span className="flex items-center justify-center gap-2"><BookOpen size={14} /> Read Session</span>
-                    ) : 'Initiate Sync'}
+                        : <span className="flex items-center justify-center gap-2"><BookOpen size={14} /> Log Read Session</span>
+                    ) : 'Log Session'}
                   </button>
                   <div className="px-6 py-4 bg-white/5 rounded-2xl border border-white/10 flex flex-col items-center justify-center min-w-[80px]">
-                    <span className="text-[8px] text-white/30 uppercase tracking-widest font-display mb-1">Gain</span>
+                    <span className="text-[8px] text-white/30 uppercase tracking-widest font-display mb-1">Effort</span>
                     <span className={`text-xl font-display font-black ${color}`}>+{p.gain}</span>
                   </div>
                   {p.estDuration && (

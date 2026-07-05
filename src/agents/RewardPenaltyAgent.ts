@@ -73,35 +73,27 @@ Consider the Operator's profile, goals, and current stats.
     let suggestedRewardAdjustments: { expToAdd?: number; statPointsToAdd?: number } | undefined;
     let suggestedPenaltyAdjustments: { expToSubtract?: number; statPointsToSubtract?: number } | undefined;
 
-    try {
-      // Look for a JSON block in the content (assuming the model might output a JSON object with these fields)
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        // Stat updates
-        const statKeys = ["strength", "intelligence", "agility", "vitality", "willpower", "social"] as const;
-        const validStatUpdates = statKeys.filter(k => parsed[k] !== undefined);
-        if (validStatUpdates.length > 0) {
-          suggestedStatUpdates = {} as Partial<UserStats>;
-          validStatUpdates.forEach(k => {
-            suggestedStatUpdates[k] = parsed[k];
-          });
-        }
-        // Reward adjustments
-        if (parsed.expToAdd !== undefined || parsed.statPointsToAdd !== undefined) {
-          suggestedRewardAdjustments = {};
-          if (parsed.expToAdd !== undefined) suggestedRewardAdjustments.expToAdd = parsed.expToAdd;
-          if (parsed.statPointsToAdd !== undefined) suggestedRewardAdjustments.statPointsToAdd = parsed.statPointsToAdd;
-        }
-        // Penalty adjustments
-        if (parsed.expToSubtract !== undefined || parsed.statPointsToSubtract !== undefined) {
-          suggestedPenaltyAdjustments = {};
-          if (parsed.expToSubtract !== undefined) suggestedPenaltyAdjustments.expToSubtract = parsed.expToSubtract;
-          if (parsed.statPointsToSubtract !== undefined) suggestedPenaltyAdjustments.statPointsToSubtract = parsed.statPointsToSubtract;
-        }
-      }
-    } catch (e) {
-      // If parsing fails, we just don't have adjustments.
+    const parsed = AgentBase.parseJson<any>(content, {});
+    // Stat updates
+    const statKeys = ["strength", "intelligence", "agility", "vitality", "willpower", "social"] as const;
+    const validStatUpdates = statKeys.filter(k => parsed[k] !== undefined);
+    if (validStatUpdates.length > 0) {
+      suggestedStatUpdates = {} as Partial<UserStats>;
+      validStatUpdates.forEach(k => {
+        suggestedStatUpdates![k] = parsed[k];
+      });
+    }
+    // Reward adjustments
+    if (parsed.expToAdd !== undefined || parsed.statPointsToAdd !== undefined) {
+      suggestedRewardAdjustments = {};
+      if (parsed.expToAdd !== undefined) suggestedRewardAdjustments.expToAdd = parsed.expToAdd;
+      if (parsed.statPointsToAdd !== undefined) suggestedRewardAdjustments.statPointsToAdd = parsed.statPointsToAdd;
+    }
+    // Penalty adjustments
+    if (parsed.expToSubtract !== undefined || parsed.statPointsToSubtract !== undefined) {
+      suggestedPenaltyAdjustments = {};
+      if (parsed.expToSubtract !== undefined) suggestedPenaltyAdjustments.expToSubtract = parsed.expToSubtract;
+      if (parsed.statPointsToSubtract !== undefined) suggestedPenaltyAdjustments.statPointsToSubtract = parsed.statPointsToSubtract;
     }
 
     return {
@@ -140,15 +132,13 @@ The notification should have a title and body, highlighting key achievements or 
       { temperature: 0.7, max_tokens: 512 }
     );
 
-    let notification: { title: string; body: string };
-    try {
-      notification = JSON.parse(content);
-    } catch (e) {
-      notification = {
+    const notification: { title: string; body: string } = AgentBase.parseJson(
+      content,
+      {
         title: "Reward & Penalty Update",
         body: "Check your progress in the NEXUS dashboard for recent rewards and penalties.",
-      };
-    }
+      },
+    );
     return notification;
   }
 
@@ -194,12 +184,7 @@ Return a JSON object with optional fields:
       { temperature: 0.6, max_tokens: 512 }
     );
 
-    let adjustments: any;
-    try {
-      adjustments = JSON.parse(content);
-    } catch (e) {
-      adjustments = {};
-    }
+    const adjustments: any = AgentBase.parseJson(content, {});
 
     // Extract and return typed suggestions
     return {

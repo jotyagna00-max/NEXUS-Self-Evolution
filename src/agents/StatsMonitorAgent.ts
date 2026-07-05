@@ -53,29 +53,28 @@ Consider the Operator's profile, goals, and any historical trends if available.
     // For simplicity, we'll assume the model might include a JSON block for suggested updates.
     // We'll attempt to parse a JSON object from the content that matches Partial<UserStats>.
     let suggestedUpdates: Partial<UserStats> | undefined;
-    try {
-      // Look for a JSON object in the content (assuming it's the only JSON or we take the first one)
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        // Check if the parsed object has keys that are in UserStats
-        const validKeys = Object.keys(parsed).filter((k) =>
-          ["strength", "intelligence", "agility", "vitality", "willpower", "social"].includes(k)
-        );
-        if (validKeys.length > 0) {
-          suggestedUpdates = {} as Partial<UserStats>;
-          validKeys.forEach((key) => {
-            suggestedUpdates[key as keyof UserStats] = parsed[key];
-          });
-        }
-      }
-    } catch (e) {
-      // If parsing fails, we just don't have suggested updates.
+    const parsed = AgentBase.parseJson<Record<string, any>>(content, {});
+    // Check if the parsed object has keys that are in UserStats
+    const validKeys = Object.keys(parsed).filter((k) =>
+      ["strength", "intelligence", "agility", "vitality", "willpower", "social"].includes(k)
+    );
+    if (validKeys.length > 0) {
+      suggestedUpdates = {} as Partial<UserStats>;
+      validKeys.forEach((key) => {
+        suggestedUpdates![key as keyof UserStats] = parsed[key];
+      });
+    }
+
+    // Try to extract reasoning from the content
+    let reasoning: string | null = null;
+    const reasoningMatch = content.match(/reasoning:\s*(.+?)(?:\n|$)/i);
+    if (reasoningMatch) {
+      reasoning = reasoningMatch[1].trim();
     }
 
     return {
       content,
-      reasoning: null, // We could extract reasoning if the model provides it, but we'll keep it simple.
+      reasoning,
       suggestedUpdates,
     };
   }

@@ -9,8 +9,12 @@ import { HexaGraphUpdaterAgent } from "./HexaGraphUpdaterAgent";
 import { ProgressTrackerAgent } from "./ProgressTrackerAgent";
 import { BookMasteryAgent } from "./BookMasteryAgent";
 import { RewardPenaltyAgent } from "./RewardPenaltyAgent";
+import { HabitMasterAgent } from "./HabitMasterAgent";
+import { ProtocolGeneratorAgent } from "./ProtocolGeneratorAgent";
 import { AgentBase } from "./AgentBase";
 import { UserStats, UserProfile, Quest, EnhancedQuest } from "../types";
+import { eventBus, NexusEvent, getEventLog } from "./EventBus";
+import type { BehaviorProfile } from "./BehaviorProfile";
 
 export interface OrchestratorContext {
   stats: UserStats;
@@ -40,6 +44,8 @@ export class AgentOrchestrator {
   private progressTracker: ProgressTrackerAgent;
   private bookMastery: BookMasteryAgent;
   private rewardPenalty: RewardPenaltyAgent;
+  private habitMaster: HabitMasterAgent;
+  private protocolGenerator: ProtocolGeneratorAgent;
 
   constructor() {
     this.manager = new ManagerAgent();
@@ -53,6 +59,8 @@ export class AgentOrchestrator {
     this.progressTracker = new ProgressTrackerAgent();
     this.bookMastery = new BookMasteryAgent();
     this.rewardPenalty = new RewardPenaltyAgent();
+    this.habitMaster = new HabitMasterAgent();
+    this.protocolGenerator = new ProtocolGeneratorAgent('PROTOCOL_GENERATOR');
   }
 
   /**
@@ -117,6 +125,12 @@ export class AgentOrchestrator {
       case "REWARD_PENALTY":
         primaryAgent = this.rewardPenalty;
         break;
+      case "HABIT_MASTER":
+        primaryAgent = this.habitMaster;
+        break;
+      case "PROTOCOL_GENERATOR":
+        primaryAgent = this.protocolGenerator;
+        break;
       case "MANAGER":
       default:
         primaryAgent = this.manager;
@@ -146,6 +160,10 @@ export class AgentOrchestrator {
           return this.bookMastery;
         case "REWARD_PENALTY":
           return this.rewardPenalty;
+        case "HABIT_MASTER":
+          return this.habitMaster;
+        case "PROTOCOL_GENERATOR":
+          return this.protocolGenerator;
         case "MANAGER":
           return this.manager;
         default:
@@ -212,11 +230,15 @@ export class AgentOrchestrator {
   /**
    * Generate a new quest (daily, weekly, etc.).
    * Optionally incorporates reward/penalty adjustments.
+   * Optionally carries provenance so the prompt biases toward the source
+   * (protocol/book/habit) and the returned quest is stamped with
+   * `sourceId`/`sourceType`/`sourceTitle` for Quest Board lineage.
    */
   async generateQuest(
     questType: string,
     context: OrchestratorContext,
-    useAdjustments: boolean = true
+    useAdjustments: boolean = true,
+    source?: { id: string; type: 'protocol' | 'book' | 'habit' | 'addiction'; title: string; hint?: string }
   ): Promise<EnhancedQuest> {
     let adjustments: undefined | {
       difficultyAdjustment?: number;
@@ -231,7 +253,7 @@ export class AgentOrchestrator {
       stats: context.stats,
       profile: context.profile,
       existingQuests: context.enhancedQuests,
-    }, adjustments);
+    }, adjustments, source);
   }
 
   /**
@@ -428,4 +450,51 @@ export class AgentOrchestrator {
       recentCompletedTasks: [],
     });
   }
+
+  /**
+   * v1.4.0 — broadcast a typed event into the bus. The GameContext calls
+   * `eventBus.publish` directly; this method is for callers who want a
+   * single entrypoint (e.g. agent-driven internal events).
+   */
+  broadcast<E extends NexusEvent['type']>(event: E,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    payload: any): void {
+    eventBus.publish(event, payload);
+  }
+
+  /** Subscribe a callback to every event in the bus. Returns an unsubscribe fn. */
+  subscribeAll(handler: (e: NexusEvent) => void): () => void {
+    return eventBus.subscribeAll(handler as any);
+  }
+
+  /** Read the persisted event log (used by Progress Tracker). */
+  getEventLog(): Array<{ at: string; event: NexusEvent }> {
+    return getEventLog();
+  }
+
+  /** Run MotivatorAgent with a Behavior Profile-aware context. */
+  async motivateWithProfile(
+    occasion: string,
+    ctx: OrchestratorContext,
+    profile?: BehaviorProfile,
+  ): Promise<string> {
+    return this.motivator.generateMotivation(
+      {
+        stats: ctx.stats,
+        profile: ctx.profile,
+        recentAchievements: ctx.achievements?.filter(a => a.unlocked).slice(-3) || [],
+      },
+      occasion + (profile?.preferredFocusStat ? ` | focus:${profile.preferredFocusStat}` : ''),
+    );
+  }
+
+  /** Get a Notifier-generated push notification for a specific trigger. */
+  async buildNotification(trigger: string, ctx: OrchestratorContext): Promise<{ title: string; body: string }> {
+    return this.notifier.generateNotification(trigger, { stats: ctx.stats, profile: ctx.profile });
+  }
+
+  // v1.4.0 — public accessors for strategic quest service (was accessing private fields by string index)
+  getHabitMaster(): any { return this.habitMaster; }
+  getQuestGenerator(): any { return this.questGenerator; }
+  getRewardPenalty(): any { return this.rewardPenalty; }
 }
