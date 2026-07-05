@@ -26,6 +26,7 @@
       "electron/**/*",
       "package.json"
     ],
+    "electronDist": "node_modules/electron/dist",
     "extraResources": [
       {
         "from": "llama-models",
@@ -43,16 +44,12 @@
             "x64"
           ]
         }
-      ],
-      "icon": "build/icon.png"
+      ]
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico",
       "createDesktopShortcut": true
     }
   },
