@@ -321,12 +321,12 @@ const LocalLLMPanel: React.FC = () => {
           </div>
           {nativeStatus?.ready ? (
             <p className="text-[9px] font-tech text-white/40">
-              Qwen2.5-3B loaded in-app. All AI calls route through the bundled model.
+              Phi-4-mini loaded in-app. All AI calls route through the bundled model.
             </p>
           ) : nativeStatus?.downloading ? (
             <div>
               <p className="text-[9px] font-tech text-white/40 mb-2">
-              Downloading Qwen2.5-3B model ({nativeDlProgress}%)
+                Downloading Phi-4-mini model ({nativeDlProgress}%)
               </p>
               <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                 <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${nativeDlProgress}%` }} />
@@ -335,7 +335,7 @@ const LocalLLMPanel: React.FC = () => {
           ) : (
             <div className="flex items-center gap-3">
               <p className="text-[9px] font-tech text-white/40 flex-1">
-                {nativeStatus?.error ? `Error: ${nativeStatus.error}` : 'Download the Qwen2.5-3B model (~1.9 GB) to run fully offline.'}
+                {nativeStatus?.error ? `Error: ${nativeStatus.error}` : 'Download the Phi-4-mini model (~2.5 GB) to run fully offline.'}
               </p>
               <button
                 type="button"

@@ -15,8 +15,8 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 
-const MODEL_REPO = 'Qwen/Qwen2.5-3B-Instruct-GGUF';
-const MODEL_FILE = 'qwen2.5-3b-instruct-q4_k_m.gguf';
+const MODEL_REPO = 'bartowski/Phi-4-mini-instruct-GGUF';
+const MODEL_FILE = 'Phi-4-mini-instruct-Q4_K_M.gguf';
 
 const args = process.argv.slice(2);
 const dirFlag = args.indexOf('--dir');
