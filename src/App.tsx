@@ -48,7 +48,7 @@ import DailyBaseline from './components/DailyBaseline';
 import ShadowChat from './components/ShadowChat';
 import PenaltyZone from './components/PenaltyZone';
 import Onboarding from './components/Onboarding';
-import { ModelLoader } from './components/ModelLoader';
+import NativeLLMFirstLaunch from './components/NativeLLMFirstLaunch';
 
 const MenuOverlay = ({
   isOpen,
@@ -321,7 +321,6 @@ const Dashboard = () => {
   };
 
   return (<>
-    <ModelLoader />
     {/* Add More Skills Modal */}
     {showSkillModal && (
       <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-6" onClick={() => { if (newSkillSet.skills.length === 0) setShowSkillModal(false); }}>
@@ -431,6 +430,7 @@ const Dashboard = () => {
 
     <UpdateToast />
     <NotificationToast />
+    <NativeLLMFirstLaunch />
     <ParticleBackground count={25} color="rgba(16,185,129,0.25)" speed={0.7} />
 
     <div className="min-h-screen bg-[#000] text-white font-tech selection:bg-emerald-500/30 relative overflow-hidden">
