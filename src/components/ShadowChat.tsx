@@ -28,6 +28,7 @@ const ShadowChat: React.FC = () => {
   const [isChatMode, setIsChatMode] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [streamingText, setStreamingText] = useState('');
+  const [shadowPersona, setShadowPersona] = useState(() => localStorage.getItem('shadowPersona') || 'mirror');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Bootstrap interrogation on first visit
@@ -171,6 +172,24 @@ const ShadowChat: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Persona selector */}
+          <select
+            className="shadow-persona-select"
+            value={shadowPersona}
+            onChange={(e) => {
+              const v = e.target.value;
+              setShadowPersona(v);
+              localStorage.setItem('shadowPersona', v);
+            }}
+            aria-label="Shadow persona"
+          >
+            <option value="mirror">The Mirror</option>
+            <option value="mentor">The Mentor</option>
+            <option value="rival">The Rival</option>
+            <option value="commander">The Commander</option>
+            <option value="confidant">The Confidant</option>
+            <option value="strategist">The Strategist</option>
+          </select>
           {/* Memory badge */}
           <div className="shadow-memory-badge">{shadowMemoryDigest}</div>
           {/* Reset button */}
