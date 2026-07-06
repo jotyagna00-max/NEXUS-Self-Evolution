@@ -2,6 +2,7 @@ import type OpenAI from 'openai';
 import { AgentType, StatType } from '../types';
 import { generateOpenAIResponse, streamOpenAIResponse } from './openaiAgentService';
 import { getArchetype } from './archetypes';
+import { loadShadowMemory, memoryToPromptContext } from '../utils/shadowMemory';
 
 // Re-export AgentType so consumers can `import { AgentType } from './agentService'`
 export type { AgentType } from '../types';
@@ -114,6 +115,18 @@ export const generateAgentResponse = async (
     const personaId = localStorage.getItem('shadowPersona') || 'mirror';
     const personaPrompt = SHADOW_PERSONAS[personaId] || SHADOW_PERSONAS.mirror;
     systemInstruction += `\n\n### ACTIVE PERSONA\n${personaPrompt}\n\nThe persona above overrides the default Shadow Self personality. Adopt this persona fully — voice, tone, phrasing, and interaction style. The core function (mirroring weakness, driving growth) remains unchanged. Only the delivery changes.`;
+
+    // Inject shadow memory — interrogation answers, patterns, recent exchanges
+    const shadowMem = loadShadowMemory();
+    const memContext = memoryToPromptContext(shadowMem);
+    if (memContext) {
+      systemInstruction += `\n\n### SHADOW MEMORY — What the Operator has revealed to you\n${memContext}\nQuote these revelations back at them when relevant. These are things they admitted to you — use them as leverage.`;
+    }
+    // Include last 10 exchanges as recent conversation
+    if (shadowMem.exchanges && shadowMem.exchanges.length > 0) {
+      const recent = shadowMem.exchanges.slice(-10).map((e: any) => `${e.role === 'user' ? 'Operator' : 'Shadow'}: ${e.text}`).join('\n');
+      systemInstruction += `\n\n### RECENT SHADOW CONVERSATION\n${recent}`;
+    }
   }
 
   // R-04 — append the active archetype's voice to the MANAGER prompt.
@@ -172,6 +185,17 @@ export const streamAgentResponse = async (
     const personaId = localStorage.getItem('shadowPersona') || 'mirror';
     const personaPrompt = SHADOW_PERSONAS[personaId] || SHADOW_PERSONAS.mirror;
     systemInstruction += `\n\n### ACTIVE PERSONA\n${personaPrompt}\n\nThe persona above overrides the default Shadow Self personality. Adopt this persona fully — voice, tone, phrasing, and interaction style. The core function (mirroring weakness, driving growth) remains unchanged. Only the delivery changes.`;
+
+    // Inject shadow memory — interrogation answers, patterns, recent exchanges
+    const shadowMem = loadShadowMemory();
+    const memContext = memoryToPromptContext(shadowMem);
+    if (memContext) {
+      systemInstruction += `\n\n### SHADOW MEMORY — What the Operator has revealed to you\n${memContext}\nQuote these revelations back at them when relevant. These are things they admitted to you — use them as leverage.`;
+    }
+    if (shadowMem.exchanges && shadowMem.exchanges.length > 0) {
+      const recent = shadowMem.exchanges.slice(-10).map((e: any) => `${e.role === 'user' ? 'Operator' : 'Shadow'}: ${e.text}`).join('\n');
+      systemInstruction += `\n\n### RECENT SHADOW CONVERSATION\n${recent}`;
+    }
   }
 
   const arch = getArchetype(context.character);

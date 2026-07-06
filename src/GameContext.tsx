@@ -45,7 +45,9 @@ import {
   declineInterrogation as declineShadowInterrogationUtil,
   appendChat as appendShadowChatUtil,
   clearShadowMemory,
+  saveShadowMemory,
   formatMemoryDigest,
+  memoryToPromptContext,
   answeredCount as answeredShadowCount,
   type ShadowMemory,
   type ShadowChatEntry,
@@ -533,6 +535,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const shadowMemoryDigest = formatMemoryDigest(shadowMemory);
   const shadowAnsweredCount = answeredShadowCount(shadowMemory);
+
+  // Persist shadow memory to localStorage on every change
+  useEffect(() => {
+    saveShadowMemory(shadowMemory);
+  }, [shadowMemory]);
 
   const [quests, setQuests] = useState<Quest[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
