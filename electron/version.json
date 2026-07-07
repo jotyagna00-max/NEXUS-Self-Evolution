@@ -1,6 +1,6 @@
 {
-  "latestVersion": "1.26.0",
-  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.26.0/NEXUS.Setup.1.26.0.exe",
+  "latestVersion": "1.27.0",
+  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.27.0/NEXUS.Setup.1.27.0.exe",
   "releaseNotes": "Shadow Chat persona selector (6 personalities), first-launch LLM download prompt, CPU-only inference, WebGPU removed, Shadow memory persistence fix, website 3D and text interaction overhaul.",
   "minSchemaVersion": 1,
   "changelog": [
