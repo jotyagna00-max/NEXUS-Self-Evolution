@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Cpu, RefreshCw, MessageSquare, Check, Bell, BellRing, TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight, Trophy, Flame, Zap, AlertTriangle, BarChart3, Activity } from 'lucide-react';
+import { Cpu, RefreshCw, MessageSquare, Check, Bell, BellRing, TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight, Trophy, Flame, Zap, AlertTriangle, BarChart3, Activity, CalendarDays } from 'lucide-react';
 import { useGame } from '../GameContext';
 import { generateManagerDebrief, shouldShowNewDebrief, TunerReportAppendix } from '../services/messages';
 import { showDebriefNotification, shouldFireDebrief } from '../services/notifications';
@@ -177,6 +177,74 @@ const MissionDebrief: React.FC = () => {
 
   const maxExp7 = Math.max(...exp7Day.map(d => d.value), 1);
   const maxCredits7 = Math.max(...credits7Day.map(d => d.value), 1);
+
+  // ── Monthly Report (last 12 months) ──
+  const getMonthKey = (dateStr: string) => dateStr.slice(0, 7);
+  const months = (() => {
+    const result: string[] = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      result.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    return result;
+  })();
+
+  const monthlyData = months.map(m => {
+    const monthEntries = expHistory.filter(e => getMonthKey(e.date) === m);
+    const monthTasks = tasks.filter(t => t.completed && getMonthKey(t.date) === m);
+    const monthQuests = quests.filter(q => q.completed && q.completedAt && getMonthKey(q.completedAt) === m);
+    const monthPenalties = penaltyRecords.filter(p => getMonthKey(p.date) === m);
+    return {
+      month: m,
+      label: new Date(m + '-01').toLocaleString('en-US', { month: 'short', year: '2-digit' }),
+      exp: monthEntries.reduce((s, e) => s + e.exp, 0),
+      credits: monthEntries.reduce((s, e) => s + e.credits, 0),
+      tasks: monthTasks.length,
+      quests: monthQuests.length,
+      penalties: monthPenalties.length,
+      penaltyAmount: monthPenalties.reduce((s, p) => s + p.amount, 0),
+      activeDays: monthEntries.length,
+    };
+  });
+
+  const bestMonthExp = Math.max(...monthlyData.map(m => m.exp), 1);
+  const bestMonthCredits = Math.max(...monthlyData.map(m => m.credits), 1);
+  const currentMonth = getMonthKey(todayStr);
+  const thisMonthData = monthlyData.find(m => m.month === currentMonth);
+  const totalYearExp = monthlyData.reduce((s, m) => s + m.exp, 0);
+
+  // ── Yearly Report ──
+  const getYearKey = (dateStr: string) => dateStr.slice(0, 4);
+  const years = (() => {
+    const result: string[] = [];
+    const now = new Date();
+    for (let i = 3; i >= 0; i--) {
+      result.push(String(now.getFullYear() - i));
+    }
+    return result;
+  })();
+
+  const yearlyData = years.map(y => {
+    const yearEntries = expHistory.filter(e => getYearKey(e.date) === y);
+    const yearTasks = tasks.filter(t => t.completed && getYearKey(t.date) === y);
+    const yearQuests = quests.filter(q => q.completed && q.completedAt && getYearKey(q.completedAt) === y);
+    const yearPenalties = penaltyRecords.filter(p => getYearKey(p.date) === y);
+    return {
+      year: y,
+      exp: yearEntries.reduce((s, e) => s + e.exp, 0),
+      credits: yearEntries.reduce((s, e) => s + e.credits, 0),
+      tasks: yearTasks.length,
+      quests: yearQuests.length,
+      penalties: yearPenalties.length,
+      penaltyAmount: yearPenalties.reduce((s, p) => s + p.amount, 0),
+      activeDays: yearEntries.length,
+    };
+  });
+
+  const bestYearExp = Math.max(...yearlyData.map(y => y.exp), 1);
+  const currentYear = getYearKey(todayStr);
+  const thisYearData = yearlyData.find(y => y.year === currentYear);
 
   // Day before yesterday for comparison
   const dayBeforeYesterday = daysAgo(2);
@@ -474,6 +542,203 @@ const MissionDebrief: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ═══════════════════════════════════════════════════ */}
+      {/* MONTHLY REPORT — Last 12 months                     */}
+      {/* ═══════════════════════════════════════════════════ */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <CalendarDays size={16} className="text-cyan-400" />
+          <span className="text-[10px] font-display uppercase tracking-[0.3em] text-white/40">Monthly Report — Last 12 Months</span>
+          <div className="h-px flex-1 bg-white/5" />
+        </div>
+
+        {/* Monthly Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="hologram-card rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Zap size={12} className="text-yellow-400" />
+              <span className="text-[8px] text-white/30 uppercase tracking-widest font-display">Total EXP (12m)</span>
+            </div>
+            <div className="text-2xl font-display font-black text-yellow-400">{totalYearExp}</div>
+          </div>
+          <div className="hologram-card rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Trophy size={12} className="text-emerald-400" />
+              <span className="text-[8px] text-white/30 uppercase tracking-widest font-display">Best Month EXP</span>
+            </div>
+            <div className="text-2xl font-display font-black text-emerald-400">{bestMonthExp}</div>
+          </div>
+          <div className="hologram-card rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 mb-2">
+              <CalendarDays size={12} className="text-purple-400" />
+              <span className="text-[8px] text-white/30 uppercase tracking-widest font-display">This Month EXP</span>
+            </div>
+            <div className="text-2xl font-display font-black text-purple-400">{thisMonthData?.exp || 0}</div>
+          </div>
+          <div className="hologram-card rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity size={12} className="text-blue-400" />
+              <span className="text-[8px] text-white/30 uppercase tracking-widest font-display">Active Days (mo)</span>
+            </div>
+            <div className="text-2xl font-display font-black text-blue-400">{thisMonthData?.activeDays || 0}</div>
+          </div>
+          <div className="hologram-card rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Flame size={12} className="text-orange-400" />
+              <span className="text-[8px] text-white/30 uppercase tracking-widest font-display">Quests/Month</span>
+            </div>
+            <div className="text-2xl font-display font-black text-orange-400">{thisMonthData?.quests || 0}</div>
+          </div>
+        </div>
+
+        {/* Monthly EXP Bar Chart */}
+        <div className="hologram-card rounded-[28px] p-6 border border-white/10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Zap size={14} className="text-yellow-400" />
+              <span className="text-[9px] font-display uppercase tracking-widest text-white/40">Monthly EXP (12 Months)</span>
+            </div>
+            <span className="text-[9px] font-mono text-white/20">{totalYearExp.toLocaleString()} total</span>
+          </div>
+          <MiniBarChart
+            data={monthlyData.map(m => ({ label: m.label, value: m.exp, isToday: m.month === currentMonth }))}
+            color="#facc15"
+            maxValue={bestMonthExp}
+            height={110}
+          />
+        </div>
+
+        {/* Monthly Quest & Task Breakdown */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="hologram-card rounded-[28px] p-6 border border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Flame size={14} className="text-orange-400" />
+                <span className="text-[9px] font-display uppercase tracking-widest text-white/40">Quests Completed/Month</span>
+              </div>
+            </div>
+            <MiniBarChart
+              data={monthlyData.map(m => ({ label: m.label, value: m.quests, isToday: m.month === currentMonth }))}
+              color="#f97316"
+              maxValue={Math.max(...monthlyData.map(m => m.quests), 1)}
+              height={80}
+            />
+          </div>
+          <div className="hologram-card rounded-[28px] p-6 border border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={14} className="text-red-400" />
+                <span className="text-[9px] font-display uppercase tracking-widest text-white/40">Penalties/Month</span>
+              </div>
+            </div>
+            <MiniBarChart
+              data={monthlyData.map(m => ({ label: m.label, value: m.penalties, isToday: m.month === currentMonth }))}
+              color="#ef4444"
+              maxValue={Math.max(...monthlyData.map(m => m.penalties), 1)}
+              height={80}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════ */}
+      {/* YEARLY REPORT                                      */}
+      {/* ═══════════════════════════════════════════════════ */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <CalendarDays size={16} className="text-rose-400" />
+          <span className="text-[10px] font-display uppercase tracking-[0.3em] text-white/40">Yearly Report</span>
+          <div className="h-px flex-1 bg-white/5" />
+        </div>
+
+        {/* Yearly Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="hologram-card rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Zap size={12} className="text-yellow-400" />
+              <span className="text-[8px] text-white/30 uppercase tracking-widest font-display">This Year EXP</span>
+            </div>
+            <div className="text-2xl font-display font-black text-yellow-400">{thisYearData?.exp || 0}</div>
+          </div>
+          <div className="hologram-card rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Trophy size={12} className="text-emerald-400" />
+              <span className="text-[8px] text-white/30 uppercase tracking-widest font-display">This Year Credits</span>
+            </div>
+            <div className="text-2xl font-display font-black text-emerald-400">{thisYearData?.credits || 0}</div>
+          </div>
+          <div className="hologram-card rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Check size={12} className="text-blue-400" />
+              <span className="text-[8px] text-white/30 uppercase tracking-widest font-display">Tasks Done</span>
+            </div>
+            <div className="text-2xl font-display font-black text-blue-400">{thisYearData?.tasks || 0}</div>
+          </div>
+          <div className="hologram-card rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Flame size={12} className="text-orange-400" />
+              <span className="text-[8px] text-white/30 uppercase tracking-widest font-display">Quests Done</span>
+            </div>
+            <div className="text-2xl font-display font-black text-orange-400">{thisYearData?.quests || 0}</div>
+          </div>
+          <div className="hologram-card rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity size={12} className="text-purple-400" />
+              <span className="text-[8px] text-white/30 uppercase tracking-widest font-display">Active Days</span>
+            </div>
+            <div className="text-2xl font-display font-black text-purple-400">{thisYearData?.activeDays || 0}</div>
+          </div>
+        </div>
+
+        {/* Yearly EXP Bar Chart */}
+        <div className="hologram-card rounded-[28px] p-6 border border-white/10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Zap size={14} className="text-yellow-400" />
+              <span className="text-[9px] font-display uppercase tracking-widest text-white/40">Yearly EXP Breakdown</span>
+            </div>
+          </div>
+          <MiniBarChart
+            data={yearlyData.map(y => ({ label: y.year, value: y.exp, isToday: y.year === currentYear }))}
+            color="#facc15"
+            maxValue={bestYearExp}
+            height={100}
+          />
+        </div>
+
+        {/* Yearly Quest & Penalty */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="hologram-card rounded-[28px] p-6 border border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Flame size={14} className="text-orange-400" />
+                <span className="text-[9px] font-display uppercase tracking-widest text-white/40">Quests/Year</span>
+              </div>
+            </div>
+            <MiniBarChart
+              data={yearlyData.map(y => ({ label: y.year, value: y.quests, isToday: y.year === currentYear }))}
+              color="#f97316"
+              maxValue={Math.max(...yearlyData.map(y => y.quests), 1)}
+              height={80}
+            />
+          </div>
+          <div className="hologram-card rounded-[28px] p-6 border border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={14} className="text-red-400" />
+                <span className="text-[9px] font-display uppercase tracking-widest text-white/40">Penalties/Year</span>
+              </div>
+            </div>
+            <MiniBarChart
+              data={yearlyData.map(y => ({ label: y.year, value: y.penalties, isToday: y.year === currentYear }))}
+              color="#ef4444"
+              maxValue={Math.max(...yearlyData.map(y => y.penalties), 1)}
+              height={80}
+            />
+          </div>
+        </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════ */}
