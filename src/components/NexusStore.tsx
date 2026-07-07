@@ -14,9 +14,9 @@ const typeColors: Record<string, string> = {
   mental: 'text-blue-400', physical: 'text-red-400', agility: 'text-green-400', willpower: 'text-purple-400', reading: 'text-red-400', habit: 'text-amber-400',
 };
 
-/** v1.4.0-updated NexusStore: Pro subscription removed. isPro stays dormant in GameContext. */
+/** v2.0 — NexusStore with level-gated items and increased prices */
 const NexusStore: React.FC = () => {
-  const { credits, purchaseStoreItem, isPro, setProStatus, protocols } = useGame();
+  const { credits, purchaseStoreItem, isPro, setProStatus, protocols, progression } = useGame();
   const [filter, setFilter] = useState<'all' | 'protocol' | 'book' | 'powerup'>('all');
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
@@ -28,6 +28,7 @@ const NexusStore: React.FC = () => {
   });
 
   const handlePurchase = async (item: StoreItem) => {
+    if (progression.level < item.requiredLevel) return;
     setPurchasing(item.id);
     await new Promise(r => setTimeout(r, 500));
     const success = purchaseStoreItem(item);
@@ -51,6 +52,8 @@ const NexusStore: React.FC = () => {
             <h2 className="text-5xl font-display font-black uppercase tracking-tighter text-white leading-none">App Store</h2>
             <div className="flex items-center gap-4 mt-2">
               <span className="text-yellow-400 font-display font-black text-lg">{credits} NC</span>
+              <span className="text-white/20 font-mono text-[10px]">·</span>
+              <span className="text-white/40 font-display text-[10px] uppercase tracking-widest">Level {progression.level}</span>
             </div>
           </div>
         </div>
@@ -82,8 +85,8 @@ const NexusStore: React.FC = () => {
           <div className="text-2xl font-display font-black text-emerald-400 mt-1">{protocols.filter(p => p.isStoreItem).length}</div>
         </div>
         <div className="hologram-card rounded-2xl p-6 border border-white/10">
-          <span className="text-[8px] text-white/30 uppercase tracking-widest font-display">Pro Status</span>
-          <div className={`text-2xl font-display font-black mt-1 ${isPro ? 'text-purple-400' : 'text-white/40'}`}>{isPro ? 'Active' : 'Inactive'}</div>
+          <span className="text-[8px] text-white/30 uppercase tracking-widest font-display">Unlocked Items</span>
+          <div className="text-2xl font-display font-black text-purple-400 mt-1">{STORE_ITEMS.filter(i => i.requiredLevel <= progression.level).length}/{STORE_ITEMS.length}</div>
         </div>
       </div>
 
@@ -92,12 +95,27 @@ const NexusStore: React.FC = () => {
         {filteredItems.map((item) => {
           const Icon = typeIcons[item.type] || ShoppingCart;
           const color = typeColors[item.type] || 'text-white';
+          const isLocked = progression.level < item.requiredLevel;
 
           return (
             <motion.div key={item.id} layout
-              whileHover={{ y: -6, scale: 1.02 }}
-              className="group relative hologram-card rounded-[32px] p-8 overflow-hidden transition-all border border-white/5 hover:border-yellow-500/30"
+              whileHover={!isLocked ? { y: -6, scale: 1.02 } : {}}
+              className={`group relative hologram-card rounded-[32px] p-8 overflow-hidden transition-all border ${
+                isLocked
+                  ? 'border-white/5 opacity-60'
+                  : 'border-white/5 hover:border-yellow-500/30'
+              }`}
             >
+              {isLocked && (
+                <div className="absolute inset-0 z-20 bg-black/40 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3">
+                  <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                    <Lock size={24} className="text-white/30" />
+                  </div>
+                  <span className="text-[10px] font-display uppercase tracking-widest text-white/40">Requires Level {item.requiredLevel}</span>
+                  <span className="text-[9px] font-mono text-white/20">Current: Level {progression.level}</span>
+                </div>
+              )}
+
               <div className="relative z-10">
                 <div className="flex items-center gap-4 mb-6">
                   <div className={`w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center ${color} group-hover:shadow-[0_0_20px_rgba(234,179,8,0.3)] transition-all`}>
@@ -107,7 +125,12 @@ const NexusStore: React.FC = () => {
                     <span className="text-[8px] font-display text-white/30 uppercase tracking-[0.3em]">{item.type}</span>
                     <h3 className="text-lg font-display font-bold text-white uppercase tracking-tight leading-none mt-1">{item.name}</h3>
                   </div>
-                  {/* v1.4.0: Removed Pro pill — subscription no longer gated */}
+                  {item.requiredLevel > 1 && (
+                    <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20">
+                      <Crown size={10} className="text-purple-400" />
+                      <span className="text-[8px] font-display uppercase tracking-widest text-purple-400">Lv.{item.requiredLevel}</span>
+                    </div>
+                  )}
                 </div>
 
                 <p className="text-xs text-white/40 font-tech leading-relaxed mb-4 min-h-[40px]">
@@ -124,16 +147,20 @@ const NexusStore: React.FC = () => {
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => handlePurchase(item)}
-                    disabled={purchasing === item.id || purchaseSuccess === item.id || credits < item.cost}
+                    disabled={purchasing === item.id || purchaseSuccess === item.id || credits < item.cost || isLocked}
                     className={`flex-1 py-4 rounded-2xl font-display font-bold text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 border ${
                       purchaseSuccess === item.id
                         ? 'bg-emerald-500 text-black border-emerald-500'
+                        : isLocked
+                        ? 'bg-white/5 text-white/10 border-white/5 cursor-not-allowed'
                         : credits < item.cost
                         ? 'bg-white/5 text-white/20 border-white/10 cursor-not-allowed'
                         : 'bg-white/5 hover:bg-yellow-500 hover:text-black border-white/10 hover:border-yellow-500'
                     }`}
                   >
-                    {purchasing === item.id ? (
+                    {isLocked ? (
+                      <span className="flex items-center justify-center gap-2"><Lock size={14} /> Locked</span>
+                    ) : purchasing === item.id ? (
                       <span className="flex items-center justify-center gap-2"><Timer size={14} className="animate-spin" /> Processing...</span>
                     ) : purchaseSuccess === item.id ? (
                       <span className="flex items-center justify-center gap-2"><Check size={14} /> Purchased</span>
@@ -146,7 +173,7 @@ const NexusStore: React.FC = () => {
                   </button>
 
                   <div className={`px-5 py-4 bg-white/5 rounded-2xl border border-white/10 flex flex-col items-center justify-center min-w-[70px] ${
-                    credits >= item.cost ? '' : 'opacity-40'
+                    credits >= item.cost && !isLocked ? '' : 'opacity-40'
                   }`}>
                     <span className="text-[8px] text-yellow-400/60 uppercase tracking-widest font-display mb-1">Price</span>
                     <span className="text-lg font-display font-black text-yellow-400">{item.cost}</span>

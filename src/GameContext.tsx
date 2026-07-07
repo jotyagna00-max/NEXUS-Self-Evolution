@@ -52,18 +52,18 @@ import {
 } from './utils/shadowMemory';
 import type { ShadowTag } from './services/shadowQuestions';
 
-const NC_PER_TASK = 10;
-const NC_PER_QUEST_BASE = 50;
-const NC_PER_READ_SESSION = 25;
-const NC_PER_STREAK_3 = 50;
-const NC_PER_STREAK_7 = 200;
-const NC_PER_STREAK_30 = 1000;
-const NC_PERFECT_WEEK = 300;
-const NC_MISS_PENALTY_BASE = 10;
+const NC_PER_TASK = 3;
+const NC_PER_QUEST_BASE = 15;
+const NC_PER_READ_SESSION = 8;
+const NC_PER_STREAK_3 = 20;
+const NC_PER_STREAK_7 = 75;
+const NC_PER_STREAK_30 = 400;
+const NC_PERFECT_WEEK = 100;
+const NC_MISS_PENALTY_BASE = 5;
 
-const EXP_PER_TASK = 15;
-const EXP_PER_QUEST = 50;
-const EXP_PER_READ_SESSION = 30;
+const EXP_PER_TASK = 5;
+const EXP_PER_QUEST = 15;
+const EXP_PER_READ_SESSION = 10;
 
 interface GameContextType {
   stats: UserStats;
@@ -85,6 +85,7 @@ interface GameContextType {
   debuffs: Debuff[];
   shadowState: ShadowState;
   raidBoss: RaidBoss | null;
+  chatHistory: any[];
   ascensionData: AscensionData;
   narrativeChapters: NarrativeChapter[];
   riftSchedules: RiftSchedule[];
@@ -100,6 +101,7 @@ interface GameContextType {
   updateProtocol: (id: string, updates: Partial<Protocol>) => void;
   updateUserProfile: (profile: Partial<UserProfile>) => Promise<void>;
   addQuest: (quest: Partial<Quest>) => Promise<void>;
+  removeQuest: (id: string) => void;
   completeQuest: (id: string) => void;
   failQuest: (id: string) => void;
   completeTask: (id: string) => void;
@@ -338,8 +340,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       maxHp: boss.hp,
       currentHp: boss.hp,
       defeated: false,
-      rewardCredits: 500,
-      rewardExp: 300,
+      rewardCredits: 150,
+      rewardExp: 100,
       bossDescription: boss.desc,
       participants: 1,
     };
@@ -455,13 +457,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [dailyBaseline, setDailyBaseline] = useState<DailyBaseline>(() => {
     const saved = localStorage.getItem('nexus_daily_baseline');
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try {
+        const parsed = JSON.parse(saved);
+        // Auto-reset: if the saved date is not today, uncheck all tasks
+        const savedDate = parsed.lastCompletedDate || parsed.lastResetDate;
+        const d = new Date().toISOString().split('T')[0];
+        if (savedDate && savedDate !== d) {
+          return {
+            ...parsed,
+            fixedTasks: (parsed.fixedTasks || []).map((t: any) => ({ ...t, completed: false })),
+            customTasks: (parsed.customTasks || []).map((t: any) => ({ ...t, completed: false })),
+            lastResetDate: d,
+          };
+        }
+        return parsed;
+      } catch {}
     }
     return {
       mode: 'fixed',
       fixedTasks: DEFAULT_FIXED_BASELINE.map(t => ({ ...t, completed: false })),
       customTasks: [],
       lastCompletedDate: null,
+      lastResetDate: new Date().toISOString().split('T')[0],
       completionHistory: [],
     };
   });
@@ -723,6 +740,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const removeProtocol = (id: string) => {
     setProtocols(prev => prev.filter(p => p.id !== id));
+    // Also remove quests linked to this protocol to prevent orphan quests
+    setQuests(prev => prev.filter(q => q.sourceId !== id));
   };
 
   const updateProtocol = (id: string, updates: Partial<Protocol>) => {
@@ -750,6 +769,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }]);
   };
 
+  const removeQuest = (id: string) => {
+    setQuests(prev => prev.filter(q => q.id !== id));
+  };
+
   const STAT_TO_CATEGORY: Record<string, QuestCategory> = {
     strength: 'fitness',
     intelligence: 'mental',
@@ -759,7 +782,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     social: 'social',
   };
 
-  /** Spawn a daily quest targeting the Operator's weakest stat. */
+  /** Spawn a daily quest targeting the Operator's weakest stat.
+   *  Only generates a quest if there is an active protocol that targets
+   *  the weakest stat — no orphan quests without a protocol link. */
   const generateWeakPointQuest = useCallback(() => {
     const todayKey = 'nexus_weak_point_quest_' + today();
     if (localStorage.getItem(todayKey)) return; // already spawned today
@@ -767,17 +792,24 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const statValues = STAT_KEYS.map(stat => ({ stat, value: stats[stat as keyof UserStats] as number }));
     statValues.sort((a, b) => a.value - b.value);
     const weakest = statValues[0];
-    const secondWeakest = statValues[1];
+
+    // Find a protocol that targets the weakest stat
+    const matchingProtocol = protocols.find(p => p.stat === weakest.stat);
+    if (!matchingProtocol) return; // No protocol for this stat — don't spawn orphan quest
 
     const weakPointQuest: Partial<Quest> = {
       title: `Fortify ${weakest.stat.charAt(0).toUpperCase() + weakest.stat.slice(1)}`,
-      description: `Daily weak-point drill. ${weakest.stat} is your lowest stat at ${weakest.value}. Complete one focused action to strengthen it.`,
+      description: `Daily weak-point drill. ${weakest.stat} is your lowest stat at ${weakest.value}. Complete one focused session of ${matchingProtocol.title} to strengthen it.`,
       type: 'daily',
       category: STAT_TO_CATEGORY[weakest.stat] || 'mental',
       difficulty: 2,
       statAffected: weakest.stat,
       rewardExp: EXP_PER_QUEST * 1.2,
       rewardCredits: NC_PER_QUEST_BASE * 1.2,
+      sourceType: 'protocol',
+      sourceId: matchingProtocol.id,
+      sourceTitle: matchingProtocol.title,
+      lineageLabel: `Protocol: ${matchingProtocol.title}`,
     };
 
     addQuest(weakPointQuest);
@@ -787,11 +819,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: 'weakpoint_' + Date.now(),
       type: 'achievement',
       title: 'Weak Point Detected',
-      description: `Daily quest generated for ${weakest.stat} (${weakest.value}). Next weakest: ${secondWeakest.stat} (${secondWeakest.value}).`,
+      description: `Daily quest generated for ${weakest.stat} (${weakest.value}). Linked to: ${matchingProtocol.title}.`,
       desktop: true,
       timestamp: new Date().toISOString(),
     });
-  }, [stats, addQuest, pushNotification]);
+  }, [stats, protocols, addQuest, pushNotification]);
 
   // Daily weak-point quest generation on mount
   useEffect(() => {
@@ -817,9 +849,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const spendCredits = (amount: number): boolean => {
-    if (credits < amount) return false;
-    setCredits(prev => prev - amount);
-    return true;
+    if (amount <= 0) return false;
+    let success = false;
+    setCredits(prev => {
+      if (prev < amount) return prev; // Don't go negative
+      success = true;
+      return prev - amount;
+    });
+    return success;
   };
 
   const addExp = (amount: number) => {
@@ -1065,17 +1102,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const generateProtocolQuests = useCallback(() => {
     const d = today();
-    const ownedWithQuests = protocols.filter(p => p.quest && p.isStoreItem);
-    if (ownedWithQuests.length === 0) return;
+    // Generate quests from ALL protocols that have quest data, not just store items
+    const protocolsWithQuests = protocols.filter(p => p.quest);
+    if (protocolsWithQuests.length === 0) return;
 
     const statEntries: [string, number][] = Object.entries(stats) as [string, number][];
     const sorted = statEntries.sort((a, b) => a[1] - b[1]);
     const lowestStat = sorted[0][0];
 
-    const matching = ownedWithQuests.filter(p => p.stat === lowestStat);
+    const matching = protocolsWithQuests.filter(p => p.stat === lowestStat);
     const picked = matching.length > 0
       ? matching[Math.floor(Math.random() * matching.length)]
-      : ownedWithQuests[Math.floor(Math.random() * ownedWithQuests.length)];
+      : protocolsWithQuests[Math.floor(Math.random() * protocolsWithQuests.length)];
 
     if (!picked.quest) return;
 
@@ -1095,6 +1133,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       statAffected: picked.quest.stat || picked.stat,
       completed: false,
       failed: false,
+      sourceType: 'protocol' as const,
+      sourceId: picked.id,
+      sourceTitle: picked.title,
+      lineageLabel: `Protocol: ${picked.title}`,
     }]);
   }, [protocols, stats, quests]);
 
@@ -1145,20 +1187,31 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (progress >= a.requirement && !a.unlocked) {
           changed = true;
-          addCredits(a.rewardCredits);
-          addExp(a.rewardExp);
-          pushNotification({
-            id: `ach_${a.id}_${now()}`,
-            type: 'achievement',
-            title: a.title,
-            description: a.description,
-            reward: { credits: a.rewardCredits, exp: a.rewardExp },
-            timestamp: now(),
-          });
-          publishEvent('achievement.unlocked', {
-            achievementId: a.id,
-            category: a.category,
-          });
+          // Defer side effects to avoid calling setState during a setState updater.
+          // Previously, addCredits/addExp inside the updater caused cascading
+          // re-renders and potential EXP/credit loops.
+          const rewardCredits = a.rewardCredits;
+          const rewardExp = a.rewardExp;
+          const achId = a.id;
+          const achTitle = a.name;
+          const achDesc = a.description;
+          const achCategory = a.category;
+          setTimeout(() => {
+            addCredits(rewardCredits);
+            addExp(rewardExp);
+            pushNotification({
+              id: `ach_${achId}_${now()}`,
+              type: 'achievement',
+              title: achTitle,
+              description: achDesc,
+              reward: { credits: rewardCredits, exp: rewardExp },
+              timestamp: now(),
+            });
+            publishEvent('achievement.unlocked', {
+              achievementId: achId,
+              category: achCategory,
+            });
+          }, 0);
           return { ...a, progress: a.requirement, unlocked: true, unlockedAt: now() };
         }
         return { ...a, progress: Math.min(progress, a.requirement) };
@@ -1173,6 +1226,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     const quest = quests.find(q => q.id === id);
     if (!quest || quest.completed) return;
+
+    // Guard: mark as completed immediately to prevent double-reward on fast clicks
+    setQuests(prev => prev.map(q => {
+      if (q.id !== id || q.completed) return q;
+      return { ...q, completed: true, completedAt: now() };
+    }));
+
     const targetStat = statByCategory[quest.category] || 'intelligence';
     const gainMultiplier = ascensionData.multiplier;
     const powerUpMultiplier = activePowerUps.filter(p => new Date(p.expiresAt) > new Date()).reduce((m, p) => m * p.multiplier, 1);
@@ -1184,13 +1244,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
     setLastStatUpdates(prev => ({ ...prev, [targetStat]: now() }));
 
-    // Update quest state (pure state transformation only)
-    setQuests(prev => prev.map(q => {
-      if (q.id !== id || q.completed) return q;
-      return { ...q, completed: true, completedAt: now() };
-    }));
-
-    // Side effects moved outside updater
+    // Update quest state — already marked completed above to prevent double-click
+    // Side effects
     addCredits(quest.rewardCredits);
     addExp(quest.rewardExp);
     updateConsistency(true);
@@ -1224,7 +1279,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         orch.generateMotivation({
           stats,
           profile: userProfile,
-          recentAchievements: [],
+          quests,
+          enhancedQuests: [],
+          tasks,
+          achievements: [],
         }, `quest_completed:${quest.title || 'unknown'}`).then(msg => {
           pushNotification({
             id: `motivate_${Date.now()}`,
@@ -1407,8 +1465,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         : h.streak;
 
       if (allDone && h.lastCompletedDate !== d) {
-        addCredits(15 + h.microQuests.filter(q => q.completed).length * 5);
-        addExp(20);
+        addCredits(5 + h.microQuests.filter(q => q.completed).length * 2);
+        addExp(8);
         updateStreak();
         updateShadow(false);
       }
@@ -1426,7 +1484,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const recordRelapse = (habitId: string) => {
     setHabits(prev => prev.map(h => {
       if (h.id !== habitId) return h;
-      applyPenalty('relapse', `Relapse: ${h.title}`, 50);
+      applyPenalty('relapse', `Relapse: ${h.title}`, 20);
       addDebuff({
         id: Date.now().toString(),
         name: 'Relapse Debuff',
@@ -1517,8 +1575,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       maxHp: boss.hp,
       currentHp: boss.hp,
       defeated: false,
-      rewardCredits: 500,
-      rewardExp: 300,
+      rewardCredits: 150,
+      rewardExp: 100,
       bossDescription: boss.desc,
       participants: 1,
     };
@@ -1542,7 +1600,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const completeRaidBoss = () => {
-    damageRaidBoss(999999);
+    if (!raidBoss || raidBoss.defeated) return;
+    // Deal remaining HP as damage — ensures reward logic runs through damageRaidBoss
+    const remainingHp = raidBoss.currentHp;
+    damageRaidBoss(remainingHp);
   };
 
   const performAscension = () => {
@@ -1560,15 +1621,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const nowStr = new Date().toISOString();
     setStats({ strength: 10, intelligence: 10, agility: 10, vitality: 10, willpower: 10, social: 10 });
     setLastStatUpdates({ strength: nowStr, intelligence: nowStr, agility: nowStr, vitality: nowStr, willpower: nowStr, social: nowStr });
-    addCredits(500 * newAscensionCount);
-    addExp(1000);
+    addCredits(150 * newAscensionCount);
+    addExp(300);
 
     pushNotification({
       id: `asc_${newAscensionCount}_${now()}`,
       type: 'ascension_ready',
       title: `Ascension ${newAscensionCount} Complete`,
       description: `Multiplier increased to ${(ascensionData.multiplier + 0.1).toFixed(2)}x. Stats reset.`,
-      reward: { credits: 500 * newAscensionCount, exp: 1000 },
+      reward: { credits: 150 * newAscensionCount, exp: 300 },
       timestamp: now(),
     });
   };
@@ -1618,26 +1679,26 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (body) {
         newTasks.push({
-          id: `t_${d}_1`, title: `Log: ${body.title}`, description: `Show up for ${body.title}. The mirror is watching.`, category: 'fitness', difficulty: body.difficulty || 1, points: (body.gain || 2) * 5, rewardCredits: 10 + (body.difficulty || 1) * 3, rewardExp: 15 + (body.difficulty || 1) * 3, completed: false, date: d,
+          id: `t_${d}_1`, title: `Log: ${body.title}`, description: `Show up for ${body.title}. The mirror is watching.`, category: 'fitness', difficulty: body.difficulty || 1, points: (body.gain || 2) * 5, rewardCredits: 3 + (body.difficulty || 1), rewardExp: 5 + (body.difficulty || 1), completed: false, date: d,
         });
       } else {
         newTasks.push({
-          id: `t_${d}_1`, title: 'Log any body protocol', description: 'Show up for one body session today.', category: 'fitness', difficulty: 1, points: 10, rewardCredits: 10, rewardExp: 15, completed: false, date: d,
+          id: `t_${d}_1`, title: 'Log any body protocol', description: 'Show up for one body session today.', category: 'fitness', difficulty: 1, points: 10, rewardCredits: 3, rewardExp: 5, completed: false, date: d,
         });
       }
 
       if (mind) {
         newTasks.push({
-          id: `t_${d}_2`, title: `Log: ${mind.title}`, description: `Show up for ${mind.title}. The mirror is watching.`, category: 'mental', difficulty: mind.difficulty || 1, points: (mind.gain || 2) * 5, rewardCredits: 10 + (mind.difficulty || 1) * 3, rewardExp: 15 + (mind.difficulty || 1) * 3, completed: false, date: d,
+          id: `t_${d}_2`, title: `Log: ${mind.title}`, description: `Show up for ${mind.title}. The mirror is watching.`, category: 'mental', difficulty: mind.difficulty || 1, points: (mind.gain || 2) * 5, rewardCredits: 3 + (mind.difficulty || 1), rewardExp: 5 + (mind.difficulty || 1), completed: false, date: d,
         });
       } else {
         newTasks.push({
-          id: `t_${d}_2`, title: 'Read or study for 20 minutes', description: 'Expand your knowledge base. The mirror is watching.', category: 'mental', difficulty: 1, points: 10, rewardCredits: 10, rewardExp: 15, completed: false, date: d,
+          id: `t_${d}_2`, title: 'Read or study for 20 minutes', description: 'Expand your knowledge base. The mirror is watching.', category: 'mental', difficulty: 1, points: 10, rewardCredits: 3, rewardExp: 5, completed: false, date: d,
         });
       }
 
       newTasks.push({
-        id: `t_${d}_3`, title: other ? `Complete ${other.title}` : 'Complete one habit micro-quest', description: other ? `Execute your ${other.title} protocol.` : 'Build consistency in your daily habits.', category: 'habit', difficulty: other?.difficulty || 1, points: other ? (other.gain || 2) * 5 : 10, rewardCredits: other ? 10 + (other.difficulty || 1) * 3 : 10, rewardExp: other ? 15 + (other.difficulty || 1) * 3 : 15, completed: false, date: d,
+        id: `t_${d}_3`, title: other ? `Complete ${other.title}` : 'Complete one habit micro-quest', description: other ? `Execute your ${other.title} protocol.` : 'Build consistency in your daily habits.', category: 'habit', difficulty: other?.difficulty || 1, points: other ? (other.gain || 2) * 5 : 10, rewardCredits: other ? 3 + (other.difficulty || 1) : 3, rewardExp: other ? 5 + (other.difficulty || 1) : 5, completed: false, date: d,
       });
 
       return [...prev, ...newTasks];
@@ -1646,6 +1707,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const purchaseStoreItem = (item: StoreItem): boolean => {
     if (item.exclusive && !isPro) return false;
+    if (progression.level < item.requiredLevel) return false;
     if (!spendCredits(item.cost)) return false;
 
     if ((item.type === 'protocol' || item.type === 'book') && item.protocolData) {
@@ -1885,7 +1947,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <GameContext.Provider value={{
-      stats, quests, tasks, appPermissions,
+      stats, chatHistory, quests, tasks, appPermissions,
       hasCompletedAssessment, selectedCharacter, currentProtocolId, protocols,
       userProfile, credits, progression, streakData, achievements, penaltyRecords,
       habits, activePowerUps, debuffs, shadowState, raidBoss, ascensionData,
@@ -1897,7 +1959,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       eventLog, publishEvent, behaviorProfile, reminderWindows, setReminderWindows,
       completeAssessment, setCharacter, setProtocol, addProtocol, removeProtocol, updateProtocol,
       addCustomSkillSet, removeCustomSkillSet, updateCustomSkillValue,
-      updateUserProfile, addQuest, completeQuest, failQuest, completeTask, failTask,
+      updateUserProfile, addQuest, removeQuest, completeQuest, failQuest, completeTask, failTask,
       toggleAppPermission, updateStat, addCredits, spendCredits, addExp, checkLevelUp,
       updateStreak, spendRestToken, checkStreak, applyPenalty, checkAchievements,
       addHabit, completeMicroQuest, recordRelapse, removeHabit,

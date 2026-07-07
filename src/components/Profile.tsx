@@ -517,7 +517,7 @@ const Profile: React.FC = () => {
               { id: 'intermediate', label: 'Intermediate' },
               { id: 'advanced', label: 'Advanced' },
             ].map(e => (
-              <button key={e.id} onClick={() => setExperience(e.id)}
+              <button key={e.id} onClick={() => setExperience(e.id as 'beginner' | 'intermediate' | 'advanced')}
                 className={`flex-1 p-4 rounded-2xl text-center border text-[10px] font-display uppercase tracking-wider transition-all ${
                   experience === e.id ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400' : 'bg-black/50 border-white/10 text-white/40 hover:border-white/30'
                 }`}>

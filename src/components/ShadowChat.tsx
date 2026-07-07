@@ -65,7 +65,7 @@ const ShadowChat: React.FC = () => {
       emotional: false,
       timestamp: new Date().toISOString(),
     };
-    appendShadowChat(shadowMemory, userEntry);
+    appendShadowChat(userEntry);
 
     let fullResponse = '';
 
@@ -86,7 +86,7 @@ const ShadowChat: React.FC = () => {
         emotional: fullResponse.includes('!') || fullResponse.includes('?'),
         timestamp: new Date().toISOString(),
       };
-      appendShadowChat(shadowMemory, shadowEntry);
+      appendShadowChat(shadowEntry);
     } catch {
       const fallbackEntry: ShadowChatEntry = {
         id: Math.random().toString(36).substring(2, 9),
@@ -95,12 +95,12 @@ const ShadowChat: React.FC = () => {
         emotional: false,
         timestamp: new Date().toISOString(),
       };
-      appendShadowChat(shadowMemory, fallbackEntry);
+      appendShadowChat(fallbackEntry);
     } finally {
       setIsThinking(false);
       setStreamingText('');
     }
-  }, [shadowMemory, appendShadowChat, streamCommandToAgent]);
+  }, [appendShadowChat, streamCommandToAgent]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();

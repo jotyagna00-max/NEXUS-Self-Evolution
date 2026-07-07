@@ -13,7 +13,7 @@ interface Question {
   options: { label: string; value: string; hint?: string }[];
 }
 
-type Phase = 'boot' | 'physical' | 'cognitive' | 'processing_physical' | 'processing_cognitive' | 'profile' | 'complete';
+type Phase = 'boot' | 'physical' | 'cognitive' | 'processing_physical' | 'processing_cognitive' | 'profile' | 'goal' | 'complete';
 
 type ProfileStep = 'identity' | 'experience' | 'goals' | 'preferences';
 

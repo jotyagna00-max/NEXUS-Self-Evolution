@@ -21,6 +21,26 @@ body {
   overflow-x: hidden;
   cursor: default;
   font-family: 'Space Grotesk', sans-serif;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== Accessibility: Reduced Motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===== Focus Visibility (keyboard navigation) ===== */
+:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.6);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* Holographic Glass Effect */
@@ -38,6 +58,15 @@ body {
   box-shadow: inset 0 0 30px rgba(16, 185, 129, 0.1);
 }
 
+/* Glass Card — was missing, referenced in NativeLLMFirstLaunch.tsx */
+.glass-card {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  border-radius: 16px;
+}
+
 /* Alien Tech Glows */
 .glow-emerald {
   box-shadow: 0 0 30px rgba(16, 185, 129, 0.4);
@@ -47,18 +76,24 @@ body {
   text-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
 }
 
-/* Scrollbar Customization */
+/* Scrollbar Customization — more visible */
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 5px;
 }
-
 ::-webkit-scrollbar-track {
-  background: #000;
+  background: rgba(0, 0, 0, 0.3);
 }
-
 ::-webkit-scrollbar-thumb {
   background: var(--neon-emerald);
   border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #34d399;
+}
+
+/* Momentum scrolling for iOS */
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Arc Reactor Pulse */
@@ -78,6 +113,16 @@ body {
 
 .animate-scanline-fast {
   animation: scanline-fast 2s linear infinite;
+}
+
+/* Scanline Slow — was missing, referenced in PenaltyZone.tsx */
+@keyframes scanline-slow {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(1000%); }
+}
+
+.animate-scanline-slow {
+  animation: scanline-slow 5s linear infinite;
 }
 
 /* Holographic Card Effect */
@@ -112,7 +157,7 @@ body {
   100% { transform: translateX(100%) translateY(100%); }
 }
 
-/* Scanlines Overlay */
+/* Scanlines Overlay — z-index FIXED: was 9999 (above modals), now 50 (below modals at z-100+) */
 .scanlines {
   position: fixed;
   top: 0;
@@ -120,7 +165,7 @@ body {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 9999;
+  z-index: 50;
   background: repeating-linear-gradient(
     0deg,
     transparent,
@@ -183,4 +228,19 @@ body {
 @keyframes hud-rotate {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* ===== GPU Compositing Hints for Heavy Animations ===== */
+.blur-\[180px\],
+.arc-pulse,
+.hud-circle,
+.hologram-card::after {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* ===== Selection Color ===== */
+::selection {
+  background: rgba(16, 185, 129, 0.3);
+  color: #fff;
 }

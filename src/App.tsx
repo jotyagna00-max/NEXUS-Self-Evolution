@@ -39,7 +39,6 @@ import SplashScreen from './components/SplashScreen';
 import UpdateToast from './components/UpdateToast';
 import NotificationToast from './components/NotificationToast';
 import ParticleBackground from './components/ParticleBackground';
-import Story from './components/Story';
 import MissionDebrief from './components/MissionDebrief';
 import ChangelogPanel from './components/ChangelogPanel';
 import CalendarHeatmap from './components/CalendarHeatmap';
@@ -49,6 +48,7 @@ import ShadowChat from './components/ShadowChat';
 import PenaltyZone from './components/PenaltyZone';
 import Onboarding from './components/Onboarding';
 import NativeLLMFirstLaunch from './components/NativeLLMFirstLaunch';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const MenuOverlay = ({
   isOpen,
@@ -276,7 +276,6 @@ const Dashboard = () => {
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'training', label: 'Training', icon: Activity },
     { id: 'quests', label: 'Quests', icon: Sword },
-    { id: 'story', label: 'Story', icon: Scroll },
     { id: 'debrief', label: 'Review', icon: ClipboardList },
     { id: 'books', label: 'Books', icon: Book },
     { id: 'habits', label: 'Habits', icon: Flame },
@@ -452,32 +451,32 @@ const Dashboard = () => {
 
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Advanced HUD Header */}
-        <header className="flex items-center justify-between px-10 py-6 glass border-b border-white/10 sticky top-0 z-40">
-          <div className="flex items-center gap-10">
+        <header className="flex items-center justify-between px-4 sm:px-6 md:px-10 py-4 sm:py-6 glass border-b border-white/10 sticky top-0 z-40">
+          <div className="flex items-center gap-4 sm:gap-6 md:gap-10">
             <button
               onClick={() => setIsMenuOpen(true)}
-              className="group flex items-center gap-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 px-6 py-3 rounded-xl transition-all glow-emerald"
+              className="group flex items-center gap-2 sm:gap-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 px-3 sm:px-6 py-2 sm:py-3 rounded-xl transition-all glow-emerald"
             >
-              <Menu size={20} className="text-emerald-400 group-hover:rotate-90 transition-transform" />
-              <span className="font-display text-xs uppercase tracking-[0.3em] text-emerald-400">Menu</span>
+              <Menu size={18} className="text-emerald-400 group-hover:rotate-90 transition-transform sm:text-[20px]" />
+              <span className="font-display text-[10px] sm:text-xs uppercase tracking-[0.2em] sm:tracking-[0.3em] text-emerald-400 hidden sm:inline">Menu</span>
             </button>
 
-            <div className="flex items-center gap-6 border-l border-white/10 pl-10">
-              <button onClick={() => setShowProfile(true)} className="flex items-center gap-4 group">
+            <div className="flex items-center gap-3 sm:gap-6 border-l border-white/10 pl-3 sm:pl-10">
+              <button onClick={() => setShowProfile(true)} className="flex items-center gap-2 sm:gap-4 group">
                 <div className="flex flex-col text-left">
-                  <span className="text-[8px] text-white/40 uppercase tracking-[0.3em] font-display">Profile</span>
-                  <span className="text-lg font-display font-black text-white glow-text-emerald uppercase group-hover:text-emerald-300 transition-colors">
+                  <span className="text-[7px] sm:text-[8px] text-white/40 uppercase tracking-[0.2em] sm:tracking-[0.3em] font-display">Profile</span>
+                  <span className="text-sm sm:text-lg font-display font-black text-white glow-text-emerald uppercase group-hover:text-emerald-300 transition-colors truncate max-w-[120px] sm:max-w-none">
                     {userProfile.name || 'Your Name'}
                   </span>
                 </div>
-                <div className="w-12 h-12 rounded-xl glass border border-emerald-500/40 flex items-center justify-center relative overflow-hidden group/avatar">
+                <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl glass border border-emerald-500/40 flex items-center justify-center relative overflow-hidden group/avatar">
                   <div className="absolute inset-0 bg-emerald-500/10 group-hover/avatar:bg-emerald-500/20 transition-colors" />
-                  <User size={24} className="text-emerald-400 relative z-10" />
+                  <User size={20} className="text-emerald-400 relative z-10" />
                 </div>
               </button>
 
               {/* Manager archetype chip */}
-              <div className="border-l border-white/10 pl-6 hidden md:block">
+              <div className="border-l border-white/10 pl-3 sm:pl-6 hidden md:block">
                 <ManagerAvatar archetypeId={selectedCharacter} />
               </div>
 
@@ -499,19 +498,19 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 sm:gap-6">
             <button
               onClick={() => { if (confirm('Reset all data? This cannot be undone.')) resetAllData(); }}
-              className="p-3 glass border-white/10 text-white/40 hover:text-red-500 hover:border-red-500/30 transition-all rounded-xl"
+              className="p-2 sm:p-3 glass border-white/10 text-white/40 hover:text-red-500 hover:border-red-500/30 transition-all rounded-xl"
               title="Reset Session (Clears All Data)"
             >
-              <LogOut size={20} />
+              <LogOut size={18} className="sm:text-[20px]" />
             </button>
           </div>
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-10 overflow-y-auto">
+        <main className="flex-1 p-4 sm:p-6 md:p-10 overflow-y-auto scroll-smooth">
           <div className="max-w-7xl mx-auto">
             <AnimatePresence mode="wait">
               <motion.div
@@ -609,7 +608,6 @@ const Dashboard = () => {
 
                 {activeTab === 'training' && <TrainingHub />}
                 {activeTab === 'quests' && <QuestBoard />}
-                {activeTab === 'story' && <Story />}
                 {activeTab === 'debrief' && <MissionDebrief />}
                 {activeTab === 'books' && <BookMastery />}
                 {activeTab === 'habits' && <HabitLab />}
@@ -629,11 +627,13 @@ const Dashboard = () => {
 
 export default function App() {
   return (
-    <GameProvider>
-      <Onboarding>
-        <Dashboard />
-    </Onboarding>
-    </GameProvider>
+    <ErrorBoundary>
+      <GameProvider>
+        <Onboarding>
+          <Dashboard />
+        </Onboarding>
+      </GameProvider>
+    </ErrorBoundary>
   );
 }
 
