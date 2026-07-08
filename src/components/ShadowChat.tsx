@@ -7,6 +7,7 @@ import {
   ShadowTag,
 } from '../services/shadowQuestions';
 import { ShadowChatEntry } from '../utils/shadowMemory';
+import ConfirmDialog from './ConfirmDialog';
 import './ShadowChat.css';
 
 const ShadowChat: React.FC = () => {
@@ -29,6 +30,7 @@ const ShadowChat: React.FC = () => {
   const [isThinking, setIsThinking] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [shadowPersona, setShadowPersona] = useState(() => localStorage.getItem('shadowPersona') || 'mirror');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Bootstrap interrogation on first visit
@@ -65,7 +67,7 @@ const ShadowChat: React.FC = () => {
       emotional: false,
       timestamp: new Date().toISOString(),
     };
-    appendShadowChat(userEntry);
+    appendShadowChat(shadowMemory, userEntry);
 
     let fullResponse = '';
 
@@ -86,7 +88,7 @@ const ShadowChat: React.FC = () => {
         emotional: fullResponse.includes('!') || fullResponse.includes('?'),
         timestamp: new Date().toISOString(),
       };
-      appendShadowChat(shadowEntry);
+      appendShadowChat(shadowMemory, shadowEntry);
     } catch {
       const fallbackEntry: ShadowChatEntry = {
         id: Math.random().toString(36).substring(2, 9),
@@ -95,12 +97,12 @@ const ShadowChat: React.FC = () => {
         emotional: false,
         timestamp: new Date().toISOString(),
       };
-      appendShadowChat(fallbackEntry);
+      appendShadowChat(shadowMemory, fallbackEntry);
     } finally {
       setIsThinking(false);
       setStreamingText('');
     }
-  }, [appendShadowChat, streamCommandToAgent]);
+  }, [shadowMemory, appendShadowChat, streamCommandToAgent]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,16 +197,20 @@ const ShadowChat: React.FC = () => {
           {/* Reset button */}
           <button
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/5 text-white/30 hover:text-red-400 hover:border-red-500/20 hover:bg-red-500/5 transition-all text-[9px] font-tech uppercase tracking-wider"
-            onClick={() => {
-              if (window.confirm('Reset Shadow memory? This cannot be undone.')) {
-                resetShadowMemory();
-                window.location.reload();
-              }
-            }}
+            onClick={() => setShowResetConfirm(true)}
           >
             <RotateCcw size={10} />
             Reset
           </button>
+          <ConfirmDialog
+            open={showResetConfirm}
+            onConfirm={() => { resetShadowMemory(); window.location.reload(); }}
+            onCancel={() => setShowResetConfirm(false)}
+            title="Reset Shadow Memory?"
+            description="This will erase all Shadow conversation history and interrogation progress. This cannot be undone."
+            confirmLabel="Reset Memory"
+            variant="danger"
+          />
         </div>
       </header>
 

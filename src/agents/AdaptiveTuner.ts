@@ -31,12 +31,17 @@ export interface TunerReport {
 // ---------------------------------------------------------------------------
 
 /** Count events of a given type in the last N days. */
-function countRecent(events: NexusEvent[], typePrefix: string, days: number, now: Date): number {
+function countRecent(events: Array<{ at: string; event: NexusEvent }>, typePrefix: string, days: number, now: Date): number {
   const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
   return events.filter(e => {
-    if (!e.type.startsWith(typePrefix)) return false;
-    // Events may not all have timestamps; we approximate by log order
-    return true;
+    if (!e.event.type.startsWith(typePrefix)) return false;
+    // Use the `at` timestamp from the persisted event log
+    try {
+      const ts = new Date(e.at);
+      return ts >= cutoff;
+    } catch {
+      return false;
+    }
   }).length;
 }
 
@@ -63,11 +68,13 @@ function avgDifficulty(profile: BehaviorProfile): number {
  */
 export function runTuningCycle(
   profile: BehaviorProfile,
-  recentEvents: NexusEvent[],
+  recentEvents: Array<{ at: string; event: NexusEvent }>,
   now: Date = new Date(),
 ): TunerReport {
-  // Cold-start guard — need data spanning at least 7 distinct calendar days
-  const distinctDates = new Set(recentEvents.map(e => ('timestamp' in e ? new Date((e as any).timestamp).toISOString().split('T')[0] : now.toISOString().split('T')[0]))).size;
+  // Cold-start guard — need data spanning at least 3 distinct calendar days
+  const distinctDates = new Set(recentEvents.map(e => {
+    try { return new Date(e.at).toISOString().split('T')[0]; } catch { return now.toISOString().split('T')[0]; }
+  })).size;
   const hasEnoughData = recentEvents.length >= 7 || distinctDates >= 3;
   if (!hasEnoughData) {
     return {
@@ -136,8 +143,9 @@ export function runTuningCycle(
   }
 
   // ── Focus stat drift ─────────────────────────────────────────────
-  if (profile.preferredFocusStat) {
-    reportLines.push(`Primary focus stat: ${profile.preferredFocusStat}.`);
+  focusStat = profile.preferredFocusStat;
+  if (focusStat) {
+    reportLines.push(`Primary focus stat: ${focusStat}.`);
   }
   // Check for rebalance need: if weekdayStrength >> weekendStrength
   if (profile.weekdayStrength != null && profile.weekendStrength != null) {

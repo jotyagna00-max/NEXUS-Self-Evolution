@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -22,33 +22,38 @@ import {
   Skull,
 } from 'lucide-react';
 import { GameProvider, useGame } from './GameContext';
-import HexGraph from './components/HexGraph';
-import QuestBoard from './components/QuestBoard';
-import TrainingHub from './components/TrainingHub';
 
+// Eagerly loaded — needed on first paint
+import HexGraph from './components/HexGraph';
 import InitialAssessment from './components/InitialAssessment';
-import BookMastery from './components/BookMastery';
-import Feedback from './components/Feedback';
-import NexusStore from './components/NexusStore';
-import HabitLab from './components/HabitLab';
 import ConsistencyTracker from './components/ConsistencyTracker';
 import AgentBriefing from './components/AgentBriefing';
-import Profile from './components/Profile';
-import AscensionCeremony from './components/AscensionCeremony';
 import SplashScreen from './components/SplashScreen';
 import UpdateToast from './components/UpdateToast';
 import NotificationToast from './components/NotificationToast';
 import ParticleBackground from './components/ParticleBackground';
-import MissionDebrief from './components/MissionDebrief';
+import AscensionCeremony from './components/AscensionCeremony';
 import ChangelogPanel from './components/ChangelogPanel';
-import CalendarHeatmap from './components/CalendarHeatmap';
 import ManagerAvatar from './components/ManagerAvatar';
 import DailyBaseline from './components/DailyBaseline';
-import ShadowChat from './components/ShadowChat';
-import PenaltyZone from './components/PenaltyZone';
+import CalendarHeatmap from './components/CalendarHeatmap';
 import Onboarding from './components/Onboarding';
 import NativeLLMFirstLaunch from './components/NativeLLMFirstLaunch';
 import ErrorBoundary from './components/ErrorBoundary';
+import ConfirmDialog from './components/ConfirmDialog';
+import TabSkeleton from './components/TabSkeleton';
+
+// Lazy loaded — heavy components that are only needed when their tab is active
+const QuestBoard = lazy(() => import('./components/QuestBoard'));
+const TrainingHub = lazy(() => import('./components/TrainingHub'));
+const BookMastery = lazy(() => import('./components/BookMastery'));
+const Feedback = lazy(() => import('./components/Feedback'));
+const NexusStore = lazy(() => import('./components/NexusStore'));
+const HabitLab = lazy(() => import('./components/HabitLab'));
+const Profile = lazy(() => import('./components/Profile'));
+const MissionDebrief = lazy(() => import('./components/MissionDebrief'));
+const ShadowChat = lazy(() => import('./components/ShadowChat'));
+const PenaltyZone = lazy(() => import('./components/PenaltyZone'));
 
 const MenuOverlay = ({
   isOpen,
@@ -231,24 +236,17 @@ const MenuOverlay = ({
 const Dashboard = () => {
   const { stats, quests, hasCompletedAssessment, customSkillSets, addCustomSkillSet, removeCustomSkillSet, userProfile, selectedCharacter, canAscend, performAscension, lastStatUpdates, consistency, recommendations, generateRecommendations, resetAllData, currentMode, penaltyZoneReason, exitPenaltyZone } = useGame();
 
-  // Penalty Zone lockout — when currentMode is penalty_zone, render a
-  // fullscreen survival protocol instead of the regular dashboard. The
-  // Operator must clear ONE challenge to regain the Command Center.
-  // This is the entire point of the design from onboarding-design.md:
-  // consequences feel like challenges, not punishments.
-  if (currentMode === 'penalty_zone' && hasCompletedAssessment) {
-    return (
-      <>
-        <PenaltyZone onSurrender={() => {
-          if (window.confirm('Surrender? You will not earn rewards for clearing the Penalty Zone.')) {
-            exitPenaltyZone();
-          }
-        }} />
-        <UpdateToast />
-        <NotificationToast />
-      </>
-    );
-  }
+  // All hooks must be declared before any early returns (React rules of hooks)
+  const [showSplash, setShowSplash] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'training' | 'quests' | 'feedback' | 'books' | 'store' | 'habits' | 'story' | 'debrief' | 'shadow'>('overview');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showSkillModal, setShowSkillModal] = useState(false);
+  const [showAscension, setShowAscension] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
+  const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [newSkillSet, setNewSkillSet] = useState<{ name: string; skills: { name: string; value: number }[] }>({ name: '', skills: [] });
 
   useEffect(() => { generateRecommendations(); }, [generateRecommendations]);
   const statKeys: (keyof typeof stats)[] = ['strength', 'intelligence', 'agility', 'vitality', 'willpower', 'social'];
@@ -259,14 +257,30 @@ const Dashboard = () => {
       return daysSinceUpdate >= 7 ? i : -1;
     })
     .filter(i => i >= 0);
-  const [showSplash, setShowSplash] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'training' | 'quests' | 'feedback' | 'books' | 'store' | 'habits' | 'story' | 'debrief' | 'shadow'>('overview');
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [showSkillModal, setShowSkillModal] = useState(false);
-  const [showAscension, setShowAscension] = useState(false);
-  const [showChangelog, setShowChangelog] = useState(false);
-  const [newSkillSet, setNewSkillSet] = useState<{ name: string; skills: { name: string; value: number }[] }>({ name: '', skills: [] });
+
+  // Penalty Zone lockout — when currentMode is penalty_zone, render a
+  // fullscreen survival protocol instead of the regular dashboard. The
+  // Operator must clear ONE challenge to regain the Command Center.
+  // This is the entire point of the design from onboarding-design.md:
+  // consequences feel like challenges, not punishments.
+  if (currentMode === 'penalty_zone' && hasCompletedAssessment) {
+    return (
+      <>
+        <Suspense fallback={<TabSkeleton />}><PenaltyZone onSurrender={() => setShowSurrenderConfirm(true)} /></Suspense>
+        <UpdateToast />
+        <NotificationToast />
+        <ConfirmDialog
+          open={showSurrenderConfirm}
+          onConfirm={() => { exitPenaltyZone(); setShowSurrenderConfirm(false); }}
+          onCancel={() => setShowSurrenderConfirm(false)}
+          title="Surrender?"
+          description="You will not earn rewards for clearing the Penalty Zone."
+          confirmLabel="Surrender"
+          variant="warning"
+        />
+      </>
+    );
+  }
 
   if (!hasCompletedAssessment) {
     return <InitialAssessment />;
@@ -415,7 +429,7 @@ const Dashboard = () => {
               <X size={18} />
             </button>
           </div>
-          <Profile />
+          <Suspense fallback={<TabSkeleton />}><Profile /></Suspense>
         </motion.div>
       </div>
     )}
@@ -500,7 +514,7 @@ const Dashboard = () => {
 
           <div className="flex items-center gap-3 sm:gap-6">
             <button
-              onClick={() => { if (confirm('Reset all data? This cannot be undone.')) resetAllData(); }}
+              onClick={() => setShowResetConfirm(true)}
               className="p-2 sm:p-3 glass border-white/10 text-white/40 hover:text-red-500 hover:border-red-500/30 transition-all rounded-xl"
               title="Reset Session (Clears All Data)"
             >
@@ -606,14 +620,14 @@ const Dashboard = () => {
                   </div>
                 )}
 
-                {activeTab === 'training' && <TrainingHub />}
-                {activeTab === 'quests' && <QuestBoard />}
-                {activeTab === 'debrief' && <MissionDebrief />}
-                {activeTab === 'books' && <BookMastery />}
-                {activeTab === 'habits' && <HabitLab />}
-                {activeTab === 'store' && <NexusStore />}
-                {activeTab === 'shadow' && <ShadowChat />}
-                {activeTab === 'feedback' && <Feedback />}
+                {activeTab === 'training' && <Suspense fallback={<TabSkeleton />}><TrainingHub /></Suspense>}
+                {activeTab === 'quests' && <Suspense fallback={<TabSkeleton />}><QuestBoard /></Suspense>}
+                {activeTab === 'debrief' && <Suspense fallback={<TabSkeleton />}><MissionDebrief /></Suspense>}
+                {activeTab === 'books' && <Suspense fallback={<TabSkeleton />}><BookMastery /></Suspense>}
+                {activeTab === 'habits' && <Suspense fallback={<TabSkeleton />}><HabitLab /></Suspense>}
+                {activeTab === 'store' && <Suspense fallback={<TabSkeleton />}><NexusStore /></Suspense>}
+                {activeTab === 'shadow' && <Suspense fallback={<TabSkeleton />}><ShadowChat /></Suspense>}
+                {activeTab === 'feedback' && <Suspense fallback={<TabSkeleton />}><Feedback /></Suspense>}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -621,6 +635,17 @@ const Dashboard = () => {
 
       </div>
     </div>
+
+    {/* Global Confirm Dialogs */}
+    <ConfirmDialog
+      open={showResetConfirm}
+      onConfirm={() => { resetAllData(); setShowResetConfirm(false); }}
+      onCancel={() => setShowResetConfirm(false)}
+      title="Reset All Data?"
+      description="This will permanently erase all your progress, stats, quests, and settings. This cannot be undone."
+      confirmLabel="Reset Everything"
+      variant="danger"
+    />
     </>
   );
 };

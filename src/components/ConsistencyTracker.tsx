@@ -3,9 +3,11 @@ import { motion } from 'motion/react';
 import { Flame, RotateCcw, TrendingUp, Activity, Shield, Moon } from 'lucide-react';
 import { ConsistencyData } from '../types';
 import { useGame } from '../GameContext';
+import ConfirmDialog from './ConfirmDialog';
 
 const ConsistencyTracker: React.FC<{ data: ConsistencyData }> = ({ data }) => {
   const { spendRestToken } = useGame();
+  const [showRestConfirm, setShowRestConfirm] = React.useState(false);
   const dotColor = (active: boolean) =>
     active
       ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
@@ -93,15 +95,7 @@ const ConsistencyTracker: React.FC<{ data: ConsistencyData }> = ({ data }) => {
       {/* R-02 — explicit rest-token spend button. Available when graceDaysRemaining > 0. */}
       {data.graceDaysRemaining > 0 && (
         <button
-          onClick={() => {
-            if (
-              window.confirm(
-                'Spend a rest token? This will mark today as rest and keep your streak window alive.'
-              )
-            ) {
-              spendRestToken();
-            }
-          }}
+          onClick={() => setShowRestConfirm(true)}
           className="w-full mb-4 p-3 rounded-2xl bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20 border border-purple-500/20 hover:border-purple-500/40 transition-all flex items-center justify-between group"
         >
           <div className="flex items-center gap-3">
@@ -120,6 +114,16 @@ const ConsistencyTracker: React.FC<{ data: ConsistencyData }> = ({ data }) => {
          </span>
        </button>
       )}
+
+      <ConfirmDialog
+        open={showRestConfirm}
+        onConfirm={() => { spendRestToken(); setShowRestConfirm(false); }}
+        onCancel={() => setShowRestConfirm(false)}
+        title="Spend Rest Token?"
+        description="This will mark today as rest and keep your streak window alive."
+        confirmLabel="Spend Token"
+        variant="warning"
+      />
 
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white/[0.03] rounded-2xl p-4 border border-white/5">

@@ -44,7 +44,7 @@ async function startServer() {
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "font-src https://fonts.gstatic.com; " +
-      "connect-src 'self' http://localhost:1234 https://integrate.api.nvidia.com http://localhost:3000; " +
+      "connect-src 'self' http://localhost:1234 http://localhost:3000; " +
       "img-src 'self' data:; " +
       "media-src 'self'; " +
       "object-src 'none'; " +

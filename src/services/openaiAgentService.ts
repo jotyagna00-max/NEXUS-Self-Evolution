@@ -1,9 +1,4 @@
 import OpenAI from "openai";
-import {
-  generateWebLLMResponse,
-  streamWebLLMResponse,
-  isWebGPUSupported,
-} from "./webllmService";
 
 /** Default LM Studio endpoint — no key required. */
 const LOCAL_LLM_DEFAULT_BASE = "http://localhost:1234/v1";
@@ -16,22 +11,10 @@ function getLocalLLMConfig() {
   return { enabled, baseURL, model };
 }
 
-function getClient(): OpenAI {
-  const apiKey = localStorage.getItem('NVIDIA_API_KEY');
-  if (!apiKey) {
-    throw new Error("NVIDIA_API_KEY not set. Configure it in Neural Settings.");
-  }
-  return new OpenAI({
-    baseURL: "https://integrate.api.nvidia.com/v1",
-    apiKey,
-    dangerouslyAllowBrowser: true,
-  });
-}
-
 function getLocalClient(baseURL: string): OpenAI {
   return new OpenAI({
     baseURL,
-    apiKey: "lm-studio", // LM Studio ignores the key, but the SDK requires one
+    apiKey: "lm-studio", // LM Studio / Ollama ignore the key, but the SDK requires one
     dangerouslyAllowBrowser: true,
   });
 }
@@ -41,11 +24,8 @@ function parseApiError(err: any): Error {
   if (msg.includes('clipboard') || msg.includes('image input')) {
     return new Error("The AI model only supports text. Please send text messages only (no images or file attachments).");
   }
-  if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('Unauthorized')) {
-    return new Error("API key is invalid or expired. Please update your NVIDIA API key in Neural Settings.");
-  }
-  if (msg.includes('429') || msg.includes('rate limit') || msg.includes('Too Many Requests')) {
-    return new Error("Too many requests. Please wait a moment before sending another message.");
+  if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('net::ERR_CONNECTION_REFUSED')) {
+    return new Error("Cannot connect to the local LLM server. Make sure LM Studio or Ollama is running and the endpoint URL is correct in Settings.");
   }
   return new Error(`AI service error: ${msg}`);
 }
@@ -66,60 +46,25 @@ export async function generateOpenAIResponse(
 
   const local = getLocalLLMConfig();
 
-  // PRIORITY 1: Local LLM (LM Studio / Ollama) — zero cost, zero latency
-  if (local.enabled) {
-    try {
-      const model = local.model || undefined;
-      const completion = await getLocalClient(local.baseURL).chat.completions.create({
-        model: model ?? "",
-        messages,
-        temperature,
-        top_p,
-        max_tokens,
-        stream: false,
-      });
-      const choice = completion.choices[0];
-      if (choice?.message?.content) {
-        return { content: choice.message.content, reasoning: null };
-      }
-    } catch (localErr: any) {
-      console.warn("Local LLM failed, falling back:", localErr);
-    }
+  if (!local.enabled) {
+    throw new Error("Local LLM is not enabled. Enable it in Settings and make sure your LLM server (LM Studio / Ollama) is running.");
   }
 
-  // PRIORITY 2: WebLLM (zero cost, on-device)
-  if (isWebGPUSupported()) {
-    try {
-      const content = await generateWebLLMResponse(
-        messages as Array<{ role: string; content: string }>,
-        { temperature, max_tokens: Math.min(max_tokens, 1024) }
-      );
-      return { content, reasoning: null };
-    } catch (webllmError) {
-      console.warn("WebLLM failed, falling back to NVIDIA API:", webllmError);
-    }
-  }
-
-  // PRIORITY 3: NVIDIA API
   try {
-    const completion = await getClient().chat.completions.create({
-      model: "meta/llama-3.1-8b-instruct",
+    const model = local.model || undefined;
+    const completion = await getLocalClient(local.baseURL).chat.completions.create({
+      model: model ?? "",
       messages,
       temperature,
       top_p,
       max_tokens,
       stream: false,
     });
-
     const choice = completion.choices[0];
-    if (!choice) {
-      throw new Error("No completion choice returned.");
+    if (choice?.message?.content) {
+      return { content: choice.message.content, reasoning: null };
     }
-
-    return {
-      content: choice.message.content ?? "",
-      reasoning: null,
-    };
+    throw new Error("No response content returned from the LLM.");
   } catch (err: any) {
     throw parseApiError(err);
   }
@@ -142,73 +87,35 @@ export async function* streamOpenAIResponse(
 
   const local = getLocalLLMConfig();
 
-  // PRIORITY 1: Local LLM
-  if (local.enabled) {
-    try {
-      const model = local.model || undefined;
-      const isNativeLLM = !!(window as any).electronAPI && local.baseURL.includes('localhost:3000');
+  if (!local.enabled) {
+    throw new Error("Local LLM is not enabled. Enable it in Settings and make sure your LLM server (LM Studio / Ollama) is running.");
+  }
 
-      if (isNativeLLM) {
-        const completion = await getLocalClient(local.baseURL).chat.completions.create({
-          model: model ?? "",
-          messages,
-          temperature,
-          top_p,
-          max_tokens,
-          stream: false,
-        });
-        const content = completion.choices[0]?.message?.content ?? "";
-        if (content) {
-          onChunk?.(content);
-          yield content;
-        }
-        return;
-      }
+  try {
+    const model = local.model || undefined;
+    const isNativeLLM = !!(window as any).electronAPI && local.baseURL.includes('localhost:3000');
 
-      const stream = await getLocalClient(local.baseURL).chat.completions.create({
+    // Native Electron LLM doesn't support streaming — use non-streaming and yield all at once
+    if (isNativeLLM) {
+      const completion = await getLocalClient(local.baseURL).chat.completions.create({
         model: model ?? "",
         messages,
         temperature,
         top_p,
         max_tokens,
-        stream: true,
+        stream: false,
       });
-
-      let full = "";
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta?.content;
-        if (delta) {
-          full += delta;
-          onChunk?.(delta);
-          yield delta;
-        }
+      const content = completion.choices[0]?.message?.content ?? "";
+      if (content) {
+        onChunk?.(content);
+        yield content;
       }
       return;
-    } catch (localErr: any) {
-      console.warn("Local LLM streaming failed, falling back:", localErr);
     }
-  }
 
-  // PRIORITY 2: WebLLM
-  if (isWebGPUSupported()) {
-    try {
-      const fullResponse = await streamWebLLMResponse(
-        messages as Array<{ role: string; content: string }>,
-        (chunk) => onChunk?.(chunk),
-        { temperature, max_tokens: Math.min(max_tokens, 1024) }
-      );
-
-      yield fullResponse;
-      return;
-    } catch (webllmError) {
-      console.warn("WebLLM streaming failed, falling back to NVIDIA API:", webllmError);
-    }
-  }
-
-  // PRIORITY 3: NVIDIA API
-  try {
-    const stream = await getClient().chat.completions.create({
-      model: "meta/llama-3.1-8b-instruct",
+    // Regular streaming via OpenAI-compatible endpoint
+    const stream = await getLocalClient(local.baseURL).chat.completions.create({
+      model: model ?? "",
       messages,
       temperature,
       top_p,
@@ -216,16 +123,16 @@ export async function* streamOpenAIResponse(
       stream: true,
     });
 
+    let full = "";
     for await (const chunk of stream) {
-      const choice = chunk.choices[0];
-      if (!choice) continue;
-
-      const delta = choice.delta;
-      if (delta.content) {
-        onChunk?.(delta.content);
-        yield delta.content;
+      const delta = chunk.choices[0]?.delta?.content;
+      if (delta) {
+        full += delta;
+        onChunk?.(delta);
+        yield delta;
       }
     }
+    return;
   } catch (err: any) {
     throw parseApiError(err);
   }

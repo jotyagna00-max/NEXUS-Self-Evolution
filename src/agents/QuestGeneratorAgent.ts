@@ -102,14 +102,14 @@ Make the quest specific, actionable, and tied to the Operator's primary goals an
     let questData: Partial<EnhancedQuest> = AgentBase.parseJson<Partial<EnhancedQuest>>(
       content,
       {
-        title: "Daily Self-Improvement Quest",
-        description: "Complete a set of activities aimed at improving your overall well-being.",
+        title: "Mindful Focus Session",
+        description: "Spend 15 minutes in focused work or study without distractions. Track your attention span and note any breakthroughs.",
         type: questType,
-        category: "habit",
-        difficulty: 50,
-        rewardExp: 100,
+        category: "mental",
+        difficulty: 30,
+        rewardExp: 15,
         rewardStatPoints: 1,
-        statAffected: "multiple",
+        statAffected: "intelligence",
       },
     );
 

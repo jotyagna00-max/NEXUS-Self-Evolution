@@ -244,3 +244,70 @@ body {
   background: rgba(16, 185, 129, 0.3);
   color: #fff;
 }
+
+/* ===== Safe Area (notch/Dynamic Island) ===== */
+@supports(padding: max(0px)) {
+  header, .glass {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+/* ===== Smooth page transitions ===== */
+.animate-in {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Button active press feedback ===== */
+button:active:not(:disabled) {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
+}
+
+/* ===== Touch-friendly tap targets (min 44px) ===== */
+@media (pointer: coarse) {
+  button, [role="button"], a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ===== Prevent text selection on interactive elements ===== */
+button, [role="button"] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ===== Horizontal scroll containment ===== */
+.contain-x {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.contain-x::-webkit-scrollbar {
+  display: none;
+}
+
+/* ===== Glass input fields ===== */
+input, textarea, select {
+  color-scheme: dark;
+}
+
+/* ===== Prevent layout shift from scrollbar ===== */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* ===== Print-friendly: hide decorative elements ===== */
+@media print {
+  .scanlines, .hud-circle, .particle-background,
+  .blur-\[180px\], .animate-pulse {
+    display: none !important;
+  }
+  body { background: #fff; color: #000; }
+}

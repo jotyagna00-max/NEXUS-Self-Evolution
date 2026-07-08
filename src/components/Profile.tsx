@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Target, Dumbbell, Brain, Shield, Activity, Zap, TrendingUp, Save, ChevronRight, Edit3, Sword, Eye, Clock, Flame, Trophy, Swords, Star, X, Globe, Languages, Settings, Bell, Plus, Minus, Key, ExternalLink, EyeOff, Copy, Check, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { getSecure, setSecure, removeSecure, getSecureSync, SECURE_KEYS } from '../utils/secureStorage';
+import { User, Target, Dumbbell, Brain, Shield, Activity, Zap, TrendingUp, Save, ChevronRight, Edit3, Sword, Eye, Clock, Flame, Trophy, Swords, Star, X, Globe, Languages, Settings, Bell, Plus, Minus, CheckCircle2, AlertTriangle } from 'lucide-react';
+// secureStorage imports removed — no longer using NVIDIA API key
 import { useGame } from '../GameContext';
 import { HunterRank } from '../types';
 import { ARCHETYPES, ARCHETYPE_ORDER, getArchetype } from '../services/archetypes';
@@ -43,164 +43,6 @@ const StatBar: React.FC<{ label: string; value: number; color: string; icon: Rea
     </div>
   </div>
 );
-
-/**
- * AI Settings — runtime management for the NVIDIA API key.
- *
- * The key is stored securely using Electron's safeStorage when available,
- * falling back to localStorage in development. It never leaves your device.
- */
-const NeuralSettingsPanel: React.FC = () => {
-  const [storedKey, setStoredKey] = useState<string>('');
-  const [draft, setDraft] = useState('');
-  const [showKey, setShowKey] = useState(false);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getSecure(SECURE_KEYS.NVIDIA_API_KEY).then(key => {
-      setStoredKey(key || '');
-      setLoading(false);
-    });
-  }, []);
-
-  const hasKey = !!storedKey;
-  const masked = hasKey
-    ? `${storedKey.slice(0, 7)}…${storedKey.slice(-4)}`
-    : '';
-
-  const save = async () => {
-    const trimmed = draft.trim();
-    if (!trimmed) return;
-    await setSecure(SECURE_KEYS.NVIDIA_API_KEY, trimmed);
-    setStoredKey(trimmed);
-    setDraft('');
-    setSavedAt(Date.now());
-  };
-
-  const clear = async () => {
-    await removeSecure(SECURE_KEYS.NVIDIA_API_KEY);
-    setStoredKey('');
-    setDraft('');
-    setSavedAt(null);
-  };
-
-  if (loading) {
-    return (
-      <div className="glass rounded-[32px] p-8 border border-white/10 mt-6" data-testid="neural-settings">
-        <div className="flex items-center gap-3">
-          <div className="w-5 h-5 border-2 border-emerald-500/30 border-t-transparent rounded-full animate-spin" />
-          <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">Loading secure storage...</span>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="glass rounded-[32px] p-8 border border-white/10 mt-6" data-testid="neural-settings">
-      <div className="flex items-center gap-3 mb-4">
-        <Key size={18} className="text-blue-400" />
-        <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">
-          AI Settings
-       </span>
-        <div className="h-px flex-1 bg-white/5" />
-        {hasKey ? (
-          <span className="text-[8px] font-display uppercase tracking-widest px-2 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1">
-            <CheckCircle2 size={10} /> Linked
-         </span>
-        ) : (
-          <span className="text-[8px] font-display uppercase tracking-widest px-2 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center gap-1">
-            <AlertTriangle size={10} /> No Key
-         </span>
-        )}
-     </div>
-
-      <p className="text-[10px] font-tech text-white/40 mb-5 leading-relaxed">
-        NEXUS routes every chat through Meta Llama 3.1 8B via NVIDIA's hosted
-        endpoint. Your key is stored only in this browser — never sent to a
-        NEXUS server. Rotate or remove it at any time.
-     </p>
-
-      {/* Status row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
-        <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5">
-          <div className="text-[8px] font-display uppercase tracking-widest text-white/30 mb-1">
-            Current Key
-         </div>
-          <div className="font-mono text-sm text-white/80 truncate">
-            {hasKey ? (showKey ? storedKey : masked) : (
-              <span className="text-white/30">— not configured —</span>
-            )}
-         </div>
-          {hasKey && (
-            <button
-              type="button"
-              onClick={() => setShowKey(s => !s)}
-              className="mt-2 text-[8px] font-display uppercase tracking-wider text-white/30 hover:text-emerald-400 transition-colors flex items-center gap-1"
-            >
-              {showKey ? <><EyeOff size={10} /> Hide</> : <>Show full key</>}
-           </button>
-          )}
-       </div>
-
-        <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5">
-          <div className="text-[8px] font-display uppercase tracking-widest text-white/30 mb-1">
-            Get a Key
-         </div>
-          <a
-            href="https://build.nvidia.com/settings/api-keys"
-            target="_blank"
-            rel="noreferrer noopener"
-            className="text-[10px] font-tech text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 transition-colors"
-          >
-            build.nvidia.com/settings/api-keys
-            <ExternalLink size={10} />
-         </a>
-          <div className="text-[8px] text-white/30 mt-2 leading-relaxed">
-            Sign in → "Get API Key" → copy the <code className="text-emerald-300">nvapi-…</code> token
-         </div>
-       </div>
-     </div>
-
-      {/* Input row */}
-      <div className="flex flex-col md:flex-row gap-3">
-        <input
-          type={showKey ? 'text' : 'password'}
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') save(); }}
-          placeholder="nvapi-… (paste your key here)"
-          autoComplete="off"
-          spellCheck={false}
-          className="flex-1 bg-black/50 border border-white/10 rounded-2xl px-4 py-3 text-sm font-mono text-white/80 placeholder:text-white/20 focus:outline-none focus:border-emerald-500/50 transition-all"
-        />
-        <button
-          type="button"
-          onClick={save}
-          disabled={!draft.trim()}
-          className="px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/5 disabled:text-white/20 text-black font-display font-bold uppercase tracking-wider text-[10px] transition-all disabled:cursor-not-allowed"
-        >
-          Save Key
-       </button>
-        {hasKey && (
-          <button
-            type="button"
-            onClick={clear}
-            className="px-5 py-3 rounded-2xl bg-white/5 border border-red-500/30 text-red-400 hover:bg-red-500/10 font-display font-bold uppercase tracking-wider text-[10px] transition-all"
-          >
-            Remove
-         </button>
-        )}
-     </div>
-
-      {savedAt && (
-        <div className="mt-3 text-[9px] font-mono text-emerald-400">
-          ✓ Saved at {new Date(savedAt).toLocaleTimeString()}. Next chat will use this key.
-       </div>
-      )}
-   </div>
-  );
-};
 
 const LOCAL_LLM_STORAGE_KEYS = {
   enabled: 'LOCAL_LLM_ENABLED',
@@ -376,9 +218,10 @@ const LocalLLMPanel: React.FC = () => {
       </div>
 
       <p className="text-[10px] font-tech text-white/40 mb-5 leading-relaxed">
-        Route all AI calls through a local LLM server (LM Studio, Ollama, etc.)
-        that exposes an OpenAI-compatible API. When enabled, NEXUS tries your
-        local endpoint first, then falls back to WebLLM → NVIDIA.
+        NEXUS runs entirely on your machine. All AI calls are routed through a
+        local LLM server (LM Studio, Ollama, or the bundled Electron model)
+        that exposes an OpenAI-compatible API. No cloud, no API keys, no data
+        ever leaves your device. Enable this and make sure your server is running.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
@@ -517,7 +360,7 @@ const Profile: React.FC = () => {
               { id: 'intermediate', label: 'Intermediate' },
               { id: 'advanced', label: 'Advanced' },
             ].map(e => (
-              <button key={e.id} onClick={() => setExperience(e.id as 'beginner' | 'intermediate' | 'advanced')}
+              <button key={e.id} onClick={() => setExperience(e.id)}
                 className={`flex-1 p-4 rounded-2xl text-center border text-[10px] font-display uppercase tracking-wider transition-all ${
                   experience === e.id ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400' : 'bg-black/50 border-white/10 text-white/40 hover:border-white/30'
                 }`}>
@@ -916,10 +759,7 @@ const Profile: React.FC = () => {
         </div>
       </div>
 
-      {/* AI Settings — NVIDIA API key management */}
-      <NeuralSettingsPanel />
-
-      {/* Local LLM — LM Studio / Ollama */}
+      {/* Local LLM — Standalone AI Engine */}
       <LocalLLMPanel />
 
       {/* R-09 — Language picker */}

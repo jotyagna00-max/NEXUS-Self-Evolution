@@ -83,9 +83,7 @@ export async function removeSecure(key: string): Promise<void> {
  * Keys for secure storage
  */
 export const SECURE_KEYS = {
-  NVIDIA_API_KEY: 'NVIDIA_API_KEY',
   LM_STUDIO_TOKEN: 'LM_STUDIO_TOKEN',
-  GEMINI_API_KEY: 'GEMINI_API_KEY',
 } as const;
 
 /**

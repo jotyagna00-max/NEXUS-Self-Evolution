@@ -85,7 +85,6 @@ interface GameContextType {
   debuffs: Debuff[];
   shadowState: ShadowState;
   raidBoss: RaidBoss | null;
-  chatHistory: any[];
   ascensionData: AscensionData;
   narrativeChapters: NarrativeChapter[];
   riftSchedules: RiftSchedule[];
@@ -209,10 +208,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentProtocolId, setCurrentProtocolId] = useState<string | null>(null);
   const [protocols, setProtocols] = useState<Protocol[]>(() => {
     const saved = localStorage.getItem('protocols');
-    return saved ? JSON.parse(saved) : [
-      { id: 'p1', title: 'Neural Overclock', type: 'mental', stat: 'intelligence', gain: 2, desc: 'Intense cognitive load training.' },
-      { id: 'p2', title: 'Hypertrophy Protocol', type: 'physical', stat: 'strength', gain: 2, desc: 'High-intensity resistance training.' }
-    ];
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [stats, setStats] = useState<UserStats>(() => {
@@ -359,10 +355,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [riftSchedules, setRiftSchedules] = useState<RiftSchedule[]>(() => {
     const saved = localStorage.getItem('nexus_rifts');
-    return saved ? JSON.parse(saved) : [
-      { id: 'r1', name: 'Night Owl Protocol', description: 'Deep focus training available only during late hours.', unlockHourStart: 22, unlockHourEnd: 2, protocolId: 'rift_nightowl', active: false, daysOfWeek: [0,1,2,3,4,5,6] },
-      { id: 'r2', name: 'Dawn Warrior', description: 'Early morning strength protocol. Available at sunrise.', unlockHourStart: 5, unlockHourEnd: 7, protocolId: 'rift_dawn', active: false, daysOfWeek: [0,1,2,3,4,5,6] },
-    ];
+    return saved ? JSON.parse(saved) : [];
   });
 
   /** v1.4.0 — isPro is now a dormant flag. Pro subscription removed from store.
@@ -555,23 +548,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [tasks, setTasks] = useState<Task[]>([]);
   const [appPermissions, setAppPermissions] = useState<Record<string, boolean>>(() => {
     const saved = localStorage.getItem('appPermissions');
-    return saved ? JSON.parse(saved) : { 'Instagram': false, 'Twitter': false, 'TikTok': false };
+    return saved ? JSON.parse(saved) : {};
   });
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile>(() => {
     const saved = localStorage.getItem('userProfile');
     return saved ? JSON.parse(saved) : {
-      name: 'Operator',
-      primaryGoal: 'Build a disciplined self-improvement ecosystem across fitness, cognition, emotional resilience, and daily habits.',
-      secondaryGoals: ['Get stronger', 'Improve focus', 'Build confidence', 'Create better habits'],
+      name: '',
+      primaryGoal: '',
+      secondaryGoals: [],
       fitnessExperience: 'beginner',
-      learningStyle: 'visual and practical',
-      emotionalState: 'motivated but inconsistent',
-      barriers: ['time management', 'consistency', 'energy dips'],
-      scheduleNotes: 'Training sessions should fit around study/work blocks and evening recovery.',
-      preferences: ['structured routines', 'progress tracking', 'micro habit prompts'],
-      wellnessFocus: ['strength', 'mental clarity', 'emotional stability'],
-      accountabilityNeeds: 'Daily check-ins and simple, actionable steps.'
+      learningStyle: '',
+      emotionalState: '',
+      barriers: [],
+      scheduleNotes: '',
+      preferences: [],
+      wellnessFocus: [],
+      accountabilityNeeds: ''
     };
   });
 
@@ -728,8 +721,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const ctx = { stats, profile: userProfile, quests, enhancedQuests: [], tasks, level: progression.level, exp: progression.exp, expToNextLevel: progression.expToNextLevel };
     try {
       const autoQuests = newProtocol.type === 'reading'
-        ? await strategicOnBookActivated(newProtocol, ctx)
-        : await strategicOnProtocolActivated(newProtocol, ctx);
+        ? await strategicOnBookActivated(getOrchestrator(), newProtocol, ctx)
+        : await strategicOnProtocolActivated(getOrchestrator(), newProtocol, ctx);
       if (autoQuests.length > 0) {
         setQuests(prev => [...prev, ...autoQuests]);
       }
@@ -1193,7 +1186,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const rewardCredits = a.rewardCredits;
           const rewardExp = a.rewardExp;
           const achId = a.id;
-          const achTitle = a.name;
+          const achTitle = a.title;
           const achDesc = a.description;
           const achCategory = a.category;
           setTimeout(() => {
@@ -1279,10 +1272,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         orch.generateMotivation({
           stats,
           profile: userProfile,
-          quests,
-          enhancedQuests: [],
-          tasks,
-          achievements: [],
+          recentAchievements: [],
         }, `quest_completed:${quest.title || 'unknown'}`).then(msg => {
           pushNotification({
             id: `motivate_${Date.now()}`,
@@ -1445,7 +1435,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     // v1.4.0 — strategic quest auto-generation
     const ctx = { stats, profile: userProfile, quests, enhancedQuests: [], tasks, level: progression.level, exp: progression.exp, expToNextLevel: progression.expToNextLevel };
-    strategicOnHabitCreated(newHabit, ctx).then(autoQuests => {
+    strategicOnHabitCreated(getOrchestrator(), newHabit, ctx).then(autoQuests => {
       if (autoQuests.length > 0) {
         setQuests(prev => [...prev, ...autoQuests]);
       }
@@ -1517,7 +1507,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // v1.4.0 — strategic quest auto-generation (replacement rituals)
       if (target.isAddiction) {
         const ctx = { stats, profile: userProfile, quests, enhancedQuests: [], tasks, level: progression.level, exp: progression.exp, expToNextLevel: progression.expToNextLevel };
-        strategicOnHabitDestroyed(target, ctx).then(autoQuests => {
+        strategicOnHabitDestroyed(getOrchestrator(), target, ctx).then(autoQuests => {
           if (autoQuests.length > 0) {
             setQuests(prev => [...prev, ...autoQuests]);
           }
@@ -1773,13 +1763,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const sendTrainerRequest = async (message: string) => {
-    const apiKey = localStorage.getItem('NVIDIA_API_KEY');
-
     try {
       const data = await generateTrainerResponse(
         message,
-        { stats, protocols, character: selectedCharacter, profile: userProfile, history: chatHistory },
-        apiKey
+        { stats, protocols, character: selectedCharacter, profile: userProfile, history: chatHistory }
       );
 
       const newInteraction = {
@@ -1805,14 +1792,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const streamTrainerRequest = async (message: string, onChunk: (text: string) => void) => {
-    const apiKey = localStorage.getItem('NVIDIA_API_KEY');
-
     try {
       const data = await streamTrainerResponse(
         message,
         { stats, protocols, character: selectedCharacter, profile: userProfile, history: chatHistory },
-        onChunk,
-        apiKey
+        onChunk
       );
 
       if (data.fullResponse) {
@@ -1947,7 +1931,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <GameContext.Provider value={{
-      stats, chatHistory, quests, tasks, appPermissions,
+      stats, quests, tasks, appPermissions,
       hasCompletedAssessment, selectedCharacter, currentProtocolId, protocols,
       userProfile, credits, progression, streakData, achievements, penaltyRecords,
       habits, activePowerUps, debuffs, shadowState, raidBoss, ascensionData,

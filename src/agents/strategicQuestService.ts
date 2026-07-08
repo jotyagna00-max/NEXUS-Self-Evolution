@@ -12,7 +12,7 @@
  * responsible for merging returned quests into the active quest list.
  */
 
-import { AgentOrchestrator, OrchestratorContext } from './AgentOrchestrator';
+import type { AgentOrchestrator, OrchestratorContext } from './AgentOrchestrator';
 import type { EnhancedQuest, Protocol, Habit } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -57,17 +57,9 @@ export function saveAutoQuestConfig(cfg: AutoQuestConfig): void {
 }
 
 // ---------------------------------------------------------------------------
-// Shared orchestrator singleton (lazy)
-// This is a service-level singleton separate from the React component's
-// orchestrator instance. The service is pure-async (no React state) and
-// needs its own instance to avoid coupling with the UI lifecycle.
+// Orchestrator is passed in by the caller (GameContext) to avoid dual-singleton
+// issues. Every public function takes `orch: AgentOrchestrator` as its first arg.
 // ---------------------------------------------------------------------------
-
-let _orch: AgentOrchestrator | null = null;
-function getOrch(): AgentOrchestrator {
-  if (!_orch) _orch = new AgentOrchestrator();
-  return _orch;
-}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -78,13 +70,13 @@ function getOrch(): AgentOrchestrator {
  * Spawns `questsPerProtocol` daily quests focused on the protocol's stat.
  */
 export async function onProtocolActivated(
+  orch: AgentOrchestrator,
   protocol: Protocol,
   context: OrchestratorContext,
   config: AutoQuestConfig = loadAutoQuestConfig(),
 ): Promise<EnhancedQuest[]> {
   if (!config.protocolEnabled) return [];
 
-  const orch = getOrch();
   const quests: EnhancedQuest[] = [];
   const count = Math.max(1, Math.min(7, config.questsPerProtocol));
 
@@ -114,13 +106,13 @@ export async function onProtocolActivated(
  * Spawns `questsPerBook` daily quests focused on reading comprehension.
  */
 export async function onBookActivated(
+  orch: AgentOrchestrator,
   book: Protocol,
   context: OrchestratorContext,
   config: AutoQuestConfig = loadAutoQuestConfig(),
 ): Promise<EnhancedQuest[]> {
   if (!config.bookEnabled) return [];
 
-  const orch = getOrch();
   const quests: EnhancedQuest[] = [];
   const count = Math.max(1, Math.min(5, config.questsPerBook));
 
@@ -149,13 +141,13 @@ export async function onBookActivated(
  * Spawns `questsPerHabit` micro-quests scoped to the habit.
  */
 export async function onHabitCreated(
+  orch: AgentOrchestrator,
   habit: Habit,
   context: OrchestratorContext,
   config: AutoQuestConfig = loadAutoQuestConfig(),
 ): Promise<EnhancedQuest[]> {
   if (!config.habitEnabled) return [];
 
-  const orch = getOrch();
   const quests: EnhancedQuest[] = [];
   const count = Math.max(1, Math.min(5, config.questsPerHabit));
 
@@ -185,13 +177,13 @@ export async function onHabitCreated(
  * each into a daily quest via QuestGenerator.
  */
 export async function onHabitDestroyed(
+  orch: AgentOrchestrator,
   habit: Habit,
   context: OrchestratorContext,
   config: AutoQuestConfig = loadAutoQuestConfig(),
 ): Promise<EnhancedQuest[]> {
   if (!config.habitEnabled) return [];
 
-  const orch = getOrch();
   const quests: EnhancedQuest[] = [];
 
   try {

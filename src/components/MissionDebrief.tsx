@@ -258,7 +258,7 @@ const MissionDebrief: React.FC = () => {
   // v1.4.0 — Tuner report: run tuning cycle using behavior profile + events
   const tunerReport = useMemo(() => {
     try {
-      const report = runTuningCycle(behaviorProfile, eventLog.map(e => e.event));
+      const report = runTuningCycle(behaviorProfile, eventLog);
       return report.adjustments ? { summary: report.summary } : null;
     } catch { return null; }
   }, [behaviorProfile, eventLog, refreshKey]);

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Brain, Dumbbell, Book, Moon, Sun, Wind, Plus, X, Activity, Zap, ChevronDown, BookOpen, Check, Target, Upload, FileText } from 'lucide-react';
+import { Brain, Dumbbell, Book, Moon, Sun, Wind, Plus, X, Activity, Zap, ChevronDown, BookOpen, Check, Target, Upload, FileText, Trash2 } from 'lucide-react';
 import { useGame } from '../GameContext';
 import { Protocol, ProtocolType, StatType } from '../types';
 import PDFUploader from './PDFUploader';
+import ConfirmDialog from './ConfirmDialog';
 
 const TrainingHub: React.FC = () => {
-  const { updateStat, protocols, addProtocol, credits, updateProtocol, addCredits, pushNotification } = useGame();
+  const { updateStat, protocols, addProtocol, removeProtocol, credits, updateProtocol, addCredits, pushNotification } = useGame();
   const [isAdding, setIsAdding] = useState(false);
   const [showPDFUpload, setShowPDFUpload] = useState(false);
   const [newProtocol, setNewProtocol] = useState({
@@ -31,6 +32,7 @@ const TrainingHub: React.FC = () => {
   };
 
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Protocol | null>(null);
 
   const handleSync = async (p: Protocol) => {
     setSyncingId(p.id);
@@ -309,11 +311,24 @@ const TrainingHub: React.FC = () => {
                   )}
                 </div>
 
-                {p.isStoreItem && (
-                  <div className="absolute top-6 right-6 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/40 rounded-lg">
-                    <span className="text-[8px] text-emerald-400 font-display uppercase tracking-widest">Purchased</span>
-                  </div>
-                )}
+                {/* Top-right badges */}
+                <div className="absolute top-6 right-6 flex items-center gap-2">
+                  {p.isStoreItem && (
+                    <div className="px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/40 rounded-lg">
+                      <span className="text-[8px] text-emerald-400 font-display uppercase tracking-widest">Purchased</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget(p);
+                    }}
+                    className="p-2 rounded-lg bg-white/5 border border-white/10 text-white/20 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/30 transition-all opacity-0 group-hover:opacity-100"
+                    title="Delete protocol"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
 
               </div>
 
@@ -329,6 +344,17 @@ const TrainingHub: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Protocol Confirmation */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onConfirm={() => { if (deleteTarget) removeProtocol(deleteTarget.id); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+        title={`Delete "${deleteTarget?.title}"?`}
+        description="This protocol and all its data will be permanently removed. This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+      />
     </div>
   );
 };
