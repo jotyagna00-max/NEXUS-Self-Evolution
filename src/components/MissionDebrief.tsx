@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Cpu, RefreshCw, MessageSquare, Check, Bell, BellRing, TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight, Trophy, Flame, Zap, AlertTriangle, BarChart3, Activity, CalendarDays } from 'lucide-react';
+import { Cpu, RefreshCw, MessageSquare, Check, Bell, BellRing, TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight, Trophy, Flame, Zap, AlertTriangle, BarChart3, Activity, CalendarDays, Eye } from 'lucide-react';
 import { useGame } from '../GameContext';
 import { generateManagerDebrief, shouldShowNewDebrief, TunerReportAppendix } from '../services/messages';
 import { showDebriefNotification, shouldFireDebrief } from '../services/notifications';
@@ -123,11 +123,79 @@ const MiniLineChart: React.FC<{
   );
 };
 
+/** Stat radar chart — hexagonal radar showing all 6 stats */
+const StatRadarChart: React.FC<{ stats: Record<string, number> }> = ({ stats }) => {
+  const labels = ['STR', 'INT', 'AGI', 'VIT', 'WIL', 'SOC'];
+  const keys = ['strength', 'intelligence', 'agility', 'vitality', 'willpower', 'social'];
+  const values = keys.map(k => stats[k] || 0);
+  const maxVal = Math.max(...values, 50);
+  const size = 200;
+  const center = size / 2;
+  const radius = size / 2 - 30;
+
+  const getPoint = (i: number, val: number) => {
+    const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
+    const r = (val / maxVal) * radius;
+    return { x: center + Math.cos(angle) * r, y: center + Math.sin(angle) * r };
+  };
+
+  const dataPoints = values.map((v, i) => getPoint(i, v));
+  const dataPath = dataPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
+
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} className="w-full max-w-[240px] mx-auto">
+      {[0.25, 0.5, 0.75, 1].map(f => {
+        const pts = keys.map((_, i) => getPoint(i, maxVal * f));
+        return <polygon key={f} points={pts.map(p => `${p.x},${p.y}`).join(' ')} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />;
+      })}
+      {keys.map((_, i) => {
+        const p = getPoint(i, maxVal);
+        return <line key={i} x1={center} y1={center} x2={p.x} y2={p.y} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />;
+      })}
+      <path d={dataPath} fill="rgba(16,185,129,0.12)" stroke="#10b981" strokeWidth="2" />
+      {dataPoints.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="3" fill="#10b981" />)}
+      {labels.map((label, i) => {
+        const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
+        const lx = center + Math.cos(angle) * (radius + 15);
+        const ly = center + Math.sin(angle) * (radius + 15);
+        return <text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="rgba(255,255,255,0.4)" fontFamily="monospace">{label}</text>;
+      })}
+    </svg>
+  );
+};
+
+/** Habit completion donut chart */
+const HabitDonut: React.FC<{ habits: any[] }> = ({ habits }) => {
+  const completed = habits.filter(h => h.streak > 0 || h.progress >= (h.target || 1)).length;
+  const total = habits.length || 1;
+  const pct = (completed / total) * 100;
+  const size = 120;
+  const stroke = 14;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (pct / 100) * circumference;
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={stroke} />
+        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="#f97316" strokeWidth={stroke}
+          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 0.8s ease' }} />
+      </svg>
+      <div className="-mt-[75px] mb-[15px] text-center pointer-events-none">
+        <span className="text-xl font-display font-black text-orange-400 block">{completed}</span>
+        <span className="text-[7px] font-mono text-white/30">/ {total}</span>
+      </div>
+    </div>
+  );
+};
+
 const MissionDebrief: React.FC = () => {
   const {
     stats, consistency, tasks, quests, pushNotification,
     behaviorProfile, eventLog, expHistory, penaltyRecords,
-    progression, credits,
+    progression, credits, habits,
   } = useGame();
 
   const [dismissed, setDismissed] = useState(false);
@@ -737,6 +805,88 @@ const MissionDebrief: React.FC = () => {
               maxValue={Math.max(...yearlyData.map(y => y.penalties), 1)}
               height={80}
             />
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════ */}
+      {/* STAT RADAR + HABIT DONUT + EXP/NC RATIO             */}
+      {/* ═══════════════════════════════════════════════════ */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Eye size={16} className="text-purple-400" />
+          <span className="text-[10px] font-display uppercase tracking-[0.3em] text-white/40">Performance Overview</span>
+          <div className="h-px flex-1 bg-white/5" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Stat Radar */}
+          <div className="hologram-card rounded-[28px] p-6 border border-white/10 text-center">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Zap size={14} className="text-emerald-400" />
+                <span className="text-[9px] font-display uppercase tracking-widest text-white/40">Stat Radar</span>
+              </div>
+              <span className="text-[9px] font-mono text-white/20">{(Object.values(stats) as number[]).reduce((a, b) => a + b, 0)} total</span>
+            </div>
+            <StatRadarChart stats={stats} />
+          </div>
+
+          {/* Habit Donut */}
+          <div className="hologram-card rounded-[28px] p-6 border border-white/10 text-center">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Activity size={14} className="text-orange-400" />
+                <span className="text-[9px] font-display uppercase tracking-widest text-white/40">Habit Completion</span>
+              </div>
+              <span className="text-[9px] font-mono text-white/20">{habits.length} habits</span>
+            </div>
+            <HabitDonut habits={habits} />
+            <p className="text-[8px] font-tech text-white/30 mt-2">
+              {habits.length === 0 ? 'No habits tracked yet' : 'Active habits on track'}
+            </p>
+          </div>
+
+          {/* EXP / NC Ratio */}
+          <div className="hologram-card rounded-[28px] p-6 border border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <TrendingUp size={14} className="text-yellow-400" />
+                <span className="text-[9px] font-display uppercase tracking-widest text-white/40">EXP / NC Ratio</span>
+              </div>
+            </div>
+            {(() => {
+              const totalExp = expHistory.reduce((s, e) => s + e.exp, 0);
+              const totalCredits = expHistory.reduce((s, e) => s + e.credits, 0);
+              const ratio = totalCredits > 0 ? (totalExp / totalCredits).toFixed(2) : '0.00';
+              const expPct = totalExp + totalCredits > 0 ? (totalExp / (totalExp + totalCredits)) * 100 : 50;
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[8px] font-mono text-white/30 uppercase">Total EXP</span>
+                      <div className="text-2xl font-display font-black text-yellow-400">{totalExp.toLocaleString()}</div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[8px] font-mono text-white/30 uppercase">Total NC</span>
+                      <div className="text-2xl font-display font-black text-emerald-400">{totalCredits.toLocaleString()}</div>
+                    </div>
+                  </div>
+                  <div className="h-3 rounded-full overflow-hidden flex bg-white/5">
+                    <div className="h-full bg-yellow-500/70" style={{ width: `${expPct}%` }} />
+                    <div className="h-full bg-emerald-500/70" style={{ width: `${100 - expPct}%` }} />
+                  </div>
+                  <div className="flex items-center justify-between text-[9px] font-mono">
+                    <span className="text-yellow-400/60">EXP {expPct.toFixed(0)}%</span>
+                    <span className="text-emerald-400/60">NC {(100 - expPct).toFixed(0)}%</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                    <span className="text-[9px] font-tech text-white/40">Ratio (EXP:NC)</span>
+                    <span className="text-sm font-mono font-bold text-purple-400">{ratio}</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

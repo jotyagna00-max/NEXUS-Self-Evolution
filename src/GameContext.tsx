@@ -906,6 +906,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           newStatPoints += Math.min(newLevel, 3);
         }
 
+        import('./utils/sounds').then(({ sounds }) => sounds.levelUp()).catch(() => {});
+
         return {
           ...prev,
           level: newLevel,
@@ -1204,6 +1206,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               achievementId: achId,
               category: achCategory,
             });
+            import('./components/AchievementBurst').then(({ triggerAchievementBurst }) => {
+              triggerAchievementBurst({
+                id: achId,
+                title: achTitle,
+                description: achDesc,
+                expReward: rewardExp,
+                creditsReward: rewardCredits,
+              });
+            }).catch(() => {});
+            import('./utils/sounds').then(({ sounds }) => sounds.achievement()).catch(() => {});
           }, 0);
           return { ...a, progress: a.requirement, unlocked: true, unlockedAt: now() };
         }
@@ -1261,6 +1273,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       stat: targetStat,
       difficulty: quest.difficulty,
     });
+    import('./utils/sounds').then(({ sounds }) => sounds.questComplete()).catch(() => {});
     publishEvent('exp.gained', { amount: quest.rewardExp, stat: targetStat });
     publishEvent('stat.increased', { stat: targetStat, delta: 1, newValue: stats[targetStat] + 1 });
 
@@ -1335,6 +1348,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       difficulty: task.difficulty,
     });
     publishEvent('exp.gained', { amount: task.rewardExp, stat: 'willpower' });
+    import('./utils/sounds').then(({ sounds }) => sounds.taskComplete()).catch(() => {});
   };
 
   const failTask = async (id: string) => {

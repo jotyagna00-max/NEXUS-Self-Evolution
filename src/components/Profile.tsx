@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Target, Dumbbell, Brain, Shield, Activity, Zap, TrendingUp, Save, ChevronRight, Edit3, Sword, Eye, Clock, Flame, Trophy, Swords, Star, X, Globe, Languages, Settings, Bell, Plus, Minus, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { User, Target, Dumbbell, Brain, Shield, Activity, Zap, TrendingUp, Save, ChevronRight, Edit3, Sword, Eye, Clock, Flame, Trophy, Swords, Star, X, Globe, Languages, Settings, Bell, Plus, Minus, CheckCircle2, AlertTriangle, Download, Upload } from 'lucide-react';
+import { exportJsonFull, importJsonFull } from '../utils/exporters';
+import { isSoundEnabled, setSoundEnabled } from '../utils/sounds';
 // secureStorage imports removed — no longer using NVIDIA API key
 import { useGame } from '../GameContext';
 import { HunterRank } from '../types';
@@ -767,10 +769,69 @@ const Profile: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         </div>
       </div>
 
+      {/* Data Export / Import */}
+      <div className="glass rounded-[32px] p-8 border border-white/10 mt-6">
+        <div className="flex items-center gap-3 mb-6">
+          <Globe size={18} className="text-cyan-400" />
+          <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">Data Backup</span>
+          <div className="h-px flex-1 bg-white/5" />
+        </div>
+        <p className="text-[10px] font-tech text-white/40 mb-5 leading-relaxed">
+          Export all your NEXUS data (stats, protocols, quests, habits, achievements, history) as a JSON file.
+          Import to restore on a new device or after reinstall. All data stays on your machine.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button
+            onClick={() => exportJsonFull()}
+            className="flex items-center justify-center gap-3 px-5 py-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 transition-all text-[9px] font-display uppercase tracking-widest"
+          >
+            <Download size={14} /> Export Backup
+          </button>
+          <label className="flex items-center justify-center gap-3 px-5 py-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-[9px] font-display uppercase tracking-widest cursor-pointer">
+            <Upload size={14} /> Import Backup
+            <input
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const text = await file.text();
+                try {
+                  const count = importJsonFull(text);
+                  alert(`Restored ${count} data keys. NEXUS will reload.`);
+                  window.location.reload();
+                } catch (err: any) {
+                  alert(`Import failed: ${err?.message || 'Invalid file'}`);
+                }
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
       {/* Local LLM — Standalone AI Engine */}
       <LocalLLMPanel />
 
-      {/* R-09 — Language picker */}
+      {/* Sound Settings */}
+      <div className="glass rounded-[32px] p-8 border border-white/10 mt-6">
+        <div className="flex items-center gap-3 mb-4">
+          <Bell size={18} className="text-amber-400" />
+          <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">Sound Effects</span>
+          <div className="h-px flex-1 bg-white/5" />
+          <button
+            onClick={() => { const next = !isSoundEnabled(); setSoundEnabled(next); window.location.reload(); }}
+            className={`w-12 h-6 rounded-full transition-all ${isSoundEnabled() ? 'bg-emerald-500/40' : 'bg-white/10'}`}
+          >
+            <div className={`w-5 h-5 rounded-full transition-all ${isSoundEnabled() ? 'bg-emerald-400 translate-x-6' : 'bg-white/30 translate-x-0.5'}`} />
+          </button>
+        </div>
+        <p className="text-[10px] font-tech text-white/40 leading-relaxed">
+          Subtle UI sounds for task completion, quest turn-in, level ups, achievements, and penalties. Generated with Web Audio API — no audio files needed.
+        </p>
+      </div>
+
+      {/* Language picker */}
       <div className="glass rounded-[32px] p-8 border border-white/10 mt-6">
         <div className="flex items-center gap-3 mb-4">
           <Languages size={18} className="text-emerald-400" />

@@ -15,29 +15,36 @@ interface RemoteVersionJson {
   changelog?: ChangelogEntry[];
 }
 
+const GIST_URL = 'https://gist.githubusercontent.com/jotyagna00-max/5bbe4ebd4efadc7098259e62e830213b/raw/version.json';
+
 const FALLBACK_CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.27.0',
+    date: '2026-07-09',
+    notes: [
+      'Shadow Chat professional UI redesign with LLM status indicator',
+      'First-time tutorial — 8-step onboarding for new users',
+      'Monthly and yearly reports in Mission Debrief',
+      'Store level gates, EXP overhaul, ranks removed',
+      'App icon, achievement burst, data export/import, keyboard shortcuts',
+    ],
+  },
+  {
+    version: '1.26.0',
+    date: '2026-07-06',
+    notes: [
+      'Shadow Chat persona selector — 6 voices',
+      'First-launch LLM download prompt',
+      'CPU-only inference via node-llama-cpp',
+      'Website 3D overhaul',
+    ],
+  },
   {
     version: '1.3.0',
     date: '2026-06-29',
     notes: [
-      'Effort-mirror tone: Sync → Log. Manager copy reframed around effort, not points.',
-      '3-of-7 streak window. Rest tokens now spendable from the Consistency tracker.',
-      'SAGE · INT, TITAN · STR, CHRONOS · AGI, MANAGER · WIL domain-stat badges.',
-      'Story Archive tab — read narrative chapters for XP/NC rewards.',
-      'Mission Debrief tab — daily Manager message at end of day.',
-      'Changelog panel — see what changed in each version.',
-      'Dead code removed (@google/genai, Discord sync route).',
-    ],
-  },
-  {
-    version: '1.2.0',
-    date: '2026-05-20',
-    notes: [
-      'Manual update button in main menu.',
-      'Logout clears all data.',
-      'Splash boot animation.',
-      '3-section HabitLab.',
-      'Multi-agent orchestrator wiring.',
+      'Effort-mirror tone, streak window, domain badges',
+      'Mission Debrief tab, Changelog panel',
     ],
   },
 ];
@@ -56,13 +63,22 @@ const ChangelogPanel: React.FC<{ open: boolean; onClose: () => void }> = ({ open
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/update/version.json', { signal: AbortSignal.timeout(5000) });
-        if (!res.ok) throw new Error(`Server returned ${res.status}`);
-        const data: RemoteVersionJson = await res.json();
+        const api = (window as any).electronAPI;
+        let data: RemoteVersionJson | null = null;
+
+        if (api?.checkForUpdates) {
+          try { data = await api.checkForUpdates(); } catch {}
+        }
+
+        if (!data || !data.latestVersion) {
+          const res = await fetch(GIST_URL, { signal: AbortSignal.timeout(8000) });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          data = await res.json();
+        }
+
         if (aborted) return;
         setLatestVersion(data.latestVersion || '');
         setDownloadUrl(data.downloadUrl || '');
-        // Prefer structured changelog array; fall back to single releaseNotes string
         if (Array.isArray(data.changelog) && data.changelog.length > 0) {
           setEntries(data.changelog);
         } else if (data.releaseNotes) {

@@ -242,3 +242,16 @@ export const IMPORTABLE_SECTIONS = [
   { key: 'nexus_progression', label: 'Progression' },
   { key: 'feedback', label: 'Feedback log' },
 ];
+
+/** Restore a full JSON backup. Returns number of keys restored. */
+export function importJsonFull(raw: string): number {
+  const data = JSON.parse(raw);
+  let count = 0;
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value === 'string') {
+      localStorage.setItem(key, value);
+      count++;
+    }
+  }
+  return count;
+}

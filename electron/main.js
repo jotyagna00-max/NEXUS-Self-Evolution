@@ -157,6 +157,7 @@ async function createWindow() {
     minHeight: 600,
     title: 'NEXUS - Self Evolution System',
     backgroundColor: '#0a0a0f',
+    icon: path.join(__dirname, '..', 'build', 'icon.png'),
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

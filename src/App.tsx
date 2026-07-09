@@ -43,6 +43,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ConfirmDialog from './components/ConfirmDialog';
 import TabSkeleton from './components/TabSkeleton';
 import Tutorial, { shouldShowTutorial } from './components/Tutorial';
+import AchievementBurst from './components/AchievementBurst';
 
 // Lazy loaded — heavy components that are only needed when their tab is active
 const QuestBoard = lazy(() => import('./components/QuestBoard'));
@@ -251,6 +252,31 @@ const Dashboard = () => {
   const [newSkillSet, setNewSkillSet] = useState<{ name: string; skills: { name: string; value: number }[] }>({ name: '', skills: [] });
 
   useEffect(() => { generateRecommendations(); }, [generateRecommendations]);
+
+  const TAB_KEYS = ['overview', 'training', 'quests', 'debrief', 'shadow', 'store', 'habits', 'books', 'feedback'] as const;
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      const key = e.key.toLowerCase();
+      const idx = TAB_KEYS.indexOf(activeTab as any);
+      if (key === 'arrowright' || key === 'd') {
+        setActiveTab(TAB_KEYS[Math.min(idx + 1, TAB_KEYS.length - 1)] as any);
+      } else if (key === 'arrowleft' || key === 'a') {
+        setActiveTab(TAB_KEYS[Math.max(idx - 1, 0)] as any);
+      } else if (key === '1') setActiveTab('overview' as any);
+      else if (key === '2') setActiveTab('training' as any);
+      else if (key === '3') setActiveTab('quests' as any);
+      else if (key === '4') setActiveTab('debrief' as any);
+      else if (key === '5') setActiveTab('shadow' as any);
+      else if (key === '6') setActiveTab('store' as any);
+      else if (key === '7') setActiveTab('habits' as any);
+      else if (key === '8') setActiveTab('books' as any);
+      else if (key === 'p') setShowProfile(true);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [activeTab]);
   const statKeys: (keyof typeof stats)[] = ['strength', 'intelligence', 'agility', 'vitality', 'willpower', 'social'];
   const decayingIndices = statKeys
     .map((k, i) => {
@@ -449,6 +475,8 @@ const Dashboard = () => {
         onSkip={(tab) => { if (tab) setActiveTab(tab as any); }}
       />
     )}
+
+    <AchievementBurst />
     <NativeLLMFirstLaunch />
     <ParticleBackground count={25} color="rgba(16,185,129,0.25)" speed={0.7} />
 

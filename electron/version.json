@@ -1,9 +1,27 @@
 {
-  "latestVersion": "1.26.1",
-  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.26.1/NEXUS.Setup.1.26.1.exe",
-  "releaseNotes": "v1.26.1: Standalone local-LLM overhaul (WebLLM/NVIDIA/Gemini removed), critical agent comm fixes, code splitting, themed confirm dialogs, dummy data cleanup, monthly/yearly debrief reports.",
+  "latestVersion": "1.27.0",
+  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.27.0/NEXUS.Setup.1.27.0.exe",
+  "releaseNotes": "Shadow Chat persona selector (6 personalities), first-launch LLM download prompt, CPU-only inference via node-llama-cpp, WebGPU removed, store level gates, mission debrief redesign with monthly/yearly reports, first-time tutorial, ranks removed, dummy protocols removed, app icon, achievement burst animations, data export/import, keyboard shortcuts.",
   "minSchemaVersion": 1,
   "changelog": [
+    {
+      "version": "1.27.0",
+      "date": "2026-07-09",
+      "notes": [
+        "Shadow Chat professional UI redesign with LLM status indicator and persona dropdown",
+        "First-time tutorial — 8-step onboarding guide for new users",
+        "Mission Debrief: monthly (12-month) and yearly (4-year) reports with bar charts",
+        "Store system overhaul — level-gated items with lock overlays and higher prices",
+        "EXP formula changed to n³ × 20, rank thresholds compressed",
+        "All rewards (NC, EXP) reduced ~3x for balanced progression",
+        "Ranks removed from display — only Level shown",
+        "Dummy fallback tasks removed — daily tasks generated only from real protocols",
+        "App icon added for Electron build and taskbar",
+        "Achievement unlock burst animation",
+        "Data export/import (JSON backup)",
+        "Keyboard shortcuts for tab navigation"
+      ]
+    },
     {
       "version": "1.26.0",
       "date": "2026-07-06",
@@ -12,8 +30,7 @@
         "First-launch LLM download prompt with progress bar",
         "CPU-only inference via node-llama-cpp — WebGPU ModelLoader removed",
         "Shadow Chat memory now persists to localStorage and injects into LLM system prompt",
-        "Website overhaul: 3D fix, text interactions, cursor trail, matrix overlay, particle connections",
-        "EXE download URL corrected — points to NEXUS-Self-Evolution releases",
+        "Website overhaul: 3D hologram, scroll animations, hex graph, 6 AI agents section",
         "Model: Qwen2.5-2B-Instruct (Q4_K_M, ~1.5 GB) from HuggingFace"
       ]
     },
@@ -21,10 +38,9 @@
       "version": "1.3.0",
       "date": "2026-06-29",
       "notes": [
-        "Effort-mirror tone: Sync → Log. Manager copy reframed around effort, not points.",
+        "Effort-mirror tone: Sync to Log. Manager copy reframed around effort, not points.",
         "3-of-7 streak window. Rest tokens now spendable from the Consistency tracker.",
-        "SAGE · INT, TITAN · STR, CHRONOS · AGI, MANAGER · WIL domain-stat badges.",
-        "Story Archive tab — read narrative chapters for XP and NC rewards.",
+        "SAGE, TITAN, CHRONOS, MANAGER domain-stat badges.",
         "Mission Debrief tab — daily Manager message at end of day.",
         "Changelog panel — see what changed in each version."
       ]
