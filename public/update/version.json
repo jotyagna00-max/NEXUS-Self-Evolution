@@ -1,9 +1,26 @@
 {
-  "latestVersion": "1.27.0",
-  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.27.0/NEXUS.Setup.1.27.0.exe",
-  "releaseNotes": "Shadow Chat persona selector (6 personalities), first-launch LLM download prompt, CPU-only inference via node-llama-cpp, WebGPU removed, store level gates, mission debrief redesign with monthly/yearly reports, first-time tutorial, ranks removed, dummy protocols removed, app icon, achievement burst animations, data export/import, keyboard shortcuts.",
+  "latestVersion": "1.28.0",
+  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.0/NEXUS.Setup.1.28.0.exe",
+  "releaseNotes": "Store overhaul with full protocol/book preview modal and PDF training guide downloads. Penalty Zone removed. Rich content for all 11 protocols and 8 books. Sound effects, achievement burst animation, data export/import, keyboard shortcuts, stat radar chart, habit donut, app icon.",
   "minSchemaVersion": 1,
   "changelog": [
+    {
+      "version": "1.28.0",
+      "date": "2026-07-09",
+      "notes": [
+        "Store preview modal — full overview, training plan, quests, and deliverables before purchase",
+        "PDF training guide download after buying any protocol or book (jsPDF generated)",
+        "Rich content for all 11 protocols and 8 books (week-by-week plans, form cues, progression rules)",
+        "Sound effects system (task complete, quest complete, level up, achievement, penalty)",
+        "Achievement burst animation with full-screen trophy reveal and particle effects",
+        "Stat radar chart, habit completion donut, and EXP/NC ratio bar in Mission Debrief",
+        "Data export/import (JSON backup and restore)",
+        "Keyboard shortcuts (arrow keys, 1-8 for tabs, P for profile)",
+        "App icon for Electron build and Windows taskbar",
+        "Penalty Zone removed (was orphaned and never triggered)",
+        "Changelog panel connected to GitHub Gist (same source as Check for Updates)"
+      ]
+    },
     {
       "version": "1.27.0",
       "date": "2026-07-09",
@@ -16,7 +33,6 @@
         "All rewards (NC, EXP) reduced ~3x for balanced progression",
         "Ranks removed from display — only Level shown",
         "Dummy fallback tasks removed — daily tasks generated only from real protocols",
-        "App icon added for Electron build and taskbar",
         "Achievement unlock burst animation",
         "Data export/import (JSON backup)",
         "Keyboard shortcuts for tab navigation"
