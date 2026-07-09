@@ -1671,25 +1671,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         newTasks.push({
           id: `t_${d}_1`, title: `Log: ${body.title}`, description: `Show up for ${body.title}. The mirror is watching.`, category: 'fitness', difficulty: body.difficulty || 1, points: (body.gain || 2) * 5, rewardCredits: 3 + (body.difficulty || 1), rewardExp: 5 + (body.difficulty || 1), completed: false, date: d,
         });
-      } else {
-        newTasks.push({
-          id: `t_${d}_1`, title: 'Log any body protocol', description: 'Show up for one body session today.', category: 'fitness', difficulty: 1, points: 10, rewardCredits: 3, rewardExp: 5, completed: false, date: d,
-        });
       }
 
       if (mind) {
         newTasks.push({
           id: `t_${d}_2`, title: `Log: ${mind.title}`, description: `Show up for ${mind.title}. The mirror is watching.`, category: 'mental', difficulty: mind.difficulty || 1, points: (mind.gain || 2) * 5, rewardCredits: 3 + (mind.difficulty || 1), rewardExp: 5 + (mind.difficulty || 1), completed: false, date: d,
         });
-      } else {
+      }
+
+      if (other) {
         newTasks.push({
-          id: `t_${d}_2`, title: 'Read or study for 20 minutes', description: 'Expand your knowledge base. The mirror is watching.', category: 'mental', difficulty: 1, points: 10, rewardCredits: 3, rewardExp: 5, completed: false, date: d,
+          id: `t_${d}_3`, title: `Complete ${other.title}`, description: `Execute your ${other.title} protocol.`, category: 'habit', difficulty: other.difficulty || 1, points: (other.gain || 2) * 5, rewardCredits: 3 + (other.difficulty || 1), rewardExp: 5 + (other.difficulty || 1), completed: false, date: d,
         });
       }
 
-      newTasks.push({
-        id: `t_${d}_3`, title: other ? `Complete ${other.title}` : 'Complete one habit micro-quest', description: other ? `Execute your ${other.title} protocol.` : 'Build consistency in your daily habits.', category: 'habit', difficulty: other?.difficulty || 1, points: other ? (other.gain || 2) * 5 : 10, rewardCredits: other ? 3 + (other.difficulty || 1) : 3, rewardExp: other ? 5 + (other.difficulty || 1) : 5, completed: false, date: d,
-      });
+      if (newTasks.length === 0) {
+        newTasks.push({
+          id: `t_${d}_0`, title: 'Create your first training routine', description: 'Go to Training Hub and add a routine. Your daily tasks will be generated from it.', category: 'habit', difficulty: 1, points: 5, rewardCredits: 3, rewardExp: 5, completed: false, date: d,
+        });
+      }
 
       return [...prev, ...newTasks];
     });

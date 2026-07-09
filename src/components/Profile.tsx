@@ -188,9 +188,14 @@ const LocalLLMPanel: React.FC = () => {
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <p className="text-[9px] font-tech text-white/40 flex-1">
-                {nativeStatus?.error ? `Error: ${nativeStatus.error}` : 'Download the Qwen2.5-2B model (~1.5 GB) to run fully offline.'}
-              </p>
+              <div className="flex-1">
+                <p className="text-[9px] font-tech text-white/40 mb-1">
+                  {nativeStatus?.error ? `Error: ${nativeStatus.error}` : 'Download the Qwen2.5-2B model (~1.5 GB) to run fully offline.'}
+                </p>
+                <p className="text-[7px] font-mono text-white/20">
+                  Source: huggingface.co/mradermacher/Qwen2.5-2B-Instruct-GGUF · Stored locally in app data
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={handleNativeDownload}
@@ -273,7 +278,7 @@ const LocalLLMPanel: React.FC = () => {
   );
 };
 
-const Profile: React.FC = () => {
+const Profile: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const { userProfile, selectedCharacter, updateUserProfile, setCharacter, stats, progression, credits, protocols, consistency, language, setLanguage, reminderWindows, setReminderWindows } = useGame();
   const t = useT();
   const [showSetup, setShowSetup] = useState(false);
@@ -447,9 +452,9 @@ const Profile: React.FC = () => {
                 <h2 className="text-xl font-display font-bold text-white uppercase tracking-tight">Configure Profile</h2>
               </div>
             </div>
-            <button onClick={() => setShowSetup(false)} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all">
-              <X size={18} />
-            </button>
+          <button onClick={() => setShowSetup(false)} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all">
+            <X size={18} />
+          </button>
           </div>
 
           <div className="flex gap-2 mb-8">
@@ -523,7 +528,7 @@ const Profile: React.FC = () => {
       <div className="glass rounded-[32px] p-8 border border-white/10 mb-6">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-6">
-            <div className={`w-20 h-20 rounded-3xl flex items-center justify-center border ${archetype.bgClass} ${rankGlow(progression.rank)}`}>
+            <div className={`w-20 h-20 rounded-3xl flex items-center justify-center border ${archetype.bgClass}`}>
               <ArchetypeIcon size={36} className={archetype.colorClass} />
             </div>
             <div>
@@ -542,23 +547,26 @@ const Profile: React.FC = () => {
             <Edit3 size={14} />
             <span className="text-[8px] font-display uppercase tracking-wider">Edit</span>
           </button>
+          {onClose && (
+            <button onClick={onClose}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-red-400 hover:border-red-500/30 transition-all">
+              <X size={14} />
+              <span className="text-[8px] font-display uppercase tracking-wider">Close</span>
+            </button>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Level & Rank */}
+        {/* Level */}
         <div className="glass rounded-[32px] p-6 border border-white/10">
           <div className="flex items-center gap-3 mb-4">
-            <Trophy size={18} className={rankColor(progression.rank)} />
-            <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">Rank & Level</span>
+            <Trophy size={18} className="text-emerald-400" />
+            <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">Level</span>
           </div>
           <div className="flex items-end justify-between mb-4">
             <div>
-              <span className={`text-5xl font-display font-black ${rankColor(progression.rank)}`}>{progression.rank}</span>
-              <span className="text-lg font-mono text-white/40 ml-2">Rank</span>
-            </div>
-            <div className="text-right">
-              <span className="text-3xl font-mono font-bold text-white">Lv.{progression.level}</span>
+              <span className="text-5xl font-display font-black text-white">Lv.{progression.level}</span>
             </div>
           </div>
           <div className="space-y-2">

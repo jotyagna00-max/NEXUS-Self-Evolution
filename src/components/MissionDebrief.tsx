@@ -370,7 +370,7 @@ const MissionDebrief: React.FC = () => {
             <span className="text-purple-500 font-display text-[10px] tracking-[0.3em] uppercase shadow-[0_0_15px_rgba(168,85,247,0.6)] block">Daily Review</span>
             <h2 className="text-5xl font-display font-black uppercase tracking-tighter text-white leading-none">Daily Review</h2>
             <p className="text-[10px] text-white/30 font-mono tracking-wider">
-              {completedToday}/{totalToday} tasks today · Level {progression.level} {progression.rank}
+              {completedToday}/{totalToday} tasks today · Level {progression.level}
             </p>
           </div>
         </div>

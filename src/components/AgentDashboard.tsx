@@ -76,7 +76,7 @@ const AgentDashboard: React.FC = () => {
       icon: Activity, color: 'text-purple-400',
       status: questGenStatus,
       task: 'Generation',
-      details: `Level ${progression.level} · Rank ${progression.rank} · ${totalStats} total points.`
+      details: `Level ${progression.level} · ${totalStats} total points.`
     },
     {
       id: 'statsMonitor', name: 'STATS',

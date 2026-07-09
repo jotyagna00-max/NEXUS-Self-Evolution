@@ -42,6 +42,7 @@ import NativeLLMFirstLaunch from './components/NativeLLMFirstLaunch';
 import ErrorBoundary from './components/ErrorBoundary';
 import ConfirmDialog from './components/ConfirmDialog';
 import TabSkeleton from './components/TabSkeleton';
+import Tutorial, { shouldShowTutorial } from './components/Tutorial';
 
 // Lazy loaded — heavy components that are only needed when their tab is active
 const QuestBoard = lazy(() => import('./components/QuestBoard'));
@@ -246,6 +247,7 @@ const Dashboard = () => {
   const [showChangelog, setShowChangelog] = useState(false);
   const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(() => shouldShowTutorial());
   const [newSkillSet, setNewSkillSet] = useState<{ name: string; skills: { name: string; value: number }[] }>({ name: '', skills: [] });
 
   useEffect(() => { generateRecommendations(); }, [generateRecommendations]);
@@ -425,11 +427,8 @@ const Dashboard = () => {
           className="w-full max-w-2xl"
         >
           <div className="flex justify-end mb-4">
-            <button onClick={() => setShowProfile(false)} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all">
-              <X size={18} />
-            </button>
           </div>
-          <Suspense fallback={<TabSkeleton />}><Profile /></Suspense>
+          <Suspense fallback={<TabSkeleton />}><Profile onClose={() => setShowProfile(false)} /></Suspense>
         </motion.div>
       </div>
     )}
@@ -443,6 +442,13 @@ const Dashboard = () => {
 
     <UpdateToast />
     <NotificationToast />
+
+    {showTutorial && (
+      <Tutorial
+        onComplete={() => setShowTutorial(false)}
+        onSkip={(tab) => { if (tab) setActiveTab(tab as any); }}
+      />
+    )}
     <NativeLLMFirstLaunch />
     <ParticleBackground count={25} color="rgba(16,185,129,0.25)" speed={0.7} />
 

@@ -50,17 +50,7 @@ const QuestBoard: React.FC = () => {
       </div>
 
       {/* Stats & Streak Row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="hologram-card rounded-2xl p-6 border border-white/10">
-          <div className="flex items-center gap-3">
-            <Trophy className={`${rankColor(progression.rank)}`} size={24} />
-            <div>
-              <span className="text-[8px] text-white/30 uppercase tracking-widest font-display">Rank</span>
-              <div className={`text-2xl font-display font-black ${rankColor(progression.rank)}`}>{progression.rank}</div>
-            </div>
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="hologram-card rounded-2xl p-6 border border-white/10">
           <div className="flex items-center gap-3">
             <Star className="text-yellow-400" size={24} />
