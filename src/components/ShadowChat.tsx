@@ -1,14 +1,31 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Skull, Send, SkipForward, RotateCcw } from 'lucide-react';
+import { Skull, Send, SkipForward, RotateCcw, User, Wifi, WifiOff, Cpu, Trash2, ChevronDown } from 'lucide-react';
 import { useGame } from '../GameContext';
 import {
   SHADOW_QUESTIONS,
   ShadowTag,
 } from '../services/shadowQuestions';
 import { ShadowChatEntry } from '../utils/shadowMemory';
+import { getNativeLLMStatus } from '../services/nativeLLMBridge';
 import ConfirmDialog from './ConfirmDialog';
 import './ShadowChat.css';
+
+const PERSONA_META: Record<string, { name: string; color: string; desc: string }> = {
+  mirror:     { name: 'The Mirror',     color: '#94a3b8', desc: 'Cold, analytical, brutally honest' },
+  mentor:     { name: 'The Mentor',     color: '#3b82f6', desc: 'Socratic guide, wise and patient' },
+  rival:      { name: 'The Rival',      color: '#ef4444', desc: 'Competitive, relentless, sharp' },
+  commander:  { name: 'The Commander',  color: '#f59e0b', desc: 'Direct orders, no tolerance for weakness' },
+  confidant:  { name: 'The Confidant',  color: '#10b981', desc: 'Empathetic, trusted inner voice' },
+  strategist: { name: 'The Strategist', color: '#a855f7', desc: 'Hyper-logical, pattern-seeking' },
+};
+
+function safeTime(ts?: string): string {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 
 const ShadowChat: React.FC = () => {
   const {
@@ -31,9 +48,11 @@ const ShadowChat: React.FC = () => {
   const [streamingText, setStreamingText] = useState('');
   const [shadowPersona, setShadowPersona] = useState(() => localStorage.getItem('shadowPersona') || 'mirror');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [llmReady, setLlmReady] = useState(false);
+  const [personaDropdown, setPersonaDropdown] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Bootstrap interrogation on first visit
   useEffect(() => {
     if (
       shadowMemory.interrogationStatus !== 'in_progress' &&
@@ -43,10 +62,24 @@ const ShadowChat: React.FC = () => {
     }
   }, [shadowMemory.interrogationStatus, startShadowInterrogation]);
 
-  // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [shadowMemory.exchanges, streamingText, isThinking]);
+
+  useEffect(() => {
+    const checkLlm = async () => {
+      const enabled = localStorage.getItem('LOCAL_LLM_ENABLED') === 'true';
+      if (enabled) {
+        const status = await getNativeLLMStatus();
+        setLlmReady(!!status?.ready || enabled);
+      } else {
+        setLlmReady(false);
+      }
+    };
+    checkLlm();
+    const interval = setInterval(checkLlm, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const currentQuestion = (() => {
     const idx = shadowMemory.interrogationCurrentIndex ?? 0;
@@ -55,6 +88,8 @@ const ShadowChat: React.FC = () => {
 
   const isInterrogationActive =
     shadowMemory.interrogationStatus === 'in_progress' && !!currentQuestion;
+
+  const persona = PERSONA_META[shadowPersona] || PERSONA_META.mirror;
 
   const handleSendChatMessage = useCallback(async (message: string) => {
     setIsThinking(true);
@@ -67,7 +102,7 @@ const ShadowChat: React.FC = () => {
       emotional: false,
       timestamp: new Date().toISOString(),
     };
-    appendShadowChat(shadowMemory, userEntry);
+    appendShadowChat(userEntry);
 
     let fullResponse = '';
 
@@ -84,25 +119,27 @@ const ShadowChat: React.FC = () => {
       const shadowEntry: ShadowChatEntry = {
         id: Math.random().toString(36).substring(2, 9),
         role: 'shadow',
-        text: fullResponse,
+        text: fullResponse || '...',
         emotional: fullResponse.includes('!') || fullResponse.includes('?'),
         timestamp: new Date().toISOString(),
       };
-      appendShadowChat(shadowMemory, shadowEntry);
+      appendShadowChat(shadowEntry);
     } catch {
       const fallbackEntry: ShadowChatEntry = {
         id: Math.random().toString(36).substring(2, 9),
         role: 'shadow',
-        text: '...the link is unstable. Try again.',
+        text: llmReady
+          ? '...the neural link destabilized. Try again.'
+          : 'The Shadow is silent. No LLM is connected. Go to Profile → Local LLM to install or enable your AI engine.',
         emotional: false,
         timestamp: new Date().toISOString(),
       };
-      appendShadowChat(shadowMemory, fallbackEntry);
+      appendShadowChat(fallbackEntry);
     } finally {
       setIsThinking(false);
       setStreamingText('');
     }
-  }, [shadowMemory, appendShadowChat, streamCommandToAgent]);
+  }, [appendShadowChat, streamCommandToAgent, llmReady]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,120 +196,171 @@ const ShadowChat: React.FC = () => {
 
   return (
     <div className="shadow-chat-container">
-      {/* Header */}
+      {/* ── Header ── */}
       <header className="shadow-chat-header">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-            <Skull size={16} className="text-red-400" />
+        <div className="shadow-header-left">
+          <div className="shadow-avatar-circle" style={{ borderColor: persona.color + '40', background: persona.color + '0d' }}>
+            <Skull size={18} style={{ color: persona.color }} />
           </div>
-          <div>
-            <h2 className="text-sm font-display font-bold uppercase tracking-[0.3em] text-white">
-              Shadow <span className="text-red-400">Interface</span>
+          <div className="shadow-header-info">
+            <h2 className="shadow-title">
+              Shadow <span style={{ color: persona.color }}>Interface</span>
             </h2>
-            <span className="text-[8px] font-tech text-white/30 uppercase tracking-[0.2em]">Dark Mirror Protocol</span>
+            <div className="shadow-subtitle-row">
+              <span className="shadow-persona-name" style={{ color: persona.color }}>{persona.name}</span>
+              <span className="shadow-dot-sep">·</span>
+              <span className="shadow-subtitle">{persona.desc}</span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Persona selector */}
-          <select
-            className="shadow-persona-select"
-            value={shadowPersona}
-            onChange={(e) => {
-              const v = e.target.value;
-              setShadowPersona(v);
-              localStorage.setItem('shadowPersona', v);
-            }}
-            aria-label="Shadow persona"
-          >
-            <option value="mirror">The Mirror</option>
-            <option value="mentor">The Mentor</option>
-            <option value="rival">The Rival</option>
-            <option value="commander">The Commander</option>
-            <option value="confidant">The Confidant</option>
-            <option value="strategist">The Strategist</option>
-          </select>
-          {/* Memory badge */}
-          <div className="shadow-memory-badge">{shadowMemoryDigest}</div>
-          {/* Reset button */}
+        <div className="shadow-header-right">
+          {/* LLM Connection Status */}
+          <div className={`shadow-llm-status ${llmReady ? 'connected' : 'disconnected'}`}>
+            {llmReady ? <Wifi size={11} /> : <WifiOff size={11} />}
+            <span>{llmReady ? 'LLM Connected' : 'No LLM'}</span>
+          </div>
+
+          {/* Persona selector dropdown */}
+          <div className="shadow-persona-dropdown-wrapper">
+            <button
+              className="shadow-persona-trigger"
+              onClick={() => setPersonaDropdown(!personaDropdown)}
+              style={{ borderColor: persona.color + '30' }}
+            >
+              <span className="shadow-persona-dot" style={{ background: persona.color }} />
+              <span>{persona.name}</span>
+              <ChevronDown size={10} className={personaDropdown ? 'rotated' : ''} />
+            </button>
+            <AnimatePresence>
+              {personaDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="shadow-persona-menu"
+                >
+                  {Object.entries(PERSONA_META).map(([id, p]) => (
+                    <button
+                      key={id}
+                      className={`shadow-persona-option ${shadowPersona === id ? 'active' : ''}`}
+                      onClick={() => {
+                        setShadowPersona(id);
+                        localStorage.setItem('shadowPersona', id);
+                        setPersonaDropdown(false);
+                      }}
+                    >
+                      <span className="shadow-persona-dot" style={{ background: p.color }} />
+                      <div>
+                        <span className="shadow-persona-opt-name">{p.name}</span>
+                        <span className="shadow-persona-opt-desc">{p.desc}</span>
+                      </div>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Reset */}
           <button
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/5 text-white/30 hover:text-red-400 hover:border-red-500/20 hover:bg-red-500/5 transition-all text-[9px] font-tech uppercase tracking-wider"
+            className="shadow-icon-btn"
             onClick={() => setShowResetConfirm(true)}
+            title="Reset Shadow Memory"
           >
-            <RotateCcw size={10} />
-            Reset
+            <RotateCcw size={12} />
           </button>
-          <ConfirmDialog
-            open={showResetConfirm}
-            onConfirm={() => { resetShadowMemory(); window.location.reload(); }}
-            onCancel={() => setShowResetConfirm(false)}
-            title="Reset Shadow Memory?"
-            description="This will erase all Shadow conversation history and interrogation progress. This cannot be undone."
-            confirmLabel="Reset Memory"
-            variant="danger"
-          />
         </div>
       </header>
 
-      {/* Main chat area */}
+      {/* ── Memory bar ── */}
+      {shadowMemoryDigest && (
+        <div className="shadow-memory-bar">
+          <Cpu size={9} className="text-white/20" />
+          <span>{shadowMemoryDigest}</span>
+        </div>
+      )}
+
+      {/* ── Main chat area ── */}
       <main className="shadow-chat-main">
         {!isChatMode ? (
-          /* Interrogation phase */
-          <div className="shadow-interrogation-prompt">
-            {currentQuestion?.framing && (
-              <p className="text-[10px] font-tech text-white/20 italic mb-2 tracking-wider">
-                {currentQuestion.framing}
-              </p>
-            )}
-            <p className="shadow-prompt">{currentQuestion?.prompt}</p>
-            {currentQuestion?.follow && (
-              <p className="text-[9px] font-tech text-white/40 italic mt-3">
-                {currentQuestion.follow}
-              </p>
-            )}
+          <div className="shadow-interrogation-phase">
+            <div className="shadow-interrogation-card">
+              <div className="shadow-interrogation-progress">
+                {SHADOW_QUESTIONS.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`shadow-progress-dot ${
+                      i < (shadowMemory.interrogationCurrentIndex ?? 0) ? 'done' :
+                      i === (shadowMemory.interrogationCurrentIndex ?? 0) ? 'current' : ''
+                    }`}
+                  />
+                ))}
+              </div>
+              {currentQuestion?.framing && (
+                <p className="shadow-framing">{currentQuestion.framing}</p>
+              )}
+              <p className="shadow-prompt">{currentQuestion?.prompt}</p>
+              {currentQuestion?.follow && (
+                <p className="shadow-follow">{currentQuestion.follow}</p>
+              )}
+            </div>
           </div>
         ) : (
-          /* Chat mode */
           <div className="shadow-chat-messages">
-            {shadowMemory.exchanges.map((entry) => (
-              <motion.div
-                key={entry.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className={`shadow-message shadow-message--${entry.role}${entry.emotional ? ' shadow-message--emotional' : ''}`}
-              >
-                <div className="shadow-message-content">{entry.text}</div>
-                <div className="shadow-message-time">
-                  {new Date(entry.timestamp).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </div>
-              </motion.div>
-            ))}
+            {shadowMemory.exchanges.length === 0 && !isThinking && (
+              <div className="shadow-empty-state">
+                <Skull size={32} style={{ color: persona.color + '60' }} />
+                <p>The Shadow awaits your first message.</p>
+                <span>Speak honestly. It already knows the difference.</span>
+              </div>
+            )}
+            {shadowMemory.exchanges.map((entry) => {
+              const isUser = entry.role === 'user';
+              return (
+                <motion.div
+                  key={entry.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className={`shadow-msg ${isUser ? 'shadow-msg--user' : 'shadow-msg--shadow'}`}
+                >
+                  <div className="shadow-msg-avatar" style={isUser ? {} : { borderColor: persona.color + '30', background: persona.color + '0d' }}>
+                    {isUser ? <User size={12} className="text-emerald-400" /> : <Skull size={12} style={{ color: persona.color }} />}
+                  </div>
+                  <div className="shadow-msg-body">
+                    <div className="shadow-msg-text">{entry.text}</div>
+                    {safeTime(entry.timestamp) && (
+                      <div className="shadow-msg-time">{safeTime(entry.timestamp)}</div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
 
-            {/* Streaming indicator */}
+            {/* Streaming / thinking indicator */}
             <AnimatePresence>
               {isThinking && (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="shadow-message shadow-message--shadow"
+                  className="shadow-msg shadow-msg--shadow"
                 >
-                  {streamingText ? (
-                    <div className="shadow-message-content">{streamingText}</div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-tech text-white/40 uppercase tracking-[0.3em]">Shadow analyzing</span>
-                      <div className="flex gap-1">
-                        <span className="thinking-dot" style={{ animationDelay: '0s' }}>.</span>
-                        <span className="thinking-dot" style={{ animationDelay: '0.2s' }}>.</span>
-                        <span className="thinking-dot" style={{ animationDelay: '0.4s' }}>.</span>
+                  <div className="shadow-msg-avatar" style={{ borderColor: persona.color + '30', background: persona.color + '0d' }}>
+                    <Skull size={12} style={{ color: persona.color }} />
+                  </div>
+                  <div className="shadow-msg-body">
+                    {streamingText ? (
+                      <div className="shadow-msg-text">{streamingText}<span className="shadow-cursor" /></div>
+                    ) : (
+                      <div className="shadow-typing">
+                        <span className="shadow-typing-dot" style={{ animationDelay: '0s' }} />
+                        <span className="shadow-typing-dot" style={{ animationDelay: '0.15s' }} />
+                        <span className="shadow-typing-dot" style={{ animationDelay: '0.3s' }} />
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -281,24 +369,34 @@ const ShadowChat: React.FC = () => {
         )}
       </main>
 
-      {/* Footer input */}
+      {/* ── Footer input ── */}
       <form className="shadow-chat-footer" onSubmit={handleSubmit} onReset={() => setInputValue('')}>
         {isChatMode ? (
-          <textarea
-            className="shadow-input"
-            placeholder="Address the Shadow..."
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            rows={2}
-            maxLength={800}
-            disabled={isSubmitting || isThinking}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e as any);
-              }
-            }}
-          />
+          <div className="shadow-input-row">
+            <textarea
+              ref={inputRef}
+              className="shadow-input"
+              placeholder={llmReady ? "Address the Shadow..." : "Enable LLM in Profile to chat with the Shadow..."}
+              value={inputValue}
+              onChange={e => setInputValue(e.target.value)}
+              rows={1}
+              maxLength={800}
+              disabled={isSubmitting || isThinking}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e as any);
+                }
+              }}
+            />
+            <button
+              type="submit"
+              className="shadow-send-btn"
+              disabled={isSubmitting || isThinking || !inputValue.trim()}
+            >
+              <Send size={14} />
+            </button>
+          </div>
         ) : (
           <>
             {currentQuestion?.kind === 'text' && (
@@ -307,23 +405,18 @@ const ShadowChat: React.FC = () => {
                 type="text"
                 placeholder={currentQuestion.placeholder}
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                onChange={e => setInputValue(e.target.value)}
                 disabled={isSubmitting}
                 minLength={currentQuestion.minChars ?? 0}
               />
             )}
             {currentQuestion?.kind === 'single' && (
               <div className="shadow-options">
-                {currentQuestion.options?.map((opt) => (
+                {currentQuestion.options?.map(opt => (
                   <label key={opt.value} className="shadow-option-label">
-                    <input
-                      type="radio"
-                      name="answer"
-                      value={opt.value}
+                    <input type="radio" name="answer" value={opt.value}
                       checked={inputValue === opt.value}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      disabled={isSubmitting}
-                    />
+                      onChange={e => setInputValue(e.target.value)} disabled={isSubmitting} />
                     <span>{opt.label}</span>
                     {opt.hint && <span className="shadow-option-hint">({opt.hint})</span>}
                   </label>
@@ -332,55 +425,44 @@ const ShadowChat: React.FC = () => {
             )}
             {currentQuestion?.kind === 'multi' && (
               <div className="shadow-options">
-                {currentQuestion.options?.map((opt) => (
+                {currentQuestion.options?.map(opt => (
                   <label key={opt.value} className="shadow-option-label">
-                    <input
-                      type="checkbox"
-                      value={opt.value}
+                    <input type="checkbox" value={opt.value}
                       checked={inputValue.split(',').includes(opt.value)}
-                      onChange={(e) => {
-                        const vals = new Set(inputValue.split(',').map((v) => v.trim()));
+                      onChange={e => {
+                        const vals = new Set(inputValue.split(',').map(v => v.trim()));
                         if (e.target.checked) vals.add(opt.value);
                         else vals.delete(opt.value);
                         setInputValue(Array.from(vals).join(', '));
                       }}
-                      disabled={isSubmitting}
-                    />
+                      disabled={isSubmitting} />
                     <span>{opt.label}</span>
                     {opt.hint && <span className="shadow-option-hint">({opt.hint})</span>}
                   </label>
                 ))}
               </div>
             )}
+            <div className="shadow-action-row">
+              <button type="submit" className="shadow-submit-btn" disabled={isSubmitting}>
+                Submit Answer
+              </button>
+              <button type="button" className="shadow-skip-btn" onClick={handleSkip}>
+                <SkipForward size={10} /> Skip
+              </button>
+            </div>
           </>
         )}
-
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            className={`shadow-submit-btn${isSubmitting || isThinking ? ' shadow-submit-btn--loading' : ''}`}
-            disabled={isSubmitting || isThinking}
-          >
-            {isChatMode ? (
-              <span className="flex items-center justify-center gap-2">
-                <Send size={12} />
-                Send
-              </span>
-            ) : (
-              'Submit Answer'
-            )}
-          </button>
-          {!isChatMode && (
-            <button type="button" className="shadow-skip-btn" onClick={handleSkip}>
-              <SkipForward size={10} />
-              Skip
-            </button>
-          )}
-          <button type="reset" className="shadow-clear-btn" disabled={isSubmitting || isThinking}>
-            Clear
-          </button>
-        </div>
       </form>
+
+      <ConfirmDialog
+        open={showResetConfirm}
+        onConfirm={() => { resetShadowMemory(); window.location.reload(); }}
+        onCancel={() => setShowResetConfirm(false)}
+        title="Reset Shadow Memory?"
+        description="This will erase all Shadow conversation history and interrogation progress. This cannot be undone."
+        confirmLabel="Reset Memory"
+        variant="danger"
+      />
     </div>
   );
 };

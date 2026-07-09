@@ -493,22 +493,6 @@ const Dashboard = () => {
               <div className="border-l border-white/10 pl-3 sm:pl-6 hidden md:block">
                 <ManagerAvatar archetypeId={selectedCharacter} />
               </div>
-
-              {/* System Status Indicators */}
-              <div className="hidden lg:flex items-center gap-8 ml-6 border-l border-white/10 pl-8">
-                <div className="flex flex-col">
-                  <span className="text-[8px] text-white/30 uppercase tracking-widest font-display mb-1">AI Status</span>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div key={i} className={`w-2 h-1 rounded-full ${i <= 4 ? 'bg-emerald-500 glow-emerald' : 'bg-white/10'}`} />
-                    ))}
-                  </div>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[8px] text-white/30 uppercase tracking-widest font-display mb-1">Rank</span>
-                  <span className="text-[10px] text-emerald-400 font-tech tracking-wider">OMEGA-7</span>
-                </div>
-              </div>
             </div>
           </div>
 

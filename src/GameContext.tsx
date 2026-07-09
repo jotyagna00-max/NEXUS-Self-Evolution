@@ -842,7 +842,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const spendCredits = (amount: number): boolean => {
-    if (amount <= 0) return false;
+    if (amount < 0) return false;
     let success = false;
     setCredits(prev => {
       if (prev < amount) return prev; // Don't go negative
@@ -1697,7 +1697,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const purchaseStoreItem = (item: StoreItem): boolean => {
     if (item.exclusive && !isPro) return false;
-    if (progression.level < item.requiredLevel) return false;
     if (!spendCredits(item.cost)) return false;
 
     if ((item.type === 'protocol' || item.type === 'book') && item.protocolData) {
