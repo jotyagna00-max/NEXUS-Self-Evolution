@@ -114,8 +114,7 @@ interface GameContextType {
   updateStreak: () => void;
   spendRestToken: () => void;
   checkStreak: () => void;
-  applyPenalty: (type: PenaltyRecord['type'], reason: string, amount: number) => void;
-  checkAchievements: () => void;
+  applyPenalty: (type: PenaltyRecord['type'], reason: string, amount: number) => void;  checkAchievements: () => void;
   addHabit: (habit: Partial<Habit>) => void;
   completeMicroQuest: (habitId: string, questId: string) => void;
   recordRelapse: (habitId: string) => void;
@@ -171,14 +170,6 @@ interface GameContextType {
   addCustomBaselineTask: (task: Omit<DailyBaselineTask, 'id' | 'completed'>) => void;
   removeCustomBaselineTask: (taskId: string) => void;
   resetDailyBaseline: () => void;
-
-  // v1.4.x — Penalty Zone lockout mode. When `currentMode === 'penalty_zone'`
-  // the dashboard shows a fullscreen survival-protocol screen instead of
-  // the normal command center.
-  currentMode: 'normal' | 'survival' | 'penalty_zone';
-  penaltyZoneReason: string | null;
-  enterPenaltyZone: (reason: string) => void;
-  exitPenaltyZone: () => void;
 
   // Shadow interrogation + long-term memory
   shadowMemory: ShadowMemory;
@@ -476,31 +467,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   });
 
-  // v1.4.x — Penalty Zone lockout state. Persisted so a reload doesn't
-  // reset the suspense (the whole point of a penalty is that you cannot
-  // escape by app-restarting).
-  const [currentMode, setCurrentMode] = useState<'normal' | 'survival' | 'penalty_zone'>(() => {
-    const saved = localStorage.getItem('nexus_mode');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return saved === 'penalty_zone' || saved === 'survival' ? saved : 'normal';
-  });
-  const [penaltyZoneReason, setPenaltyZoneReason] = useState<string | null>(() => {
-    return localStorage.getItem('nexus_penalty_reason');
-  });
-
-  const enterPenaltyZone = useCallback((reason: string) => {
-    setCurrentMode('penalty_zone');
-    setPenaltyZoneReason(reason);
-    localStorage.setItem('nexus_mode', 'penalty_zone');
-    localStorage.setItem('nexus_penalty_reason', reason);
-  }, []);
-
-  const exitPenaltyZone = useCallback(() => {
-    setCurrentMode('normal');
-    setPenaltyZoneReason(null);
-    localStorage.removeItem('nexus_mode');
-    localStorage.removeItem('nexus_penalty_reason');
-  }, []);
+  // Clean up any stale Penalty Zone localStorage from previous versions
+  localStorage.removeItem('nexus_mode');
+  localStorage.removeItem('nexus_penalty_reason');
 
   // Shadow long-term memory — persisted in localStorage by the util.
   // We mirror it into a React state for re-render-driven UI updates.
@@ -1969,7 +1938,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       getAgentMotivation, getQuestGeneratorStatus,
       resetAllData,
       dailyBaseline, toggleBaselineMode, toggleBaselineTask, addCustomBaselineTask, removeCustomBaselineTask, resetDailyBaseline,
-      currentMode, penaltyZoneReason, enterPenaltyZone, exitPenaltyZone,
       shadowMemory, shadowMemoryDigest, shadowAnsweredCount,
       recordShadowAnswer, markShadowInterrogationComplete,
       startShadowInterrogation, setShadowInterrogationIndex, declineShadowInterrogation,

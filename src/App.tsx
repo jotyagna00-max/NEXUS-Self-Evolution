@@ -55,8 +55,6 @@ const HabitLab = lazy(() => import('./components/HabitLab'));
 const Profile = lazy(() => import('./components/Profile'));
 const MissionDebrief = lazy(() => import('./components/MissionDebrief'));
 const ShadowChat = lazy(() => import('./components/ShadowChat'));
-const PenaltyZone = lazy(() => import('./components/PenaltyZone'));
-
 const MenuOverlay = ({
   isOpen,
   onClose,
@@ -236,7 +234,7 @@ const MenuOverlay = ({
 };
 
 const Dashboard = () => {
-  const { stats, quests, hasCompletedAssessment, customSkillSets, addCustomSkillSet, removeCustomSkillSet, userProfile, selectedCharacter, canAscend, performAscension, lastStatUpdates, consistency, recommendations, generateRecommendations, resetAllData, currentMode, penaltyZoneReason, exitPenaltyZone } = useGame();
+  const { stats, quests, hasCompletedAssessment, customSkillSets, addCustomSkillSet, removeCustomSkillSet, userProfile, selectedCharacter, canAscend, performAscension, lastStatUpdates, consistency, recommendations, generateRecommendations, resetAllData } = useGame();
 
   // All hooks must be declared before any early returns (React rules of hooks)
   const [showSplash, setShowSplash] = useState(true);
@@ -246,7 +244,6 @@ const Dashboard = () => {
   const [showSkillModal, setShowSkillModal] = useState(false);
   const [showAscension, setShowAscension] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
-  const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showTutorial, setShowTutorial] = useState(() => shouldShowTutorial());
   const [newSkillSet, setNewSkillSet] = useState<{ name: string; skills: { name: string; value: number }[] }>({ name: '', skills: [] });
@@ -285,30 +282,6 @@ const Dashboard = () => {
       return daysSinceUpdate >= 7 ? i : -1;
     })
     .filter(i => i >= 0);
-
-  // Penalty Zone lockout — when currentMode is penalty_zone, render a
-  // fullscreen survival protocol instead of the regular dashboard. The
-  // Operator must clear ONE challenge to regain the Command Center.
-  // This is the entire point of the design from onboarding-design.md:
-  // consequences feel like challenges, not punishments.
-  if (currentMode === 'penalty_zone' && hasCompletedAssessment) {
-    return (
-      <>
-        <Suspense fallback={<TabSkeleton />}><PenaltyZone onSurrender={() => setShowSurrenderConfirm(true)} /></Suspense>
-        <UpdateToast />
-        <NotificationToast />
-        <ConfirmDialog
-          open={showSurrenderConfirm}
-          onConfirm={() => { exitPenaltyZone(); setShowSurrenderConfirm(false); }}
-          onCancel={() => setShowSurrenderConfirm(false)}
-          title="Surrender?"
-          description="You will not earn rewards for clearing the Penalty Zone."
-          confirmLabel="Surrender"
-          variant="warning"
-        />
-      </>
-    );
-  }
 
   if (!hasCompletedAssessment) {
     return <InitialAssessment />;

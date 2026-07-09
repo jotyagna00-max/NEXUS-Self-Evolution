@@ -115,7 +115,7 @@ body {
   animation: scanline-fast 2s linear infinite;
 }
 
-/* Scanline Slow — was missing, referenced in PenaltyZone.tsx */
+/* Scanline Slow */
 @keyframes scanline-slow {
   0% { transform: translateY(0); }
   100% { transform: translateY(1000%); }
