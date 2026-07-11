@@ -191,77 +191,52 @@ const now = () => new Date().toISOString();
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // ─── VERSION MIGRATION ───────────────────────────────────────
-  // When the app version changes, check for schema mismatches and
-  // clean up stale localStorage keys that cause crashes on update.
-  const APP_VERSION = '1.28.1';
+  // When the app version changes, we ONLY remove truly obsolete keys
+  // that no longer exist in the new code. We NEVER delete user progress,
+  // stats, protocols, habits, or any other gameplay data. All state
+  // initializers below are wrapped in try-catch so that even if old
+  // data has a slightly different shape, the app falls back to defaults
+  // for just that key instead of crashing the entire dashboard.
+  const APP_VERSION = '1.28.2';
   const storedVersion = localStorage.getItem('nexus_app_version');
   if (storedVersion !== APP_VERSION) {
-    // Version changed (either update or first install)
-    // Clean up keys from old versions that no longer exist or cause conflicts
-    localStorage.removeItem('nexus_mode');              // Penalty Zone (removed)
-    localStorage.removeItem('nexus_penalty_reason');    // Penalty Zone (removed)
-    localStorage.removeItem('nexus_llm_first_launch_skipped'); // Re-prompt LLM install on update
+    // Only remove keys that are truly gone from the codebase.
+    // These are safe to delete — they have no user value.
+    localStorage.removeItem('nexus_mode');              // Penalty Zone (removed v1.28)
+    localStorage.removeItem('nexus_penalty_reason');    // Penalty Zone (removed v1.28)
 
-    // If this is an update from an older version (not first install),
-    // validate critical state objects. If they're corrupt or have
-    // missing fields, reset them to defaults rather than crashing.
-    if (storedVersion) {
-      try {
-        // Validate progression — must have all required fields
-        const prog = localStorage.getItem('nexus_progression');
-        if (prog) {
-          const p = JSON.parse(prog);
-          if (typeof p.level !== 'number' || typeof p.exp !== 'number' || !p.rank) {
-            localStorage.removeItem('nexus_progression');
-          }
-        }
-        // Validate stats — must have all 6 stats
-        const s = localStorage.getItem('stats');
-        if (s) {
-          const parsed = JSON.parse(s);
-          if (typeof parsed.strength !== 'number') {
-            localStorage.removeItem('stats');
-          }
-        }
-        // Validate protocols — must be an array
-        const prot = localStorage.getItem('protocols');
-        if (prot) {
-          const parsed = JSON.parse(prot);
-          if (!Array.isArray(parsed)) {
-            localStorage.removeItem('protocols');
-          }
-        }
-        // Validate consistency — must have last7Days array
-        const con = localStorage.getItem('nexus_consistency');
-        if (con) {
-          const parsed = JSON.parse(con);
-          if (!Array.isArray(parsed.last7Days)) {
-            localStorage.removeItem('nexus_consistency');
-          }
-        }
-        // Validate streak data
-        const streak = localStorage.getItem('nexus_streak');
-        if (streak) {
-          const parsed = JSON.parse(streak);
-          if (typeof parsed.currentStreak !== 'number') {
-            localStorage.removeItem('nexus_streak');
-          }
-        }
-        // Validate achievements
-        const ach = localStorage.getItem('nexus_achievements');
-        if (ach) {
-          const parsed = JSON.parse(ach);
-          if (!Array.isArray(parsed) || parsed.length === 0) {
-            localStorage.removeItem('nexus_achievements');
-          }
-        }
-      } catch {
-        // If any JSON parsing fails, the data is corrupt — leave it
-        // and let the default initializers handle it
-      }
-    }
+    // Re-prompt LLM install on update so the user sees the new install button
+    localStorage.removeItem('nexus_llm_first_launch_skipped');
+
     localStorage.setItem('nexus_app_version', APP_VERSION);
   }
+
+  // ─── Safe JSON parse helper ──────────────────────────────────
+  // Parses localStorage JSON without throwing. Returns fallback on error.
+  const safeParse = <T,>(key: string, fallback: T): T => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return fallback;
+      return JSON.parse(raw) as T;
+    } catch {
+      return fallback;
+    }
+  };
+
+  // ─── Safe merge helper ───────────────────────────────────────
+  // Merges saved data over defaults so missing fields are filled in
+  // without losing any existing user data.
+  const safeMerge = <T extends object>(key: string, fallback: T): T => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return fallback;
+      const saved = JSON.parse(raw);
+      return { ...fallback, ...saved };
+    } catch {
+      return fallback;
+    }
+  };
+
   const [hasCompletedAssessment, setHasCompletedAssessment] = useState<boolean>(() => {
     return localStorage.getItem('nexus_assessment_complete') === 'true';
   });
@@ -269,73 +244,52 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return localStorage.getItem('selectedCharacter') || 'Ayanokoji';
   });
   const [currentProtocolId, setCurrentProtocolId] = useState<string | null>(null);
-  const [protocols, setProtocols] = useState<Protocol[]>(() => {
-    const saved = localStorage.getItem('protocols');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [protocols, setProtocols] = useState<Protocol[]>(() => safeParse('protocols', []));
 
-  const [stats, setStats] = useState<UserStats>(() => {
-    const saved = localStorage.getItem('stats');
-    return saved ? JSON.parse(saved) : { strength: 10, intelligence: 10, agility: 10, vitality: 10, willpower: 10, social: 10 };
-  });
+  const [stats, setStats] = useState<UserStats>(() => safeMerge('stats', { strength: 10, intelligence: 10, agility: 10, vitality: 10, willpower: 10, social: 10 }));
   const [lastStatUpdates, setLastStatUpdates] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem('nexus_lastStatUpdates');
-    if (saved) return JSON.parse(saved);
     const now = new Date().toISOString();
-    return { strength: now, intelligence: now, agility: now, vitality: now, willpower: now, social: now };
+    return safeMerge('nexus_lastStatUpdates', { strength: now, intelligence: now, agility: now, vitality: now, willpower: now, social: now });
   });
 
   const [credits, setCredits] = useState<number>(() => {
     const saved = localStorage.getItem('nexus_credits');
-    return saved ? parseInt(saved) : 100;
+    const parsed = saved ? parseInt(saved) : NaN;
+    return isNaN(parsed) ? 100 : parsed;
   });
 
-  const [progression, setProgression] = useState<ProgressionState>(() => {
-    const saved = localStorage.getItem('nexus_progression');
-    if (saved) return JSON.parse(saved);
-    return { level: 1, exp: 0, expToNextLevel: calculateExpToNextLevel(1), rank: 'E', totalExpEarned: 0, statPoints: 0 };
-  });
+  const [progression, setProgression] = useState<ProgressionState>(() => safeMerge('nexus_progression', {
+    level: 1, exp: 0, expToNextLevel: calculateExpToNextLevel(1), rank: 'E' as const, totalExpEarned: 0, statPoints: 0,
+  }));
 
-  const [streakData, setStreakData] = useState<StreakData>(() => {
-    const saved = localStorage.getItem('nexus_streak');
-    return saved ? JSON.parse(saved) : { currentStreak: 0, longestStreak: 0, lastCompletedDate: null, dailyCompletions: 0, totalDailyTarget: 3, weeklyStreak: 0, longestWeeklyStreak: 0 };
-  });
+  const [streakData, setStreakData] = useState<StreakData>(() => safeMerge('nexus_streak', {
+    currentStreak: 0, longestStreak: 0, lastCompletedDate: null, dailyCompletions: 0, totalDailyTarget: 3, weeklyStreak: 0, longestWeeklyStreak: 0,
+  }));
 
   const [consistency, setConsistency] = useState<ConsistencyData>(() => {
-    const saved = localStorage.getItem('nexus_consistency');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Migrate the sliding-window shape — old boolean[] day-of-week
-        // buckets are dropped and replaced with a fresh empty window
-        // (the operator hasn't actually completed anything yet).
-        return {
-          ...parsed,
-          last7Days: coerceWindow(parsed.last7Days),
-          score: typeof parsed.score === 'number' ? parsed.score : 0,
-        };
-      } catch {
-        /* fall through to default */
-      }
+    try {
+      const raw = localStorage.getItem('nexus_consistency');
+      if (!raw) throw new Error('no data');
+      const parsed = JSON.parse(raw);
+      return {
+        score: typeof parsed.score === 'number' ? parsed.score : 0,
+        totalDays: typeof parsed.totalDays === 'number' ? parsed.totalDays : 0,
+        completedDays: typeof parsed.completedDays === 'number' ? parsed.completedDays : 0,
+        currentRun: typeof parsed.currentRun === 'number' ? parsed.currentRun : 0,
+        longestRun: typeof parsed.longestRun === 'number' ? parsed.longestRun : 0,
+        recoveryCount: typeof parsed.recoveryCount === 'number' ? parsed.recoveryCount : 0,
+        last7Days: coerceWindow(parsed.last7Days),
+        graceDaysRemaining: typeof parsed.graceDaysRemaining === 'number' ? parsed.graceDaysRemaining : 2,
+      };
+    } catch {
+      return {
+        score: 0, totalDays: 0, completedDays: 0, currentRun: 0, longestRun: 0, recoveryCount: 0,
+        last7Days: buildEmptyWindow(), graceDaysRemaining: 2,
+      };
     }
-    // Fresh operator: real zero, empty window. Don't show "100%" before
-    // they have done anything.
-    return {
-      score: 0,
-      totalDays: 0,
-      completedDays: 0,
-      currentRun: 0,
-      longestRun: 0,
-      recoveryCount: 0,
-      last7Days: buildEmptyWindow(),
-      graceDaysRemaining: 2,
-    };
   });
 
-  const [recommendations, setRecommendations] = useState<AgentRecommendation[]>(() => {
-    const saved = localStorage.getItem('nexus_recommendations');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [recommendations, setRecommendations] = useState<AgentRecommendation[]>(() => safeParse('nexus_recommendations', []));
 
   const orchestratorRef = useRef<AgentOrchestrator | null>(null);
   const getOrchestrator = useCallback(() => {
@@ -347,39 +301,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const [achievements, setAchievements] = useState<Achievement[]>(() => {
-    const saved = localStorage.getItem('nexus_achievements');
-    return saved ? JSON.parse(saved) : DEFAULT_ACHIEVEMENTS;
+    const saved = safeParse('nexus_achievements', DEFAULT_ACHIEVEMENTS);
+    // If the saved achievements array is empty or not an array, use defaults
+    if (!Array.isArray(saved) || saved.length === 0) return DEFAULT_ACHIEVEMENTS;
+    return saved;
   });
 
-  const [penaltyRecords, setPenaltyRecords] = useState<PenaltyRecord[]>(() => {
-    const saved = localStorage.getItem('nexus_penalties');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [penaltyRecords, setPenaltyRecords] = useState<PenaltyRecord[]>(() => safeParse('nexus_penalties', []));
+  const [habits, setHabits] = useState<Habit[]>(() => safeParse('nexus_habits', []));
+  const [activePowerUps, setActivePowerUps] = useState<ActivePowerUp[]>(() => safeParse('nexus_powerups', []));
+  const [debuffs, setDebuffs] = useState<Debuff[]>(() => safeParse('nexus_debuffs', []));
 
-  const [habits, setHabits] = useState<Habit[]>(() => {
-    const saved = localStorage.getItem('nexus_habits');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [activePowerUps, setActivePowerUps] = useState<ActivePowerUp[]>(() => {
-    const saved = localStorage.getItem('nexus_powerups');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [debuffs, setDebuffs] = useState<Debuff[]>(() => {
-    const saved = localStorage.getItem('nexus_debuffs');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [shadowState, setShadowState] = useState<ShadowState>(() => {
-    const saved = localStorage.getItem('nexus_shadow');
-    if (saved) return JSON.parse(saved);
-    return { strength: 5, intelligence: 5, agility: 5, vitality: 5, willpower: 5, social: 5, lastUpdated: now(), isDominant: false, challengeIssued: false, challengeCompleted: false };
-  });
+  const [shadowState, setShadowState] = useState<ShadowState>(() => safeMerge('nexus_shadow', {
+    strength: 5, intelligence: 5, agility: 5, vitality: 5, willpower: 5, social: 5, lastUpdated: now(), isDominant: false, challengeIssued: false, challengeCompleted: false,
+  }));
 
   const [raidBoss, setRaidBoss] = useState<RaidBoss | null>(() => {
-    const saved = localStorage.getItem('nexus_raidboss');
-    if (saved) return JSON.parse(saved);
+    const saved = safeParse<RaidBoss | null>('nexus_raidboss', null);
+    if (saved && typeof saved.maxHp === 'number') return saved;
+    // Generate a new raid boss if no valid saved data
     const bosses = [
       { name: 'The Lethargy Lord', desc: 'A manifestation of procrastination and inertia.', hp: 5000 },
       { name: 'The Distortion Beast', desc: 'Feeds on distraction and broken focus.', hp: 7500 },
@@ -405,21 +345,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       participants: 1,
     };
   });
-
-  const [ascensionData, setAscensionData] = useState<AscensionData>(() => {
-    const saved = localStorage.getItem('nexus_ascension');
-    return saved ? JSON.parse(saved) : { ascensionCount: 0, multiplier: 1.0, ascendedAt: [] };
-  });
-
-  const [narrativeChapters, setNarrativeChapters] = useState<NarrativeChapter[]>(() => {
-    const saved = localStorage.getItem('nexus_narrative');
-    return saved ? JSON.parse(saved) : NARRATIVE_CHAPTERS;
-  });
-
-  const [riftSchedules, setRiftSchedules] = useState<RiftSchedule[]>(() => {
-    const saved = localStorage.getItem('nexus_rifts');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [ascensionData, setAscensionData] = useState<AscensionData>(() => safeMerge('nexus_ascension', { ascensionCount: 0, multiplier: 1.0, ascendedAt: [] }));
+  const [narrativeChapters, setNarrativeChapters] = useState<NarrativeChapter[]>(() => safeParse('nexus_narrative', NARRATIVE_CHAPTERS));
+  const [riftSchedules, setRiftSchedules] = useState<RiftSchedule[]>(() => safeParse('nexus_rifts', []));
 
   /** v1.4.0 — isPro is now a dormant flag. Pro subscription removed from store.
    *  Retained in localStorage for future real billing (Stripe/PayPal). */
@@ -429,10 +357,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const prevLevelRef = useRef(progression.level);
 
   // R-03 — calendar heatmap data (date → {exp, credits} earned) and theme color
-  const [expHistory, setExpHistory] = useState<ExpHistoryEntry[]>(() => {
-    const saved = localStorage.getItem('nexus_exp_history');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [expHistory, setExpHistory] = useState<ExpHistoryEntry[]>(() => safeParse('nexus_exp_history', []));
 
   const [theme, setThemeState] = useState<ThemeColor>(() => {
     const saved = localStorage.getItem('nexus_theme') as ThemeColor | null;
@@ -505,10 +430,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNotifications(prev => prev.filter(n => n.id !== id));
   }, []);
 
-  const [customSkillSets, setCustomSkillSets] = useState<CustomSkillSet[]>(() => {
-    const saved = localStorage.getItem('nexus_custom_skills');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [customSkillSets, setCustomSkillSets] = useState<CustomSkillSet[]>(() => safeParse('nexus_custom_skills', []));
 
   const [dailyBaseline, setDailyBaseline] = useState<DailyBaseline>(() => {
     const saved = localStorage.getItem('nexus_daily_baseline');
@@ -583,27 +505,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [quests, setQuests] = useState<Quest[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [appPermissions, setAppPermissions] = useState<Record<string, boolean>>(() => {
-    const saved = localStorage.getItem('appPermissions');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [appPermissions, setAppPermissions] = useState<Record<string, boolean>>(() => safeParse('appPermissions', {}));
   const [chatHistory, setChatHistory] = useState<any[]>([]);
-  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem('userProfile');
-    return saved ? JSON.parse(saved) : {
-      name: '',
-      primaryGoal: '',
-      secondaryGoals: [],
-      fitnessExperience: 'beginner',
-      learningStyle: '',
-      emotionalState: '',
-      barriers: [],
-      scheduleNotes: '',
-      preferences: [],
-      wellnessFocus: [],
-      accountabilityNeeds: ''
-    };
-  });
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => safeMerge('userProfile', {
+    name: '', primaryGoal: '', secondaryGoals: [], fitnessExperience: 'beginner', learningStyle: '', emotionalState: '', barriers: [], scheduleNotes: '', preferences: [], wellnessFocus: [], accountabilityNeeds: '',
+  }));
 
   // v1.4.0 — wire the agent mesh to the bus. This effect mounts once on
   // provider mount and survives for the lifetime of the app. Subscribers

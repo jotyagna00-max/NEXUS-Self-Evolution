@@ -1,18 +1,29 @@
 {
-  "latestVersion": "1.28.1",
-  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.1/NEXUS.Setup.1.28.1.exe",
-  "releaseNotes": "Critical fixes: Local LLM install button in Profile, store items now have real prices, version migration system prevents crash-on-update. Starting credits increased to 100.",
+  "latestVersion": "1.28.2",
+  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.2/NEXUS.Setup.1.28.2.exe",
+  "releaseNotes": "Update preserves all user data (stats, progress, protocols, habits). Store items now cheap (2-5 NC). Crash-safe state loading.",
   "minSchemaVersion": 1,
   "changelog": [
+    {
+      "version": "1.28.2",
+      "date": "2026-07-11",
+      "notes": [
+        "Update now preserves ALL user data — no more reset after updating",
+        "Crash-safe state loading — old data with missing fields is merged with defaults instead of crashing",
+        "Store items now cheap (2-5 NC) so everything is affordable",
+        "All store items available from level 1",
+        "Version migration only removes truly obsolete keys, never user progress"
+      ]
+    },
     {
       "version": "1.28.1",
       "date": "2026-07-11",
       "notes": [
-        "Fixed Local LLM — prominent Install AI Model button in Profile (no more confusing 'optional' field)",
-        "Fixed Store — all items now have real prices (15-200 NC based on tier), starting credits raised to 100",
-        "Fixed update crash — version migration system auto-cleans stale localStorage on version change",
-        "Lowered level requirements on store items so new users can buy from level 1",
-        "Removed 'Model (optional)' field from Electron LLM panel (model is auto-configured)"
+        "Fixed Local LLM — prominent Install AI Model button in Profile",
+        "Fixed Store — all items now have real prices, starting credits raised to 100",
+        "Fixed update crash — version migration system auto-cleans stale localStorage",
+        "Lowered level requirements on store items",
+        "Removed 'Model (optional)' field from Electron LLM panel"
       ]
     },
     {
@@ -20,16 +31,16 @@
       "date": "2026-07-09",
       "notes": [
         "Store preview modal — full overview, training plan, quests, and deliverables before purchase",
-        "PDF training guide download after buying any protocol or book (jsPDF generated)",
-        "Rich content for all 11 protocols and 8 books (week-by-week plans, form cues, progression rules)",
-        "Sound effects system (task complete, quest complete, level up, achievement, penalty)",
-        "Achievement burst animation with full-screen trophy reveal and particle effects",
-        "Stat radar chart, habit completion donut, and EXP/NC ratio bar in Mission Debrief",
+        "PDF training guide download after buying any protocol or book",
+        "Rich content for all 11 protocols and 8 books",
+        "Sound effects system",
+        "Achievement burst animation",
+        "Stat radar chart, habit donut, EXP/NC ratio in Mission Debrief",
         "Data export/import (JSON backup and restore)",
-        "Keyboard shortcuts (arrow keys, 1-8 for tabs, P for profile)",
-        "App icon for Electron build and Windows taskbar",
-        "Penalty Zone removed (was orphaned and never triggered)",
-        "Changelog panel connected to GitHub Gist (same source as Check for Updates)"
+        "Keyboard shortcuts",
+        "App icon for Windows taskbar",
+        "Penalty Zone removed",
+        "Changelog panel connected to GitHub Gist"
       ]
     },
     {
@@ -38,12 +49,10 @@
       "notes": [
         "Shadow Chat professional UI redesign with LLM status indicator and persona dropdown",
         "First-time tutorial — 8-step onboarding guide for new users",
-        "Mission Debrief: monthly (12-month) and yearly (4-year) reports with bar charts",
-        "Store system overhaul — level-gated items with lock overlays and higher prices",
+        "Mission Debrief: monthly and yearly reports with bar charts",
+        "Store system overhaul — level-gated items",
         "EXP formula changed to n³ × 20, rank thresholds compressed",
-        "All rewards (NC, EXP) reduced ~3x for balanced progression",
         "Ranks removed from display — only Level shown",
-        "Dummy fallback tasks removed — daily tasks generated only from real protocols",
         "Achievement unlock burst animation",
         "Data export/import (JSON backup)",
         "Keyboard shortcuts for tab navigation"
@@ -53,11 +62,11 @@
       "version": "1.26.0",
       "date": "2026-07-06",
       "notes": [
-        "Shadow Chat persona selector — 6 voices (Mirror, Mentor, Rival, Commander, Confidant, Strategist)",
+        "Shadow Chat persona selector — 6 voices",
         "First-launch LLM download prompt with progress bar",
-        "CPU-only inference via node-llama-cpp — WebGPU ModelLoader removed",
-        "Shadow Chat memory now persists to localStorage and injects into LLM system prompt",
-        "Website overhaul: 3D hologram, scroll animations, hex graph, 6 AI agents section",
+        "CPU-only inference via node-llama-cpp",
+        "Shadow Chat memory persists to localStorage",
+        "Website overhaul: 3D hologram, scroll animations, hex graph, AI agents section",
         "Model: Qwen2.5-2B-Instruct (Q4_K_M, ~1.5 GB) from HuggingFace"
       ]
     },
