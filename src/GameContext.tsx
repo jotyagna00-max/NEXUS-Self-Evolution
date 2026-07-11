@@ -190,6 +190,78 @@ const today = () => new Date().toISOString().split('T')[0];
 const now = () => new Date().toISOString();
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // ─── VERSION MIGRATION ───────────────────────────────────────
+  // When the app version changes, check for schema mismatches and
+  // clean up stale localStorage keys that cause crashes on update.
+  const APP_VERSION = '1.28.1';
+  const storedVersion = localStorage.getItem('nexus_app_version');
+  if (storedVersion !== APP_VERSION) {
+    // Version changed (either update or first install)
+    // Clean up keys from old versions that no longer exist or cause conflicts
+    localStorage.removeItem('nexus_mode');              // Penalty Zone (removed)
+    localStorage.removeItem('nexus_penalty_reason');    // Penalty Zone (removed)
+    localStorage.removeItem('nexus_llm_first_launch_skipped'); // Re-prompt LLM install on update
+
+    // If this is an update from an older version (not first install),
+    // validate critical state objects. If they're corrupt or have
+    // missing fields, reset them to defaults rather than crashing.
+    if (storedVersion) {
+      try {
+        // Validate progression — must have all required fields
+        const prog = localStorage.getItem('nexus_progression');
+        if (prog) {
+          const p = JSON.parse(prog);
+          if (typeof p.level !== 'number' || typeof p.exp !== 'number' || !p.rank) {
+            localStorage.removeItem('nexus_progression');
+          }
+        }
+        // Validate stats — must have all 6 stats
+        const s = localStorage.getItem('stats');
+        if (s) {
+          const parsed = JSON.parse(s);
+          if (typeof parsed.strength !== 'number') {
+            localStorage.removeItem('stats');
+          }
+        }
+        // Validate protocols — must be an array
+        const prot = localStorage.getItem('protocols');
+        if (prot) {
+          const parsed = JSON.parse(prot);
+          if (!Array.isArray(parsed)) {
+            localStorage.removeItem('protocols');
+          }
+        }
+        // Validate consistency — must have last7Days array
+        const con = localStorage.getItem('nexus_consistency');
+        if (con) {
+          const parsed = JSON.parse(con);
+          if (!Array.isArray(parsed.last7Days)) {
+            localStorage.removeItem('nexus_consistency');
+          }
+        }
+        // Validate streak data
+        const streak = localStorage.getItem('nexus_streak');
+        if (streak) {
+          const parsed = JSON.parse(streak);
+          if (typeof parsed.currentStreak !== 'number') {
+            localStorage.removeItem('nexus_streak');
+          }
+        }
+        // Validate achievements
+        const ach = localStorage.getItem('nexus_achievements');
+        if (ach) {
+          const parsed = JSON.parse(ach);
+          if (!Array.isArray(parsed) || parsed.length === 0) {
+            localStorage.removeItem('nexus_achievements');
+          }
+        }
+      } catch {
+        // If any JSON parsing fails, the data is corrupt — leave it
+        // and let the default initializers handle it
+      }
+    }
+    localStorage.setItem('nexus_app_version', APP_VERSION);
+  }
   const [hasCompletedAssessment, setHasCompletedAssessment] = useState<boolean>(() => {
     return localStorage.getItem('nexus_assessment_complete') === 'true';
   });
@@ -215,7 +287,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [credits, setCredits] = useState<number>(() => {
     const saved = localStorage.getItem('nexus_credits');
-    return saved ? parseInt(saved) : 50;
+    return saved ? parseInt(saved) : 100;
   });
 
   const [progression, setProgression] = useState<ProgressionState>(() => {
@@ -466,10 +538,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       completionHistory: [],
     };
   });
-
-  // Clean up any stale Penalty Zone localStorage from previous versions
-  localStorage.removeItem('nexus_mode');
-  localStorage.removeItem('nexus_penalty_reason');
 
   // Shadow long-term memory — persisted in localStorage by the util.
   // We mirror it into a React state for re-render-driven UI updates.
@@ -812,9 +880,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const spendCredits = (amount: number): boolean => {
     if (amount < 0) return false;
+    if (amount === 0) return true;
     let success = false;
     setCredits(prev => {
-      if (prev < amount) return prev; // Don't go negative
+      if (prev < amount) return prev;
       success = true;
       return prev - amount;
     });

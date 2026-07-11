@@ -1,9 +1,20 @@
 {
-  "latestVersion": "1.28.0",
-  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.0/NEXUS.Setup.1.28.0.exe",
-  "releaseNotes": "Store overhaul with full protocol/book preview modal and PDF training guide downloads. Penalty Zone removed. Rich content for all 11 protocols and 8 books. Sound effects, achievement burst animation, data export/import, keyboard shortcuts, stat radar chart, habit donut, app icon.",
+  "latestVersion": "1.28.1",
+  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.1/NEXUS.Setup.1.28.1.exe",
+  "releaseNotes": "Critical fixes: Local LLM install button in Profile, store items now have real prices, version migration system prevents crash-on-update. Starting credits increased to 100.",
   "minSchemaVersion": 1,
   "changelog": [
+    {
+      "version": "1.28.1",
+      "date": "2026-07-11",
+      "notes": [
+        "Fixed Local LLM — prominent Install AI Model button in Profile (no more confusing 'optional' field)",
+        "Fixed Store — all items now have real prices (15-200 NC based on tier), starting credits raised to 100",
+        "Fixed update crash — version migration system auto-cleans stale localStorage on version change",
+        "Lowered level requirements on store items so new users can buy from level 1",
+        "Removed 'Model (optional)' field from Electron LLM panel (model is auto-configured)"
+      ]
+    },
     {
       "version": "1.28.0",
       "date": "2026-07-09",
@@ -54,11 +65,11 @@
       "version": "1.3.0",
       "date": "2026-06-29",
       "notes": [
-        "Effort-mirror tone: Sync to Log. Manager copy reframed around effort, not points.",
-        "3-of-7 streak window. Rest tokens now spendable from the Consistency tracker.",
+        "Effort-mirror tone: Sync to Log.",
+        "3-of-7 streak window with rest tokens.",
         "SAGE, TITAN, CHRONOS, MANAGER domain-stat badges.",
-        "Mission Debrief tab — daily Manager message at end of day.",
-        "Changelog panel — see what changed in each version."
+        "Mission Debrief tab.",
+        "Changelog panel."
       ]
     },
     {

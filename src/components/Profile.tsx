@@ -153,129 +153,135 @@ const LocalLLMPanel: React.FC = () => {
 
   return (
     <div className="glass rounded-[32px] p-8 border border-white/10 mt-6" data-testid="local-llm-settings">
-      {/* Electron native LLM status */}
-      {isElectron && (
-        <div className="mb-6 p-4 rounded-2xl bg-white/[0.03] border border-white/10">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-[7px] font-mono text-blue-400">E</div>
-              <span className="text-[8px] font-display uppercase tracking-widest text-white/40">Bundled LLM</span>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-5 h-5 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[9px] font-mono text-white/40">AI</div>
+        <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">
+          Local AI Engine
+        </span>
+        <div className="h-px flex-1 bg-white/5" />
+        {nativeStatus?.ready ? (
+          <span className="text-[8px] font-display uppercase tracking-widest px-2 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1"><CheckCircle2 size={10} /> Connected</span>
+        ) : nativeStatus?.downloading ? (
+          <span className="text-[8px] font-display uppercase tracking-widest px-2 py-1 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-400">Installing — {nativeDlProgress}%</span>
+        ) : (
+          <span className="text-[8px] font-display uppercase tracking-widest px-2 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center gap-1"><AlertTriangle size={10} /> Not Installed</span>
+        )}
+      </div>
+
+      {/* ─── INSTALL SECTION (only shows if model not downloaded) ─── */}
+      {isElectron && !nativeStatus?.ready && !nativeStatus?.downloading && (
+        <div className="mb-5 p-6 rounded-2xl bg-blue-500/5 border border-blue-500/20">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center flex-shrink-0">
+              <Download size={22} className="text-blue-400" />
             </div>
-            {nativeStatus?.ready ? (
-              <span className="text-[8px] font-display uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1">
-                <CheckCircle2 size={9} /> Ready
-              </span>
-            ) : nativeStatus?.downloading ? (
-              <span className="text-[8px] font-display uppercase tracking-widest px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-400">
-                Downloading — {nativeDlProgress}%
-              </span>
-            ) : (
-              <span className="text-[8px] font-display uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center gap-1">
-                <AlertTriangle size={9} /> Not loaded
-              </span>
-            )}
-          </div>
-          {nativeStatus?.ready ? (
-            <p className="text-[9px] font-tech text-white/40">
-              Qwen2.5-2B loaded in-app. All AI calls route through the bundled model.
-            </p>
-          ) : nativeStatus?.downloading ? (
-            <div>
-              <p className="text-[9px] font-tech text-white/40 mb-2">
-              Downloading Qwen2.5-2B model ({nativeDlProgress}%)
+            <div className="flex-1">
+              <h4 className="text-sm font-display font-bold text-white mb-1">Install AI Model</h4>
+              <p className="text-[11px] font-tech text-white/50 leading-relaxed mb-3">
+                NEXUS needs a one-time download of the Qwen2.5-2B AI model (~1.5 GB) from HuggingFace.
+                After installation, all AI features (Shadow Chat, agent responses) work fully offline — no cloud, no API keys.
               </p>
-              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${nativeDlProgress}%` }} />
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <p className="text-[9px] font-tech text-white/40 mb-1">
-                  {nativeStatus?.error ? `Error: ${nativeStatus.error}` : 'Download the Qwen2.5-2B model (~1.5 GB) to run fully offline.'}
-                </p>
-                <p className="text-[7px] font-mono text-white/20">
-                  Source: huggingface.co/mradermacher/Qwen2.5-2B-Instruct-GGUF · Stored locally in app data
-                </p>
-              </div>
+              <p className="text-[8px] font-mono text-white/20 mb-4">
+                Model: Qwen2.5-2B-Instruct (Q4_K_M) · Source: huggingface.co/mradermacher · Stored locally in app data
+              </p>
+              {nativeStatus?.error && (
+                <p className="text-[10px] font-mono text-red-400 mb-3">Error: {nativeStatus.error}</p>
+              )}
               <button
                 type="button"
                 onClick={handleNativeDownload}
                 disabled={nativeStatus?.initializing}
-                className="px-4 py-2 rounded-2xl bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:bg-blue-500/30 disabled:opacity-40 transition-all text-[8px] font-display uppercase tracking-wider"
+                className="w-full py-3 rounded-2xl bg-blue-500 hover:bg-blue-400 text-white border border-blue-500/50 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] disabled:opacity-40 transition-all text-[10px] font-display font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2"
               >
-                {nativeStatus?.initializing ? 'Loading…' : 'Download Model'}
+                {nativeStatus?.initializing ? (
+                  <><span className="animate-spin">...</span> Initializing...</>
+                ) : (
+                  <><Download size={14} /> Install AI Model (~1.5 GB)</>
+                )}
               </button>
             </div>
-          )}
+          </div>
         </div>
       )}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-5 h-5 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[9px] font-mono text-white/40">LL</div>
-        <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">
-          Local LLM
-       </span>
-        <div className="h-px flex-1 bg-white/5" />
-        <div className="flex items-center gap-2">
-          {enabled && <span className="text-[8px] font-display uppercase tracking-widest px-2 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1"><CheckCircle2 size={10} /> Active</span>}
-        </div>
-        <button onClick={() => setEnabled(!enabled)} className={`w-12 h-6 rounded-full transition-all ${enabled ? 'bg-emerald-500/40' : 'bg-white/10'}`}>
-          <div className={`w-5 h-5 rounded-full transition-all ${enabled ? 'bg-emerald-400 translate-x-6' : 'bg-white/30 translate-x-0.5'}`} />
-        </button>
-      </div>
 
-      <p className="text-[10px] font-tech text-white/40 mb-5 leading-relaxed">
-        NEXUS runs entirely on your machine. All AI calls are routed through a
-        local LLM server (LM Studio, Ollama, or the bundled Electron model)
-        that exposes an OpenAI-compatible API. No cloud, no API keys, no data
-        ever leaves your device. Enable this and make sure your server is running.
-      </p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-        <div>
-          <label className="text-[8px] font-display uppercase tracking-widest text-white/30 mb-1.5 block">Endpoint URL</label>
-          <input
-            value={baseURL}
-            onChange={e => setBaseURL(e.target.value)}
-            placeholder="http://localhost:1234/v1"
-            className="w-full bg-black/50 border border-white/10 rounded-2xl px-4 py-3 text-sm font-mono text-white/80 placeholder:text-white/20 focus:outline-none focus:border-blue-500/50 transition-all"
-          />
+      {/* ─── DOWNLOAD PROGRESS ─── */}
+      {isElectron && nativeStatus?.downloading && (
+        <div className="mb-5 p-6 rounded-2xl bg-blue-500/5 border border-blue-500/20">
+          <div className="flex items-center gap-3 mb-3">
+            <Download size={18} className="text-blue-400 animate-bounce" />
+            <span className="text-sm font-display font-bold text-white">Downloading AI Model — {nativeDlProgress}%</span>
+          </div>
+          <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
+            <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-400 transition-all" style={{ width: `${nativeDlProgress}%` }} />
+          </div>
+          <p className="text-[9px] font-mono text-white/20 mt-2">~1.5 GB · Do not close the app during download</p>
         </div>
-        <div>
-          <label className="text-[8px] font-display uppercase tracking-widest text-white/30 mb-1.5 block">Model (optional)</label>
-          <input
-            value={model}
-            onChange={e => setModel(e.target.value)}
-            placeholder="phi-4, llama-3.2-3b, ..."
-            className="w-full bg-black/50 border border-white/10 rounded-2xl px-4 py-3 text-sm font-mono text-white/80 placeholder:text-white/20 focus:outline-none focus:border-blue-500/50 transition-all"
-          />
-        </div>
-      </div>
+      )}
 
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={testConnection}
-          disabled={testStatus === 'testing'}
-          className="px-5 py-3 rounded-2xl bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:bg-blue-500/30 disabled:opacity-40 transition-all text-[9px] font-display uppercase tracking-wider flex items-center gap-2"
-        >
-          {testStatus === 'testing' ? (
-            <>Testing…</>
-          ) : (
-            <><Zap size={12} /> Test Connection</>
-          )}
-        </button>
-        {testStatus === 'success' && (
-          <span className="text-[9px] font-mono text-emerald-400 flex items-center gap-1">
-            <CheckCircle2 size={11} /> {testMsg}
-          </span>
-        )}
-        {testStatus === 'error' && (
-          <span className="text-[9px] font-mono text-red-400 flex items-center gap-1">
-            <AlertTriangle size={11} /> {testMsg}
-          </span>
-        )}
-      </div>
+      {/* ─── READY STATE ─── */}
+      {isElectron && nativeStatus?.ready && (
+        <div className="mb-5 p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+            <CheckCircle2 size={20} className="text-emerald-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-display font-bold text-emerald-400">AI Model Active</h4>
+            <p className="text-[10px] font-tech text-white/40">Qwen2.5-2B running on your CPU. All AI calls route through the bundled model. No internet required.</p>
+          </div>
+        </div>
+      )}
+
+      {/* ─── NON-ELECTRONON FALLBACK (web/dev mode — manual LM Studio config) ─── */}
+      {!isElectron && (
+        <>
+          <p className="text-[10px] font-tech text-white/40 mb-5 leading-relaxed">
+            Running in browser mode. Connect an external local LLM server (LM Studio, Ollama) that exposes an OpenAI-compatible API.
+            In the desktop app, the model is bundled and auto-installed — no manual setup needed.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+            <div>
+              <label className="text-[8px] font-display uppercase tracking-widest text-white/30 mb-1.5 block">Endpoint URL</label>
+              <input
+                value={baseURL}
+                onChange={e => setBaseURL(e.target.value)}
+                placeholder="http://localhost:1234/v1"
+                className="w-full bg-black/50 border border-white/10 rounded-2xl px-4 py-3 text-sm font-mono text-white/80 placeholder:text-white/20 focus:outline-none focus:border-blue-500/50 transition-all"
+              />
+            </div>
+            <div>
+              <label className="text-[8px] font-display uppercase tracking-widest text-white/30 mb-1.5 block">Model Name</label>
+              <input
+                value={model}
+                onChange={e => setModel(e.target.value)}
+                placeholder="e.g. qwen2.5-2b"
+                className="w-full bg-black/50 border border-white/10 rounded-2xl px-4 py-3 text-sm font-mono text-white/80 placeholder:text-white/20 focus:outline-none focus:border-blue-500/50 transition-all"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              type="button"
+              onClick={testConnection}
+              disabled={testStatus === 'testing'}
+              className="px-5 py-3 rounded-2xl bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:bg-blue-500/30 disabled:opacity-40 transition-all text-[9px] font-display uppercase tracking-wider flex items-center gap-2"
+            >
+              {testStatus === 'testing' ? <>Testing...</> : <><Zap size={12} /> Test Connection</>}
+            </button>
+            {testStatus === 'success' && (
+              <span className="text-[9px] font-mono text-emerald-400 flex items-center gap-1"><CheckCircle2 size={11} /> {testMsg}</span>
+            )}
+            {testStatus === 'error' && (
+              <span className="text-[9px] font-mono text-red-400 flex items-center gap-1"><AlertTriangle size={11} /> {testMsg}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 pt-3 border-t border-white/5">
+            <span className="text-[10px] font-tech text-white/40">Enable LLM routing</span>
+            <button onClick={() => setEnabled(!enabled)} className={`w-12 h-6 rounded-full transition-all ${enabled ? 'bg-emerald-500/40' : 'bg-white/10'}`}>
+              <div className={`w-5 h-5 rounded-full transition-all ${enabled ? 'bg-emerald-400 translate-x-6' : 'bg-white/30 translate-x-0.5'}`} />
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
