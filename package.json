@@ -1,7 +1,7 @@
 {
   "name": "nexus-self-evolution",
   "private": true,
-  "version": "1.28.2",
+  "version": "1.28.3",
   "description": "NEXUS Self-Evolution System",
   "author": "Mindraxus <jotyagna00-max@users.noreply.github.com>",
   "main": "electron/main.js",
@@ -27,6 +27,11 @@
       "package.json"
     ],
     "electronDist": "node_modules/electron/dist",
+    "asarUnpack": [
+      "node_modules/node-llama-cpp/**/*",
+      "node_modules/@node-llama-cpp/**/*",
+      "node_modules/**/*.{node,dll}"
+    ],
     "extraResources": [
       {
         "from": "llama-models",

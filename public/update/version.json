@@ -1,9 +1,24 @@
 {
-  "latestVersion": "1.28.2",
-  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.2/NEXUS.Setup.1.28.2.exe",
-  "releaseNotes": "Update preserves all user data (stats, progress, protocols, habits). Store items now cheap (2-5 NC). Crash-safe state loading.",
+  "latestVersion": "1.28.3",
+  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.3/NEXUS.Setup.1.28.3.exe",
+  "releaseNotes": "CRITICAL FIX: Preload script was broken — all Electron features (LLM install, auto-update, notifications) now work. GPU compatibility for animations on laptops.",
   "minSchemaVersion": 1,
   "changelog": [
+    {
+      "version": "1.28.3",
+      "date": "2026-07-12",
+      "notes": [
+        "CRITICAL FIX: Preload script was broken by ESM/CJS mismatch — window.electronAPI was never defined",
+        "Fix: Renamed preload.js to preload.cjs so Electron loads it as CommonJS correctly",
+        "Fix: LLM Install button now appears in Profile — was showing browser fallback toggle instead",
+        "Fix: Shadow Chat now works — native LLM bridge connects properly via IPC",
+        "Fix: Auto-update, notifications, store sync — all Electron features now functional",
+        "Fix: First-launch LLM download prompt now appears for new users",
+        "Fix: Animations not rendering on some laptops — added GPU compatibility switches (ignore-gpu-blocklist, enable-gpu-rasterization)",
+        "Added asarUnpack config for node-llama-cpp native binaries",
+        "Added onNativeLLMStatusChange listener in Profile — UI updates when model finishes loading"
+      ]
+    },
     {
       "version": "1.28.2",
       "date": "2026-07-11",

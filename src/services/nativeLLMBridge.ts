@@ -76,14 +76,20 @@ export async function initializeNativeLLM(): Promise<{ success: boolean; error?:
 export function onNativeLLMDownloadProgress(cb: (pct: number) => void): () => void {
   const api = (window as any).electronAPI;
   if (!api?.onLLMDownloadProgress) return () => {};
-  api.onLLMDownloadProgress(cb);
-  return () => {}; // cleanup
+  let active = true;
+  api.onLLMDownloadProgress((pct: number) => {
+    if (active) cb(pct);
+  });
+  return () => { active = false; };
 }
 
 /** Register a callback for when the native LLM status changes (e.g. ready after init). */
 export function onNativeLLMStatusChange(cb: (status: any) => void): () => void {
   const api = (window as any).electronAPI;
   if (!api?.onLLMStatusChange) return () => {};
-  api.onLLMStatusChange(cb);
-  return () => {};
+  let active = true;
+  api.onLLMStatusChange((status: any) => {
+    if (active) cb(status);
+  });
+  return () => { active = false; };
 }

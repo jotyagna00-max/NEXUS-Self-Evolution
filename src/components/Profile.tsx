@@ -63,15 +63,21 @@ const LocalLLMPanel: React.FC = () => {
 
   // Check Electron native LLM status on mount
   useEffect(() => {
+    let mounted = true;
     (async () => {
       const status = await getNativeLLMStatus();
-      if (status) setNativeStatus(status);
+      if (status && mounted) setNativeStatus(status);
     })();
-    const cleanup = onNativeLLMDownloadProgress((pct) => {
+    const cleanupProgress = onNativeLLMDownloadProgress((pct) => {
+      if (!mounted) return;
       setNativeDlProgress(pct);
       setNativeStatus((prev: any) => prev ? { ...prev, downloading: true, downloadProgress: pct } : prev);
     });
-    return cleanup;
+    const cleanupStatus = onNativeLLMStatusChange((status) => {
+      if (!mounted) return;
+      setNativeStatus(status);
+    });
+    return () => { mounted = false; cleanupProgress(); cleanupStatus(); };
   }, []);
 
   const isElectron = typeof (window as any).electronAPI !== 'undefined';

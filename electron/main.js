@@ -8,6 +8,12 @@ import { NativeLLMServer } from './llamaServer.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;
 
+// GPU compatibility — ensures animations render on laptops with integrated graphics
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('disable-gpu-sandbox');
+
 let mainWindow = null;
 
 function isPortInUse(port) {
@@ -160,7 +166,7 @@ async function createWindow() {
     icon: path.join(__dirname, '..', 'build', 'icon.png'),
     show: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
