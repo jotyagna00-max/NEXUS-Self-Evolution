@@ -60,6 +60,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   initializeLLM: () => ipcRenderer.invoke('llm:initialize'),
 
+  redownloadLLM: () => ipcRenderer.invoke('llm:redownload'),
+
   onLLMDownloadProgress: (callback) => {
     ipcRenderer.on('llm:download-progress', (event, pct) => callback(pct));
   },

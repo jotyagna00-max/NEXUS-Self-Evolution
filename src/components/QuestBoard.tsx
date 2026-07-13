@@ -1,9 +1,9 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { CheckCircle2, Circle, Trophy, Zap, Flame, Star, Target, ChevronRight, Activity, Swords, BookOpen, Dumbbell, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { CheckCircle2, Circle, Trophy, Zap, Flame, Star, Target, ChevronRight, Activity, Swords, BookOpen, Dumbbell, Sparkles, Lock, Clock, AlertTriangle } from 'lucide-react';
 import { useGame } from '../GameContext';
+import { canCompleteQuest, needsProof } from '../utils/questEngine';
 
-/** Map sourceType → icon + color for lineage chips */
 const lineageIcons: Record<string, { icon: React.FC<any>; color: string; bg: string }> = {
   protocol: { icon: Dumbbell, color: 'text-blue-400', bg: 'bg-blue-500/15 border-blue-500/30' },
   book: { icon: BookOpen, color: 'text-emerald-400', bg: 'bg-emerald-500/15 border-emerald-500/30' },
@@ -11,8 +11,79 @@ const lineageIcons: Record<string, { icon: React.FC<any>; color: string; bg: str
   addiction: { icon: Sparkles, color: 'text-purple-400', bg: 'bg-purple-500/15 border-purple-500/30' },
 };
 
+function TimeLockBadge({ quest }: { quest: any }) {
+  const [remaining, setRemaining] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!quest.createdAt || !quest.minDurationMinutes) { setRemaining(null); return; }
+    const update = () => {
+      const check = canCompleteQuest(quest);
+      if (!check.allowed && check.remainingMinutes !== undefined) {
+        setRemaining(check.remainingMinutes);
+      } else {
+        setRemaining(null);
+      }
+    };
+    update();
+    const interval = setInterval(update, 30000);
+    return () => clearInterval(interval);
+  }, [quest]);
+
+  if (remaining === null || remaining <= 0) return null;
+
+  const hours = Math.floor(remaining / 60);
+  const mins = remaining % 60;
+  const display = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+  return (
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400/80">
+      <Lock size={10} />
+      <span className="text-[8px] font-mono uppercase tracking-wider">{display}</span>
+    </div>
+  );
+}
+
 const QuestBoard: React.FC = () => {
   const { quests, tasks, completeQuest, completeTask, credits, progression, streakData, applyPenalty, failTask } = useGame();
+
+  const [confirmQuest, setConfirmQuest] = useState<any | null>(null);
+  const [proofText, setProofText] = useState('');
+  const [error, setError] = useState('');
+  const [showProofInput, setShowProofInput] = useState(false);
+
+  const handleCompleteQuest = async (id: string) => {
+    const quest = quests.find(q => q.id === id);
+    if (!quest || quest.completed) return;
+
+    const check = canCompleteQuest(quest);
+    if (!check.allowed) {
+      setError(`Time lock active. ${check.remainingMinutes} min remaining.`);
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    setShowProofInput(needsProof(quest));
+    setProofText('');
+    setError('');
+    setConfirmQuest(quest);
+  };
+
+  const confirmQuestComplete = async () => {
+    if (!confirmQuest) return;
+    if (showProofInput && proofText.trim().length < 10) {
+      setError('Write at least 10 characters about what you did.');
+      return;
+    }
+    const result = await completeQuest(confirmQuest.id, showProofInput ? proofText.trim() : undefined);
+    if (result && result.error) {
+      setError(result.error);
+      if (result.needsProof) setShowProofInput(true);
+    } else {
+      setConfirmQuest(null);
+      setShowProofInput(false);
+      setProofText('');
+    }
+  };
 
   const handleCompleteTask = (id: string) => {
     const task = tasks.find(t => t.id === id);
@@ -147,7 +218,7 @@ const QuestBoard: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => completeQuest(quest.id)} disabled={quest.completed}
+                    <button onClick={() => handleCompleteQuest(quest.id)} disabled={quest.completed}
                       className={`p-3 rounded-xl transition-all ${
                         quest.completed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-white/20 hover:text-white hover:bg-white/10'
                       }`}>
@@ -162,6 +233,17 @@ const QuestBoard: React.FC = () => {
                     )}
                   </div>
                 </div>
+                {!quest.completed && (
+                  <div className="flex items-center gap-2 mt-3">
+                    <TimeLockBadge quest={quest} />
+                    {needsProof(quest) && (
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400/80">
+                        <AlertTriangle size={10} />
+                        <span className="text-[8px] font-mono uppercase tracking-wider">Proof Required</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {quest.bossName && (
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-orange-500" />
                 )}
@@ -249,6 +331,77 @@ const QuestBoard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {error && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] px-6 py-3 rounded-2xl bg-red-500/20 border border-red-500/40 text-red-400 text-sm font-mono backdrop-blur-xl">
+          {error}
+        </div>
+      )}
+
+      <AnimatePresence>
+        {confirmQuest && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => { setConfirmQuest(null); setShowProofInput(false); setProofText(''); setError(''); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.25 }}
+              onClick={e => e.stopPropagation()}
+              className="glass rounded-[32px] border border-white/10 w-full max-w-md p-8"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+                  <CheckCircle2 size={20} className="text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-display font-bold text-white uppercase tracking-wider">Confirm Completion</h3>
+                  <p className="text-[10px] font-mono text-white/40">{confirmQuest.title}</p>
+                </div>
+              </div>
+
+              <p className="text-[11px] font-tech text-white/60 leading-relaxed mb-4">
+                Did you actually complete this quest? This will be permanently logged. False completions undermine your own evolution.
+              </p>
+
+              {showProofInput && (
+                <div className="mb-4">
+                  <label className="text-[9px] font-display uppercase tracking-widest text-white/40 mb-2 block">
+                    Write what you did (min 10 chars)
+                  </label>
+                  <textarea
+                    value={proofText}
+                    onChange={e => setProofText(e.target.value)}
+                    placeholder="Describe what you actually did to complete this quest..."
+                    className="w-full bg-black/50 border border-white/10 rounded-2xl p-3 text-sm font-mono text-white/80 placeholder:text-white/20 focus:outline-none focus:border-emerald-500/50 resize-none h-20"
+                    maxLength={300}
+                  />
+                </div>
+              )}
+
+              {error && (
+                <p className="text-[10px] font-mono text-red-400 mb-3">{error}</p>
+              )}
+
+              <div className="flex gap-3">
+                <button onClick={() => { setConfirmQuest(null); setShowProofInput(false); setProofText(''); setError(''); }}
+                  className="flex-1 py-3 rounded-2xl border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-all text-[10px] font-display uppercase tracking-widest">
+                  Cancel
+                </button>
+                <button onClick={confirmQuestComplete}
+                  className="flex-1 py-3 rounded-2xl bg-emerald-500 text-black font-display font-bold text-[10px] uppercase tracking-widest hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-2">
+                  <CheckCircle2 size={14} /> Confirm
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

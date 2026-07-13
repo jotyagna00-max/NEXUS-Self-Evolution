@@ -1,22 +1,33 @@
 {
-  "latestVersion": "1.28.3",
-  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.3/NEXUS.Setup.1.28.3.exe",
-  "releaseNotes": "CRITICAL FIX: Preload script was broken — all Electron features (LLM install, auto-update, notifications) now work. GPU compatibility for animations on laptops.",
+  "latestVersion": "1.28.4",
+  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.4/NEXUS.Setup.1.28.4.exe",
+  "releaseNotes": "Shadow Chat LLM fix (model now persists in userData), update+chelog system fix, quest anti-cheat system with time-locks and proof requirement, auto-generated 5-10 quests.",
   "minSchemaVersion": 1,
   "changelog": [
+    {
+      "version": "1.28.4",
+      "date": "2026-07-13",
+      "notes": [
+        "FIXED: Shadow Chat LLM — model now stored in userData (persists across updates), errors sent to renderer, Activate/Re-download buttons added",
+        "FIXED: Update checking + changelog — checkForUpdates now returns full changelog array, changelog panel shows all entries",
+        "FIXED: Model migration from old resourcesPath to userData on first launch",
+        "NEW: Quest anti-cheat system — time-locked completion (15-120 min based on difficulty), confirmation dialog, proof-of-completion for hard quests",
+        "NEW: Auto-generated 5-10 daily quests including fitness, mental, willpower, social, protocol-sync, habit, and book quests",
+        "NEW: Quest engine with 25+ quest templates across 4 categories",
+        "NEW: Time-lock badges show countdown until quest can be completed",
+        "NEW: Proof requirement for high-difficulty quests (60+ difficulty requires 10+ char reflection)"
+      ]
+    },
     {
       "version": "1.28.3",
       "date": "2026-07-12",
       "notes": [
         "CRITICAL FIX: Preload script was broken by ESM/CJS mismatch — window.electronAPI was never defined",
         "Fix: Renamed preload.js to preload.cjs so Electron loads it as CommonJS correctly",
-        "Fix: LLM Install button now appears in Profile — was showing browser fallback toggle instead",
+        "Fix: LLM Install button now appears in Profile",
         "Fix: Shadow Chat now works — native LLM bridge connects properly via IPC",
         "Fix: Auto-update, notifications, store sync — all Electron features now functional",
-        "Fix: First-launch LLM download prompt now appears for new users",
-        "Fix: Animations not rendering on some laptops — added GPU compatibility switches (ignore-gpu-blocklist, enable-gpu-rasterization)",
-        "Added asarUnpack config for node-llama-cpp native binaries",
-        "Added onNativeLLMStatusChange listener in Profile — UI updates when model finishes loading"
+        "Fix: Animations not rendering on some laptops — added GPU compatibility switches"
       ]
     },
     {
@@ -25,9 +36,7 @@
       "notes": [
         "Update now preserves ALL user data — no more reset after updating",
         "Crash-safe state loading — old data with missing fields is merged with defaults instead of crashing",
-        "Store items now cheap (2-5 NC) so everything is affordable",
-        "All store items available from level 1",
-        "Version migration only removes truly obsolete keys, never user progress"
+        "Store items now cheap (2-5 NC) so everything is affordable"
       ]
     },
     {
@@ -36,9 +45,7 @@
       "notes": [
         "Fixed Local LLM — prominent Install AI Model button in Profile",
         "Fixed Store — all items now have real prices, starting credits raised to 100",
-        "Fixed update crash — version migration system auto-cleans stale localStorage",
-        "Lowered level requirements on store items",
-        "Removed 'Model (optional)' field from Electron LLM panel"
+        "Fixed update crash — version migration system auto-cleans stale localStorage"
       ]
     },
     {
@@ -48,14 +55,9 @@
         "Store preview modal — full overview, training plan, quests, and deliverables before purchase",
         "PDF training guide download after buying any protocol or book",
         "Rich content for all 11 protocols and 8 books",
-        "Sound effects system",
-        "Achievement burst animation",
+        "Sound effects system, achievement burst animation",
         "Stat radar chart, habit donut, EXP/NC ratio in Mission Debrief",
-        "Data export/import (JSON backup and restore)",
-        "Keyboard shortcuts",
-        "App icon for Windows taskbar",
-        "Penalty Zone removed",
-        "Changelog panel connected to GitHub Gist"
+        "Data export/import (JSON backup and restore), keyboard shortcuts, app icon"
       ]
     },
     {
@@ -65,12 +67,7 @@
         "Shadow Chat professional UI redesign with LLM status indicator and persona dropdown",
         "First-time tutorial — 8-step onboarding guide for new users",
         "Mission Debrief: monthly and yearly reports with bar charts",
-        "Store system overhaul — level-gated items",
-        "EXP formula changed to n³ × 20, rank thresholds compressed",
-        "Ranks removed from display — only Level shown",
-        "Achievement unlock burst animation",
-        "Data export/import (JSON backup)",
-        "Keyboard shortcuts for tab navigation"
+        "EXP formula changed to n³ × 20, rank thresholds compressed"
       ]
     },
     {
@@ -80,8 +77,6 @@
         "Shadow Chat persona selector — 6 voices",
         "First-launch LLM download prompt with progress bar",
         "CPU-only inference via node-llama-cpp",
-        "Shadow Chat memory persists to localStorage",
-        "Website overhaul: 3D hologram, scroll animations, hex graph, AI agents section",
         "Model: Qwen2.5-2B-Instruct (Q4_K_M, ~1.5 GB) from HuggingFace"
       ]
     },
@@ -92,8 +87,7 @@
         "Effort-mirror tone: Sync to Log.",
         "3-of-7 streak window with rest tokens.",
         "SAGE, TITAN, CHRONOS, MANAGER domain-stat badges.",
-        "Mission Debrief tab.",
-        "Changelog panel."
+        "Mission Debrief tab, Changelog panel."
       ]
     },
     {

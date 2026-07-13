@@ -62,11 +62,22 @@ export async function downloadNativeLLM(): Promise<{ success: boolean; error?: s
 }
 
 /** Initialize the loaded model. */
-export async function initializeNativeLLM(): Promise<{ success: boolean; error?: string }> {
+export async function initializeNativeLLM(): Promise<{ success: boolean; error?: string; status?: any }> {
   const api = (window as any).electronAPI;
   if (!api?.initializeLLM) return { success: false, error: 'Not in Electron' };
   try {
     return await api.initializeLLM();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+/** Re-download the model from scratch (corrupted file recovery). */
+export async function redownloadNativeLLM(): Promise<{ success: boolean; error?: string; status?: any }> {
+  const api = (window as any).electronAPI;
+  if (!api?.redownloadLLM) return { success: false, error: 'Not in Electron' };
+  try {
+    return await api.redownloadLLM();
   } catch (err: any) {
     return { success: false, error: err.message };
   }

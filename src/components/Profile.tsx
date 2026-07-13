@@ -9,7 +9,7 @@ import { HunterRank } from '../types';
 import { ARCHETYPES, ARCHETYPE_ORDER, getArchetype } from '../services/archetypes';
 import { useT } from '../i18n/useT';
 import { loadAutoQuestConfig, saveAutoQuestConfig, AutoQuestConfig } from '../agents/strategicQuestService';
-import { getNativeLLMStatus, downloadNativeLLM, initializeNativeLLM, onNativeLLMDownloadProgress, onNativeLLMStatusChange } from '../services/nativeLLMBridge';
+import { getNativeLLMStatus, downloadNativeLLM, initializeNativeLLM, redownloadNativeLLM, onNativeLLMDownloadProgress, onNativeLLMStatusChange } from '../services/nativeLLMBridge';
 
 const rankColor = (rank: string) => {
   const colors: Record<string, string> = { 'E': 'text-gray-400', 'D': 'text-green-400', 'C': 'text-blue-400', 'B': 'text-purple-400', 'A': 'text-yellow-400', 'S': 'text-red-400', 'SS': 'text-pink-400', 'SSS': 'text-amber-400' };
@@ -175,7 +175,7 @@ const LocalLLMPanel: React.FC = () => {
       </div>
 
       {/* ─── INSTALL SECTION (only shows if model not downloaded) ─── */}
-      {isElectron && !nativeStatus?.ready && !nativeStatus?.downloading && (
+      {isElectron && !nativeStatus?.ready && !nativeStatus?.downloading && !nativeStatus?.modelExists && (
         <div className="mb-5 p-6 rounded-2xl bg-blue-500/5 border border-blue-500/20">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center flex-shrink-0">
@@ -205,6 +205,77 @@ const LocalLLMPanel: React.FC = () => {
                   <><Download size={14} /> Install AI Model (~1.5 GB)</>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODEL EXISTS BUT NOT READY (init failed or not started) ─── */}
+      {isElectron && !nativeStatus?.ready && !nativeStatus?.downloading && nativeStatus?.modelExists && (
+        <div className="mb-5 p-6 rounded-2xl bg-amber-500/5 border border-amber-500/20">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle size={22} className="text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-sm font-display font-bold text-white mb-1">
+                {nativeStatus?.error ? 'AI Model Error' : 'AI Model Not Activated'}
+              </h4>
+              <p className="text-[11px] font-tech text-white/50 leading-relaxed mb-3">
+                {nativeStatus?.error
+                  ? `The model was downloaded but failed to load: ${nativeStatus.error}`
+                  : 'The model file exists but hasn\'t been loaded into memory yet. Click below to activate it.'
+                }
+              </p>
+              {nativeStatus?.error && (
+                <p className="text-[9px] font-mono text-red-400/70 mb-3 break-all">{nativeStatus.error}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const result = await initializeNativeLLM();
+                    if (result.success) {
+                      const updated = await getNativeLLMStatus();
+                      setNativeStatus(updated);
+                      if (updated?.ready) {
+                        localStorage.setItem(LOCAL_LLM_STORAGE_KEYS.enabled, 'true');
+                        localStorage.setItem(LOCAL_LLM_STORAGE_KEYS.baseURL, 'http://localhost:3000/v1');
+                        localStorage.setItem(LOCAL_LLM_STORAGE_KEYS.model, updated.modelFile || '');
+                        setEnabledState(true);
+                        setBaseURLState('http://localhost:3000/v1');
+                        setModelState(updated.modelFile || '');
+                      }
+                    } else {
+                      setNativeStatus((prev: any) => prev ? { ...prev, error: result.error } : prev);
+                    }
+                  }}
+                  className="flex-1 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black border border-amber-500/50 transition-all text-[10px] font-display font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2"
+                >
+                  <Zap size={14} /> Activate Model
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setNativeStatus((prev: any) => prev ? { ...prev, downloading: true, downloadProgress: 0 } : prev);
+                    const result = await redownloadNativeLLM();
+                    if (result.success && result.status?.ready) {
+                      setNativeStatus(result.status);
+                      localStorage.setItem(LOCAL_LLM_STORAGE_KEYS.enabled, 'true');
+                      localStorage.setItem(LOCAL_LLM_STORAGE_KEYS.baseURL, 'http://localhost:3000/v1');
+                      localStorage.setItem(LOCAL_LLM_STORAGE_KEYS.model, result.status.modelFile || '');
+                      setEnabledState(true);
+                      setBaseURLState('http://localhost:3000/v1');
+                      setModelState(result.status.modelFile || '');
+                    } else {
+                      setNativeStatus(result.status || { error: result.error });
+                    }
+                  }}
+                  className="px-4 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-white/60 border border-white/10 transition-all text-[10px] font-display font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2"
+                >
+                  <Download size={14} /> Re-download
+                </button>
+              </div>
             </div>
           </div>
         </div>

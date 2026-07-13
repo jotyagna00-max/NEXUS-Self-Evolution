@@ -163,6 +163,12 @@ export interface Quest {
   sourceTitle?: string;
   /** Human-readable chip label, e.g. "Generated from: Muscle Builder". */
   lineageLabel?: string;
+  /** v1.28.4 — Anti-cheat: when the quest was created (ISO timestamp). */
+  createdAt?: string;
+  /** v1.28.4 — Anti-cheat: minimum minutes before quest can be completed. */
+  minDurationMinutes?: number;
+  /** v1.28.4 — Anti-cheat: whether reflection text was provided on completion. */
+  completionProof?: string;
 }
 
 export interface Task {

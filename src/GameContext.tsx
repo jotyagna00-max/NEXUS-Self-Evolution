@@ -12,6 +12,7 @@ import {
 } from './types';
 import type { Language } from './i18n/strings';
 import { generateAgentResponse, streamAgentResponse, AgentType } from './services/agentService';
+import { generateDailyQuestSet, canCompleteQuest, needsProof } from './utils/questEngine';
 import { generateTrainerResponse, streamTrainerResponse } from './services/trainerService';
 import { AgentOrchestrator } from './agents/AgentOrchestrator';
 import { eventBus, getEventLog, clearEventLog, NexusEvent } from './agents/EventBus';
@@ -101,7 +102,7 @@ interface GameContextType {
   updateUserProfile: (profile: Partial<UserProfile>) => Promise<void>;
   addQuest: (quest: Partial<Quest>) => Promise<void>;
   removeQuest: (id: string) => void;
-  completeQuest: (id: string) => void;
+  completeQuest: (id: string, proof?: string) => Promise<{ error?: string; remainingMinutes?: number; needsProof?: boolean } | void>;
   failQuest: (id: string) => void;
   completeTask: (id: string) => void;
   failTask: (id: string) => void;
@@ -197,7 +198,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // initializers below are wrapped in try-catch so that even if old
   // data has a slightly different shape, the app falls back to defaults
   // for just that key instead of crashing the entire dashboard.
-  const APP_VERSION = '1.28.3';
+  const APP_VERSION = '1.28.4';
   const storedVersion = localStorage.getItem('nexus_app_version');
   if (storedVersion !== APP_VERSION) {
     // Only remove keys that are truly gone from the codebase.
@@ -1169,17 +1170,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [quests, streakData, progression, protocols, habits, shadowState, raidBoss, ascensionData, stats]);
 
-  const completeQuest = async (id: string) => {
+  const completeQuest = async (id: string, proof?: string) => {
     const statByCategory: Record<string, StatType> = {
       fitness: 'strength', mental: 'intelligence', emotional: 'willpower', habit: 'willpower', social: 'social',
     };
     const quest = quests.find(q => q.id === id);
     if (!quest || quest.completed) return;
 
-    // Guard: mark as completed immediately to prevent double-reward on fast clicks
+    const check = canCompleteQuest(quest);
+    if (!check.allowed) {
+      return { error: check.reason, remainingMinutes: check.remainingMinutes };
+    }
+
+    if (needsProof(quest) && (!proof || proof.trim().length < 10)) {
+      return { error: 'Proof required', needsProof: true };
+    }
+
     setQuests(prev => prev.map(q => {
       if (q.id !== id || q.completed) return q;
-      return { ...q, completed: true, completedAt: now() };
+      return { ...q, completed: true, completedAt: now(), completionProof: proof };
     }));
 
     const targetStat = statByCategory[quest.category] || 'intelligence';
@@ -1651,7 +1660,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return [...prev, ...newTasks];
     });
-  }, [protocols]);
+
+    const activeQuests = quests.filter(q => !q.completed && !q.failed);
+    if (activeQuests.length < 5) {
+      const newQuests = generateDailyQuestSet({
+        protocols,
+        habits,
+        stats,
+        profile: userProfile,
+        existingQuests: quests,
+      });
+      if (newQuests.length > 0) {
+        setQuests(prev => [...prev, ...newQuests]);
+      }
+    }
+  }, [protocols, quests, habits, stats, userProfile]);
 
   const purchaseStoreItem = (item: StoreItem): boolean => {
     if (item.exclusive && !isPro) return false;

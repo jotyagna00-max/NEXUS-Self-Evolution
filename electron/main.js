@@ -190,6 +190,21 @@ app.whenReady().then(async () => {
 
   // Auto-initialize native LLM if model already downloaded
   const llm = NativeLLMServer.getInstance();
+
+  // Migrate model from old resourcesPath to userData if needed
+  const oldModelPath = path.join(process.resourcesPath || '', 'llama-models', 'Qwen2.5-2B-Instruct.Q4_K_M.gguf');
+  const newModelsDir = path.join(app.getPath('userData'), 'llama-models');
+  const newModelPath = path.join(newModelsDir, 'Qwen2.5-2B-Instruct.Q4_K_M.gguf');
+  if (fs.existsSync(oldModelPath) && !fs.existsSync(newModelPath)) {
+    try {
+      if (!fs.existsSync(newModelsDir)) fs.mkdirSync(newModelsDir, { recursive: true });
+      fs.copyFileSync(oldModelPath, newModelPath);
+      console.log('Migrated LLM model from resources to userData');
+    } catch (e) {
+      console.error('Model migration failed:', e.message);
+    }
+  }
+
   if (llm.modelExists()) {
     llm.initialize()
       .then(() => {
@@ -197,6 +212,7 @@ app.whenReady().then(async () => {
       })
       .catch(err => {
         console.error('Failed to auto-init native LLM:', err.message);
+        mainWindow?.webContents.send('llm:status-change', llm.getStatus());
       });
   }
 });
@@ -231,10 +247,14 @@ const UPDATE_URL = isDev
   : 'https://gist.githubusercontent.com/jotyagna00-max/5bbe4ebd4efadc7098259e62e830213b/raw/version.json';
 
 async function checkForUpdates() {
-  const result = { available: false, version: app.getVersion(), url: '' };
+  const result = { available: false, version: app.getVersion(), url: '', changelog: [], latestVersion: app.getVersion(), downloadUrl: '', releaseNotes: '' };
   if (isDev) {
     try {
       const local = JSON.parse(fs.readFileSync(path.join(__dirname, 'version.json'), 'utf-8'));
+      result.latestVersion = local.latestVersion;
+      result.downloadUrl = local.downloadUrl || '';
+      result.releaseNotes = local.releaseNotes || '';
+      result.changelog = local.changelog || [];
       if (compareVersions(local.latestVersion, result.version) > 0) {
         result.available = true;
         result.version = local.latestVersion;
@@ -248,8 +268,12 @@ async function checkForUpdates() {
   const urls = [UPDATE_URL];
   for (const url of urls) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
       const remote = await res.json();
+      result.latestVersion = remote.latestVersion || '';
+      result.downloadUrl = remote.downloadUrl || '';
+      result.releaseNotes = remote.releaseNotes || '';
+      result.changelog = remote.changelog || [];
       if (compareVersions(remote.latestVersion, result.version) > 0) {
         result.available = true;
         result.version = remote.latestVersion;
@@ -377,9 +401,37 @@ ipcMain.handle('llm:download', async () => {
 
 ipcMain.handle('llm:initialize', async () => {
   try {
-    await NativeLLMServer.getInstance().initialize();
-    return { success: true, status: NativeLLMServer.getInstance().getStatus() };
+    // Reset state before re-initializing
+    const llm = NativeLLMServer.getInstance();
+    llm.ready = false;
+    llm.error = null;
+    if (llm.model) { try { llm.model.dispose(); } catch {} llm.model = null; }
+    if (llm.context) { try { llm.context.dispose(); } catch {} llm.context = null; }
+    if (llm.llama) { try { llm.llama.dispose(); } catch {} llm.llama = null; }
+
+    await llm.initialize();
+    return { success: true, status: llm.getStatus() };
   } catch (err) {
-    return { success: false, error: err.message };
+    return { success: false, error: err.message, status: NativeLLMServer.getInstance().getStatus() };
+  }
+});
+
+ipcMain.handle('llm:redownload', async () => {
+  try {
+    const llm = NativeLLMServer.getInstance();
+    // Reset everything
+    llm.ready = false;
+    llm.error = null;
+    if (llm.model) { try { llm.model.dispose(); } catch {} llm.model = null; }
+    if (llm.context) { try { llm.context.dispose(); } catch {} llm.context = null; }
+    if (llm.llama) { try { llm.llama.dispose(); } catch {} llm.llama = null; }
+
+    await llm.downloadModel((pct) => {
+      mainWindow?.webContents.send('llm:download-progress', pct);
+    });
+    await llm.initialize();
+    return { success: true, status: llm.getStatus() };
+  } catch (err) {
+    return { success: false, error: err.message, status: NativeLLMServer.getInstance().getStatus() };
   }
 });

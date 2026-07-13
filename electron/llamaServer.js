@@ -1,20 +1,18 @@
 import { getLlama, LlamaChatSession } from 'node-llama-cpp';
 import path from 'path';
 import fs from 'fs';
-import { app } from 'electron';
+import { app, BrowserWindow } from 'electron';
 
 const MODEL_REPO = 'mradermacher/Qwen2.5-2B-Instruct-GGUF';
 const MODEL_FILE = 'Qwen2.5-2B-Instruct.Q4_K_M.gguf';
 const MODEL_DIR_NAME = 'llama-models';
 
 function getModelsDir() {
-  if (app?.isPackaged && process.resourcesPath) {
-    return path.join(process.resourcesPath, MODEL_DIR_NAME);
+  const userData = app?.getPath?.('userData');
+  if (userData) {
+    return path.join(userData, MODEL_DIR_NAME);
   }
-  if (process.env.NODE_ENV === 'development' || !app?.isPackaged) {
-    return path.join(process.cwd(), MODEL_DIR_NAME);
-  }
-  return path.join(app.getPath('userData') || process.cwd(), MODEL_DIR_NAME);
+  return path.join(process.cwd(), MODEL_DIR_NAME);
 }
 
 function getModelPath() {
@@ -104,15 +102,29 @@ export class NativeLLMServer {
           throw new Error(`Model not found at ${modelPath}. Download first.`);
         }
 
+        const modelSize = fs.statSync(modelPath).size;
+        if (modelSize < 100 * 1024 * 1024) {
+          throw new Error(`Model file is too small (${(modelSize/1024/1024).toFixed(1)} MB). Download may be corrupted. Please re-download.`);
+        }
+
         this.llama = await getLlama();
         this.model = await this.llama.loadModel({ modelPath });
         this.context = await this.model.createContext();
         this.ready = true;
         this.error = null;
+
+        BrowserWindow.getAllWindows().forEach(win => {
+          win.webContents.send('llm:status-change', this.getStatus());
+        });
         return true;
       } catch (err) {
         this.error = err.message;
         this.ready = false;
+        this.initializing = false;
+
+        BrowserWindow.getAllWindows().forEach(win => {
+          win.webContents.send('llm:status-change', this.getStatus());
+        });
         throw err;
       } finally {
         this.initializing = false;
