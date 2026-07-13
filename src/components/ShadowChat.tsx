@@ -124,13 +124,18 @@ const ShadowChat: React.FC = () => {
         timestamp: new Date().toISOString(),
       };
       appendShadowChat(shadowEntry);
-    } catch {
+    } catch (err: any) {
+      const errorMsg = err?.message || '';
       const fallbackEntry: ShadowChatEntry = {
         id: Math.random().toString(36).substring(2, 9),
         role: 'shadow',
         text: llmReady
-          ? '...the neural link destabilized. Try again.'
-          : 'The Shadow is silent. No LLM is connected. Go to Profile → Local LLM to install or enable your AI engine.',
+          ? errorMsg.includes('timeout') || errorMsg.includes('too long')
+            ? '...the neural link timed out. The AI model runs on your CPU and may need 30-60 seconds. Try a shorter question.'
+            : errorMsg.includes('not enabled') || errorMsg.includes('Cannot connect')
+            ? 'The Shadow is silent. Activate the AI model in Profile → Local AI Engine first.'
+            : '...the neural link destabilized. Try again.'
+          : 'The Shadow is silent. No AI engine is connected. Go to Profile → Local AI Engine to install or activate your AI model.',
         emotional: false,
         timestamp: new Date().toISOString(),
       };

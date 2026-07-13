@@ -1,98 +1,92 @@
 {
-  "latestVersion": "1.28.5",
-  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.5/NEXUS.Setup.1.28.5.exe",
-  "releaseNotes": "CRITICAL: Quests+tasks now persist to localStorage. Daily Tasks section removed. Quests only from protocols/habits/books/weak-points. AI has persistent memory — no more asking questions every time.",
+  "latestVersion": "1.28.6",
+  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.6/NEXUS.Setup.1.28.6.exe",
+  "releaseNotes": "LLM speed fix: compact prompt for 2B model, max_tokens 256, 180s timeout. Better error messages. Daily Brief verified with real data.",
   "minSchemaVersion": 1,
   "changelog": [
+    {
+      "version": "1.28.6",
+      "date": "2026-07-14",
+      "notes": [
+        "FIXED: LLM was stuck — system prompt was 2000+ tokens, max_tokens was 4096 (took 5-10 min on CPU)",
+        "Fix: Compact prompt for native 2B model — under 200 tokens system prompt, max_tokens 256, 180s timeout",
+        "Fix: llamaServer truncates system prompt to 800 chars and history to 500 chars per message",
+        "Fix: Better error messages — timeout, connection, and not-enabled errors now show actionable text",
+        "Fix: Shadow Chat shows specific error (timeout vs not-connected vs generic) instead of generic fallback",
+        "Verified: Daily Brief uses real data (stats, consistency score, weakest stat detection) — no LLM needed",
+        "Verified: Add Routine pipeline works — protocol added, events fired, quest generation attempted",
+        "Verified: Training section starts empty — no dummy protocols, user adds their own"
+      ]
+    },
     {
       "version": "1.28.5",
       "date": "2026-07-13",
       "notes": [
-        "CRITICAL FIX: Quests and tasks were never saved to localStorage — now persisted properly",
-        "Removed Daily Tasks section — Quest Board is now quests-only (full width)",
-        "Quest engine rewritten: quests only from your protocols, habits, books, and weak-point detection",
-        "No more random filler quests — every quest is tied to something you created",
-        "Weak-point detection: analyzes your 6 stats and generates quests for your lowest stat",
-        "AI persistent memory: agents now know your name, goals, stats, streak, recent quest completions, failed quests, and Shadow conversation history",
-        "AI no longer asks 'What's your name?' or 'What are your goals?' every time — it already knows",
-        "AI behavioral rules: references weakest stat, streak count, suggests specific actions from your protocols",
-        "Removed dummy protocol placeholder text in Training Hub"
+        "CRITICAL FIX: Quests now persist to localStorage",
+        "Removed Daily Tasks section — quests only",
+        "Quest engine: only from protocols, habits, books, weak-points",
+        "AI persistent memory — knows your name, stats, streak"
       ]
     },
     {
       "version": "1.28.4",
       "date": "2026-07-13",
       "notes": [
-        "FIXED: Shadow Chat LLM — model stored in userData (survives updates), errors visible, Activate/Re-download buttons",
-        "FIXED: Update checking + changelog panel — now shows full changelog",
-        "NEW: Quest anti-cheat — time-locked completion, confirmation dialog, proof-of-completion",
-        "NEW: Auto-generated daily quests from protocols, habits, books"
+        "Shadow Chat LLM fix — model persists in userData",
+        "Update checking + changelog fix",
+        "Quest anti-cheat system"
       ]
     },
     {
       "version": "1.28.3",
       "date": "2026-07-12",
       "notes": [
-        "CRITICAL FIX: Preload script broken by ESM/CJS mismatch",
-        "Fix: Animations not rendering on some laptops — GPU compatibility switches"
+        "CRITICAL: Preload script fix (ESM/CJS)",
+        "GPU compatibility for animations"
       ]
     },
     {
       "version": "1.28.2",
       "date": "2026-07-11",
       "notes": [
-        "Update preserves ALL user data — no more reset after updating",
-        "Store items now cheap (2-5 NC)"
+        "Update preserves ALL user data",
+        "Store items cheap (2-5 NC)"
       ]
     },
     {
       "version": "1.28.1",
       "date": "2026-07-11",
-      "notes": [
-        "Fixed Local LLM install button, store prices, update crash"
-      ]
+      "notes": ["Fixed LLM install button, store prices, update crash"]
     },
     {
       "version": "1.28.0",
       "date": "2026-07-09",
-      "notes": [
-        "Store preview modal, PDF training guides, sound effects, achievement burst, charts, export/import"
-      ]
+      "notes": ["Store preview, PDF guides, sound effects, charts, export/import"]
     },
     {
       "version": "1.27.0",
       "date": "2026-07-09",
-      "notes": [
-        "Shadow Chat redesign, first-time tutorial, Mission Debrief, EXP overhaul"
-      ]
+      "notes": ["Shadow Chat redesign, tutorial, Mission Debrief, EXP overhaul"]
     },
     {
       "version": "1.26.0",
       "date": "2026-07-06",
-      "notes": [
-        "Shadow Chat persona selector, CPU-only LLM inference, website overhaul"
-      ]
+      "notes": ["Persona selector, CPU-only LLM, website overhaul"]
     },
     {
       "version": "1.3.0",
       "date": "2026-06-29",
-      "notes": [
-        "Effort-mirror tone, streak window, domain badges, Mission Debrief, Changelog panel"
-      ]
+      "notes": ["Streak window, domain badges, Mission Debrief, Changelog"]
     },
     {
       "version": "1.2.0",
       "date": "2026-05-20",
-      "notes": [
-        "Manual update button, logout clears data, splash animation, HabitLab, multi-agent wiring"
-      ]
+      "notes": ["Update button, logout, splash, HabitLab, multi-agent"]
     },
     {
       "version": "1.1.0",
       "date": "2026-04-12",
-      "notes": [
-        "Initial public release"
-      ]
+      "notes": ["Initial release"]
     }
   ]
 }

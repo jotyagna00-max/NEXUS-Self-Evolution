@@ -138,39 +138,28 @@ export class NativeLLMServer {
     if (!this.ready || !this.model) throw new Error('LLM not initialized');
 
     const temperature = options.temperature ?? 0.7;
-    const maxTokens = options.max_tokens ?? 4096;
+    const maxTokens = Math.min(options.max_tokens ?? 256, 512);
 
     const sequence = this.context.getSequence();
     try {
-      // Extract system prompt
       const systemMsg = messages.find(m => m.role === 'system');
-
-      // Build full prompt from conversation history (exclude system from body)
       const convMessages = messages.filter(m => m.role !== 'system');
-      let fullPrompt = '';
-      for (let i = 0; i < convMessages.length; i++) {
-        const m = convMessages[i];
-        const role = m.role === 'user' ? 'User' : 'Assistant';
-        fullPrompt += `${role}: ${m.content}\n\n`;
-      }
 
       const session = new LlamaChatSession({
         contextSequence: sequence,
-        systemPrompt: systemMsg?.content || undefined,
+        systemPrompt: systemMsg?.content?.substring(0, 800) || undefined,
       });
 
-      // Set conversation history from previous turns
       if (convMessages.length > 1) {
         const history = convMessages.slice(0, -1).map(m => ({
           type: m.role === 'user' ? 'user' : 'model',
-          text: m.content,
+          text: m.content?.substring(0, 500),
         }));
         session.setChatHistory(history);
       }
 
-      // The last user message is the prompt
       const lastMsg = convMessages[convMessages.length - 1];
-      const promptText = lastMsg?.role === 'user' ? lastMsg.content : fullPrompt;
+      const promptText = lastMsg?.role === 'user' ? lastMsg.content : '';
 
       const response = await session.prompt(promptText, {
         temperature,
@@ -189,6 +178,8 @@ export class NativeLLMServer {
         }],
         usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
       };
+    } catch (err) {
+      throw new Error(`Generation failed: ${err.message}`);
     } finally {
       sequence.dispose();
     }

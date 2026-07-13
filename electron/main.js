@@ -114,13 +114,14 @@ async function startServer() {
 
   serverApp.post('/v1/chat/completions', express.json({ limit: '2mb' }), async (req, res) => {
     if (!llm.ready) {
-      return res.status(503).json({ error: 'LLM not ready', status: llm.getStatus() });
+      return res.status(503).json({ error: 'LLM not ready. Activate the model in Profile → Local AI Engine.', status: llm.getStatus() });
     }
     try {
       const { messages, temperature, top_p, max_tokens } = req.body;
       const result = await llm.chatCompletion(messages, { temperature, top_p, max_tokens });
       res.json(result);
     } catch (err) {
+      console.error('LLM chat completion error:', err.message);
       res.status(500).json({ error: err.message });
     }
   });

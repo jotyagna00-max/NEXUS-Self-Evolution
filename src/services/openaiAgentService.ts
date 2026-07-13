@@ -1,6 +1,5 @@
 import OpenAI from "openai";
 
-/** Default LM Studio endpoint — no key required. */
 const LOCAL_LLM_DEFAULT_BASE = "http://localhost:1234/v1";
 const LOCAL_LLM_DEFAULT_MODEL = "";
 
@@ -11,21 +10,31 @@ function getLocalLLMConfig() {
   return { enabled, baseURL, model };
 }
 
+function isNativeLLM(): boolean {
+  const baseURL = localStorage.getItem("LOCAL_LLM_BASE_URL") || "";
+  return !!(window as any).electronAPI && baseURL.includes('localhost:3000');
+}
+
 function getLocalClient(baseURL: string): OpenAI {
   return new OpenAI({
     baseURL,
-    apiKey: "lm-studio", // LM Studio / Ollama ignore the key, but the SDK requires one
+    apiKey: "lm-studio",
     dangerouslyAllowBrowser: true,
+    timeout: 180000,
+    maxRetries: 0,
   });
 }
 
 function parseApiError(err: any): Error {
   const msg = err?.message || err?.statusText || String(err);
   if (msg.includes('clipboard') || msg.includes('image input')) {
-    return new Error("The AI model only supports text. Please send text messages only (no images or file attachments).");
+    return new Error("The AI model only supports text. Please send text messages only.");
   }
   if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('net::ERR_CONNECTION_REFUSED')) {
-    return new Error("Cannot connect to the local LLM server. Make sure LM Studio or Ollama is running and the endpoint URL is correct in Settings.");
+    return new Error("Cannot connect to the local AI engine. Make sure the model is activated in Profile → Local AI Engine.");
+  }
+  if (msg.includes('timeout') || msg.includes('timed out')) {
+    return new Error("The AI model took too long to respond. The Qwen2.5-2B model runs on your CPU and may take 30-60 seconds for complex questions.");
   }
   return new Error(`AI service error: ${msg}`);
 }
@@ -38,16 +47,13 @@ export async function generateOpenAIResponse(
     max_tokens?: number;
   } = {}
 ) {
-  const {
-    temperature = 0.7,
-    top_p = 0.95,
-    max_tokens = 4096,
-  } = options;
+  const native = isNativeLLM();
+  const maxTokens = native ? 256 : (options.max_tokens ?? 4096);
 
   const local = getLocalLLMConfig();
 
   if (!local.enabled) {
-    throw new Error("Local LLM is not enabled. Enable it in Settings and make sure your LLM server (LM Studio / Ollama) is running.");
+    throw new Error("Local LLM is not enabled. Enable it in Profile → Local AI Engine.");
   }
 
   try {
@@ -55,9 +61,9 @@ export async function generateOpenAIResponse(
     const completion = await getLocalClient(local.baseURL).chat.completions.create({
       model: model ?? "",
       messages,
-      temperature,
-      top_p,
-      max_tokens,
+      temperature: options.temperature ?? 0.7,
+      top_p: options.top_p ?? 0.95,
+      max_tokens: maxTokens,
       stream: false,
     });
     const choice = completion.choices[0];
@@ -79,30 +85,25 @@ export async function* streamOpenAIResponse(
   } = {},
   onChunk?: (content: string) => void,
 ): AsyncGenerator<string, void, unknown> {
-  const {
-    temperature = 0.7,
-    top_p = 0.95,
-    max_tokens = 4096,
-  } = options;
+  const native = isNativeLLM();
+  const maxTokens = native ? 256 : (options.max_tokens ?? 4096);
 
   const local = getLocalLLMConfig();
 
   if (!local.enabled) {
-    throw new Error("Local LLM is not enabled. Enable it in Settings and make sure your LLM server (LM Studio / Ollama) is running.");
+    throw new Error("Local LLM is not enabled. Enable it in Profile → Local AI Engine.");
   }
 
   try {
     const model = local.model || undefined;
-    const isNativeLLM = !!(window as any).electronAPI && local.baseURL.includes('localhost:3000');
 
-    // Native Electron LLM doesn't support streaming — use non-streaming and yield all at once
-    if (isNativeLLM) {
+    if (native) {
       const completion = await getLocalClient(local.baseURL).chat.completions.create({
         model: model ?? "",
         messages,
-        temperature,
-        top_p,
-        max_tokens,
+        temperature: options.temperature ?? 0.7,
+        top_p: options.top_p ?? 0.95,
+        max_tokens: maxTokens,
         stream: false,
       });
       const content = completion.choices[0]?.message?.content ?? "";
@@ -113,13 +114,12 @@ export async function* streamOpenAIResponse(
       return;
     }
 
-    // Regular streaming via OpenAI-compatible endpoint
     const stream = await getLocalClient(local.baseURL).chat.completions.create({
       model: model ?? "",
       messages,
-      temperature,
-      top_p,
-      max_tokens,
+      temperature: options.temperature ?? 0.7,
+      top_p: options.top_p ?? 0.95,
+      max_tokens: maxTokens,
       stream: true,
     });
 

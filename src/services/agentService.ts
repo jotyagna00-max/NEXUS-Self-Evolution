@@ -2,7 +2,6 @@ import type OpenAI from 'openai';
 import { AgentType, StatType } from '../types';
 import { generateOpenAIResponse, streamOpenAIResponse } from './openaiAgentService';
 import { getArchetype } from './archetypes';
-import { memoryToPromptContext } from '../utils/shadowMemory';
 
 export type { AgentType } from '../types';
 
@@ -17,61 +16,56 @@ export function getAgentDomainStat(agent: string) {
   return AGENT_DOMAIN_STAT[agent] || AGENT_DOMAIN_STAT.MANAGER;
 }
 
-function buildPersistentMemoryContext(): string {
-  const parts: string[] = [];
+function isNativeLLM(): boolean {
+  const baseURL = localStorage.getItem("LOCAL_LLM_BASE_URL") || "";
+  return !!(window as any).electronAPI && baseURL.includes('localhost:3000');
+}
 
-  try {
-    const shadowRaw = localStorage.getItem('nexus_shadow_memory_v1');
-    if (shadowRaw) {
-      const shadowMem = JSON.parse(shadowRaw);
-      const ctx = memoryToPromptContext(shadowMem);
-      if (ctx) parts.push(ctx);
+function buildCompactPrompt(agentType: AgentType, command: string, context: { stats: any, protocols: any[], character: string | null, history: any[], profile?: any }): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
+  const stats = context.stats || {};
+  const weakest = Object.entries(stats).sort(([,a]: any, [,b]: any) => a - b)[0];
+  const streak = JSON.parse(localStorage.getItem('nexus_streak') || '{}');
+  const profileName = context.profile?.name || 'Operator';
+
+  let role = 'You are NEXUS, a disciplined self-improvement coach. Be direct, concise (3-5 sentences). Address the user as Operator.';
+  if (agentType === 'SHADOW') {
+    const personaId = localStorage.getItem('shadowPersona') || 'mirror';
+    const personas: Record<string, string> = {
+      mirror: 'You are the Shadow — cold, brutally honest mirror of the Operator. 2-3 cutting sentences. End with a challenge.',
+      mentor: 'You are a wise mentor. Use Socratic questions. 2-3 sentences. End with a question.',
+      rival: 'You are a competitive rival. Sharp, taunting but not cruel. 2-3 sentences.',
+      commander: 'You are a military commander. Direct orders only. 2-3 sentences. No philosophy.',
+      confidant: 'You are a trusted inner voice. Empathetic but firm. 2-3 sentences.',
+      strategist: 'You are a hyper-logical strategist. Analytical, flat tone. 2-3 sentences.',
+    };
+    role = personas[personaId] || personas.mirror;
+  } else if (agentType === 'SAGE') {
+    role = 'You are SAGE, intelligence specialist. Concise cognitive advice. 3-5 sentences.';
+  } else if (agentType === 'TITAN') {
+    role = 'You are TITAN, strength specialist. Concise fitness advice. 3-5 sentences.';
+  } else if (agentType === 'CHRONOS') {
+    role = 'You are CHRONOS, agility/time specialist. Concise efficiency advice. 3-5 sentences.';
+  }
+
+  const statSummary = `Stats: STR=${stats.strength} INT=${stats.intelligence} AGI=${stats.agility} VIT=${stats.vitality} WIL=${stats.willpower} SOC=${stats.social}. Weakest: ${weakest?.[0]}. Streak: ${streak.currentStreak || 0}d. Protocols: ${context.protocols.length}.`;
+
+  const systemContent = `${role}\n\nOperator: ${profileName}. ${statSummary}`;
+
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: "system", content: systemContent },
+  ];
+
+  if (context.history && context.history.length > 0) {
+    const recent = context.history.slice(-3);
+    for (const h of recent) {
+      messages.push({ role: "user", content: h.command });
+      messages.push({ role: "assistant", content: h.response });
     }
-  } catch {}
+  }
 
-  try {
-    const stats = JSON.parse(localStorage.getItem('stats') || '{}');
-    const progression = JSON.parse(localStorage.getItem('nexus_progression') || '{}');
-    const streak = JSON.parse(localStorage.getItem('nexus_streak') || '{}');
-    const habits = JSON.parse(localStorage.getItem('nexus_habits') || '[]');
-    const protocols = JSON.parse(localStorage.getItem('protocols') || '[]');
-    const profile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+  messages.push({ role: "user", content: command });
 
-    const weakestStat = Object.entries(stats).sort(([,a]: any, [,b]: any) => a - b)[0];
-    const strongestStat = Object.entries(stats).sort(([,a]: any, [,b]: any) => b - a)[0];
-
-    parts.push(`[OPERATOR STATUS]
-  - Level: ${progression.level || 1} | EXP: ${progression.exp || 0}/${progression.expToNextLevel || 100}
-  - Streak: ${streak.currentStreak || 0} days (best: ${streak.longestStreak || 0})
-  - Credits: ${localStorage.getItem('nexus_credits') || 0} NC
-  - Weakest stat: ${weakestStat?.[0] || 'unknown'} (${weakestStat?.[1] || 0})
-  - Strongest stat: ${strongestStat?.[0] || 'unknown'} (${strongestStat?.[1] || 0})
-  - Active protocols: ${protocols.length} | Active habits: ${habits.length}
-  - Profile: ${profile.name || 'Operator'} | Goal: ${profile.primaryGoal || 'Not set'}
-  - Barriers: ${(profile.barriers || []).join(', ') || 'None listed'}`);
-
-    const quests = JSON.parse(localStorage.getItem('nexus_quests') || '[]');
-    const completedToday = quests.filter((q: any) => q.completed && q.completedAt && q.completedAt.startsWith(new Date().toISOString().split('T')[0]));
-    const failedQuests = quests.filter((q: any) => q.failed);
-    if (completedToday.length > 0 || failedQuests.length > 0) {
-      parts.push(`[TODAY'S PROGRESS]
-  - Quests completed today: ${completedToday.length}
-  - Failed quests: ${failedQuests.length}
-  - Recent completions: ${completedToday.slice(-3).map((q: any) => q.title).join(', ') || 'None yet today'}`);
-    }
-
-    const lastChatRaw = localStorage.getItem('nexus_shadow_memory_v1');
-    if (lastChatRaw) {
-      const mem = JSON.parse(lastChatRaw);
-      if (mem.exchanges && mem.exchanges.length > 0) {
-        const recent = mem.exchanges.slice(-4);
-        parts.push(`[RECENT SHADOW CONVERSATIONS]
-${recent.map((e: any) => `  ${e.role}: ${e.text?.substring(0, 100)}`).join('\n')}`);
-      }
-    }
-  } catch {}
-
-  return parts.join('\n\n');
+  return messages;
 }
 
 export const AGENT_PROMPTS: Record<string, string> = {
@@ -158,7 +152,16 @@ export const generateAgentResponse = async (
   command: string,
   context: { stats: any, protocols: any[], character: string | null, history: any[], profile?: any }
 ): Promise<{ response: string; reasoning: string[]; timestamp: string }> => {
-  // Build system instruction from agent type and context
+  if (isNativeLLM()) {
+    const messages = buildCompactPrompt(agentType, command, context);
+    try {
+      const { content } = await generateOpenAIResponse(messages, { temperature: 0.7, max_tokens: 256 });
+      return { response: content, reasoning: [], timestamp: new Date().toISOString() };
+    } catch (error: any) {
+      throw new Error(error.message || "AI engine error. Check Profile → Local AI Engine.");
+    }
+  }
+
   let systemInstruction = AGENT_PROMPTS.MANAGER;
   if (agentType && AGENT_PROMPTS[agentType]) {
     systemInstruction += `\n\n### SPECIALIST CONTEXT: ${agentType}\n${AGENT_PROMPTS[agentType]}`;
@@ -186,17 +189,12 @@ export const generateAgentResponse = async (
 
   systemInstruction += `\n\n### OPERATOR CONTEXT\n${JSON.stringify({ stats: context.stats, protocols: context.protocols })}`;
 
-  const memoryContext = buildPersistentMemoryContext();
-  if (memoryContext) {
-    systemInstruction += `\n\n${memoryContext}`;
-  }
-
   systemInstruction += `\n\n### BEHAVIORAL RULES
   - You KNOW the Operator. Don't ask for their name, goals, or background — you already have them above.
   - Reference their weakest stat and suggest ways to improve it.
   - Reference their streak count and recent quest completions.
   - If they have failed quests, acknowledge it and push them to retry.
-  - Be proactive: suggest specific actions based on their protocols and habits.
+  - Be proactive: suggest specific actions based on your protocols and habits.
   - Keep responses concise and actionable. No generic advice.`;
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
@@ -228,7 +226,20 @@ export const streamAgentResponse = async (
   context: { stats: any, protocols: any[], character: string | null, history: any[], profile?: any },
   onChunk: (text: string) => void
 ): Promise<string> => {
-  // Build system instruction from agent type and context
+  if (isNativeLLM()) {
+    const messages = buildCompactPrompt(agentType, command, context);
+    try {
+      let accumulated = '';
+      for await (const chunk of streamOpenAIResponse(messages, { temperature: 0.7, max_tokens: 256 }, (c) => {
+        accumulated += c;
+        onChunk(c);
+      })) {}
+      return accumulated;
+    } catch (error: any) {
+      throw new Error(error.message || "AI engine error. Check Profile → Local AI Engine.");
+    }
+  }
+
   let systemInstruction = AGENT_PROMPTS.MANAGER;
   if (agentType && AGENT_PROMPTS[agentType]) {
     systemInstruction += `\n\n### SPECIALIST CONTEXT: ${agentType}\n${AGENT_PROMPTS[agentType]}`;
@@ -254,11 +265,6 @@ export const streamAgentResponse = async (
   }
 
   systemInstruction += `\n\n### OPERATOR CONTEXT\n${JSON.stringify({ stats: context.stats, protocols: context.protocols })}`;
-
-  const memoryContext = buildPersistentMemoryContext();
-  if (memoryContext) {
-    systemInstruction += `\n\n${memoryContext}`;
-  }
 
   systemInstruction += `\n\n### BEHAVIORAL RULES
   - You KNOW the Operator. Don't ask for their name, goals, or background — you already have them above.

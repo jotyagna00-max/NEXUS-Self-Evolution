@@ -1,7 +1,7 @@
 {
   "name": "nexus-self-evolution",
   "private": true,
-  "version": "1.28.5",
+  "version": "1.28.6",
   "description": "NEXUS Self-Evolution System",
   "author": "Mindraxus <jotyagna00-max@users.noreply.github.com>",
   "main": "electron/main.js",

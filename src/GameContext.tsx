@@ -198,7 +198,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // initializers below are wrapped in try-catch so that even if old
   // data has a slightly different shape, the app falls back to defaults
   // for just that key instead of crashing the entire dashboard.
-  const APP_VERSION = '1.28.5';
+  const APP_VERSION = '1.28.6';
   const storedVersion = localStorage.getItem('nexus_app_version');
   if (storedVersion !== APP_VERSION) {
     // Only remove keys that are truly gone from the codebase.
