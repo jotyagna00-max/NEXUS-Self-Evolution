@@ -2,12 +2,10 @@ import type OpenAI from 'openai';
 import { AgentType, StatType } from '../types';
 import { generateOpenAIResponse, streamOpenAIResponse } from './openaiAgentService';
 import { getArchetype } from './archetypes';
+import { memoryToPromptContext } from '../utils/shadowMemory';
 
-// Re-export AgentType so consumers can `import { AgentType } from './agentService'`
 export type { AgentType } from '../types';
 
-// Domain stat ownership per agent (R-05). Used by UI to render the SAGE/TITAN/CHRONOS
-// domain-stat badge so the Operator sees which dimension each specialist governs.
 export const AGENT_DOMAIN_STAT: Record<string, { stat: StatType; label: string; color: string }> = {
   SAGE:    { stat: 'intelligence', label: 'INT', color: 'text-blue-400'   },
   TITAN:   { stat: 'strength',    label: 'STR', color: 'text-red-400'    },
@@ -17,6 +15,63 @@ export const AGENT_DOMAIN_STAT: Record<string, { stat: StatType; label: string; 
 
 export function getAgentDomainStat(agent: string) {
   return AGENT_DOMAIN_STAT[agent] || AGENT_DOMAIN_STAT.MANAGER;
+}
+
+function buildPersistentMemoryContext(): string {
+  const parts: string[] = [];
+
+  try {
+    const shadowRaw = localStorage.getItem('nexus_shadow_memory_v1');
+    if (shadowRaw) {
+      const shadowMem = JSON.parse(shadowRaw);
+      const ctx = memoryToPromptContext(shadowMem);
+      if (ctx) parts.push(ctx);
+    }
+  } catch {}
+
+  try {
+    const stats = JSON.parse(localStorage.getItem('stats') || '{}');
+    const progression = JSON.parse(localStorage.getItem('nexus_progression') || '{}');
+    const streak = JSON.parse(localStorage.getItem('nexus_streak') || '{}');
+    const habits = JSON.parse(localStorage.getItem('nexus_habits') || '[]');
+    const protocols = JSON.parse(localStorage.getItem('protocols') || '[]');
+    const profile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+
+    const weakestStat = Object.entries(stats).sort(([,a]: any, [,b]: any) => a - b)[0];
+    const strongestStat = Object.entries(stats).sort(([,a]: any, [,b]: any) => b - a)[0];
+
+    parts.push(`[OPERATOR STATUS]
+  - Level: ${progression.level || 1} | EXP: ${progression.exp || 0}/${progression.expToNextLevel || 100}
+  - Streak: ${streak.currentStreak || 0} days (best: ${streak.longestStreak || 0})
+  - Credits: ${localStorage.getItem('nexus_credits') || 0} NC
+  - Weakest stat: ${weakestStat?.[0] || 'unknown'} (${weakestStat?.[1] || 0})
+  - Strongest stat: ${strongestStat?.[0] || 'unknown'} (${strongestStat?.[1] || 0})
+  - Active protocols: ${protocols.length} | Active habits: ${habits.length}
+  - Profile: ${profile.name || 'Operator'} | Goal: ${profile.primaryGoal || 'Not set'}
+  - Barriers: ${(profile.barriers || []).join(', ') || 'None listed'}`);
+
+    const quests = JSON.parse(localStorage.getItem('nexus_quests') || '[]');
+    const completedToday = quests.filter((q: any) => q.completed && q.completedAt && q.completedAt.startsWith(new Date().toISOString().split('T')[0]));
+    const failedQuests = quests.filter((q: any) => q.failed);
+    if (completedToday.length > 0 || failedQuests.length > 0) {
+      parts.push(`[TODAY'S PROGRESS]
+  - Quests completed today: ${completedToday.length}
+  - Failed quests: ${failedQuests.length}
+  - Recent completions: ${completedToday.slice(-3).map((q: any) => q.title).join(', ') || 'None yet today'}`);
+    }
+
+    const lastChatRaw = localStorage.getItem('nexus_shadow_memory_v1');
+    if (lastChatRaw) {
+      const mem = JSON.parse(lastChatRaw);
+      if (mem.exchanges && mem.exchanges.length > 0) {
+        const recent = mem.exchanges.slice(-4);
+        parts.push(`[RECENT SHADOW CONVERSATIONS]
+${recent.map((e: any) => `  ${e.role}: ${e.text?.substring(0, 100)}`).join('\n')}`);
+      }
+    }
+  } catch {}
+
+  return parts.join('\n\n');
 }
 
 export const AGENT_PROMPTS: Record<string, string> = {
@@ -131,7 +186,19 @@ export const generateAgentResponse = async (
 
   systemInstruction += `\n\n### OPERATOR CONTEXT\n${JSON.stringify({ stats: context.stats, protocols: context.protocols })}`;
 
-  // Build messages for OpenAI
+  const memoryContext = buildPersistentMemoryContext();
+  if (memoryContext) {
+    systemInstruction += `\n\n${memoryContext}`;
+  }
+
+  systemInstruction += `\n\n### BEHAVIORAL RULES
+  - You KNOW the Operator. Don't ask for their name, goals, or background — you already have them above.
+  - Reference their weakest stat and suggest ways to improve it.
+  - Reference their streak count and recent quest completions.
+  - If they have failed quests, acknowledge it and push them to retry.
+  - Be proactive: suggest specific actions based on their protocols and habits.
+  - Keep responses concise and actionable. No generic advice.`;
+
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: systemInstruction },
     { role: "user", content: command }
@@ -188,7 +255,19 @@ export const streamAgentResponse = async (
 
   systemInstruction += `\n\n### OPERATOR CONTEXT\n${JSON.stringify({ stats: context.stats, protocols: context.protocols })}`;
 
-  // Build messages for OpenAI
+  const memoryContext = buildPersistentMemoryContext();
+  if (memoryContext) {
+    systemInstruction += `\n\n${memoryContext}`;
+  }
+
+  systemInstruction += `\n\n### BEHAVIORAL RULES
+  - You KNOW the Operator. Don't ask for their name, goals, or background — you already have them above.
+  - Reference their weakest stat and suggest ways to improve it.
+  - Reference their streak count and recent quest completions.
+  - If they have failed quests, acknowledge it and push them to retry.
+  - Be proactive: suggest specific actions based on their protocols and habits.
+  - Keep responses concise and actionable. No generic advice.`;
+
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: systemInstruction },
     { role: "user", content: command }
@@ -206,7 +285,6 @@ export const streamAgentResponse = async (
       top_p: 0.95,
       max_tokens: 4096,
     }, wrappedOnChunk)) {
-      // drain the generator
     }
 
     return accumulated;

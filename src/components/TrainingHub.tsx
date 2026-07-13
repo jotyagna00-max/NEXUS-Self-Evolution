@@ -151,7 +151,7 @@ const TrainingHub: React.FC = () => {
                     <label className="text-[10px] text-white/30 uppercase tracking-widest font-display mb-2 block">Title</label>
                     <input required value={newProtocol.title} onChange={e => setNewProtocol({...newProtocol, title: e.target.value})}
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white focus:border-emerald-500/50 outline-none transition-all"
-                      placeholder="e.g. Neural Overclock" />
+                      placeholder="e.g. Morning Strength Training" />
                   </div>
                   <div>
                     <label className="text-[10px] text-white/30 uppercase tracking-widest font-display mb-2 block">Description</label>

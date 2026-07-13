@@ -198,7 +198,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // initializers below are wrapped in try-catch so that even if old
   // data has a slightly different shape, the app falls back to defaults
   // for just that key instead of crashing the entire dashboard.
-  const APP_VERSION = '1.28.4';
+  const APP_VERSION = '1.28.5';
   const storedVersion = localStorage.getItem('nexus_app_version');
   if (storedVersion !== APP_VERSION) {
     // Only remove keys that are truly gone from the codebase.
@@ -504,8 +504,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const shadowMemoryDigest = formatMemoryDigest(shadowMemory);
   const shadowAnsweredCount = answeredShadowCount(shadowMemory);
 
-  const [quests, setQuests] = useState<Quest[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [quests, setQuests] = useState<Quest[]>(() => safeParse('nexus_quests', []));
+  const [tasks, setTasks] = useState<Task[]>(() => safeParse('nexus_tasks', []));
   const [appPermissions, setAppPermissions] = useState<Record<string, boolean>>(() => safeParse('appPermissions', {}));
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile>(() => safeMerge('userProfile', {
@@ -603,7 +603,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('nexus_theme', theme);
     localStorage.setItem('nexus_language', language);
     localStorage.setItem('nexus_reminder_windows', JSON.stringify(reminderWindows));
-  }, [hasCompletedAssessment, selectedCharacter, protocols, stats, credits, progression, streakData, achievements, penaltyRecords, habits, activePowerUps, debuffs, shadowState, raidBoss, ascensionData, narrativeChapters, riftSchedules, customSkillSets, isPro, appPermissions, userProfile, lastStatUpdates, expHistory, theme, language, reminderWindows]);
+    localStorage.setItem('nexus_quests', JSON.stringify(quests));
+    localStorage.setItem('nexus_tasks', JSON.stringify(tasks));
+  }, [hasCompletedAssessment, selectedCharacter, protocols, stats, credits, progression, streakData, achievements, penaltyRecords, habits, activePowerUps, debuffs, shadowState, raidBoss, ascensionData, narrativeChapters, riftSchedules, customSkillSets, isPro, appPermissions, userProfile, lastStatUpdates, expHistory, theme, language, reminderWindows, quests, tasks]);
 
   useEffect(() => {
     localStorage.setItem('nexus_daily_baseline', JSON.stringify(dailyBaseline));
@@ -1619,48 +1621,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const generateDailyTasks = useCallback(() => {
     const d = today();
-    setTasks(prev => {
-      if (prev.some(t => t.date === d && !t.completed)) return prev;
-
-      const bodyProtocols = protocols.filter(p => p.type === 'physical' || p.type === 'agility');
-      const mindProtocols = protocols.filter(p => p.type === 'mental' || p.type === 'reading');
-      const otherProtocols = protocols.filter(p => !bodyProtocols.includes(p) && !mindProtocols.includes(p));
-
-      const pickRandom = (arr: Protocol[]): Protocol | null => arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : null;
-
-      const body = pickRandom(bodyProtocols);
-      const mind = pickRandom(mindProtocols);
-      const other = pickRandom(otherProtocols);
-
-      const newTasks: Task[] = [];
-
-      if (body) {
-        newTasks.push({
-          id: `t_${d}_1`, title: `Log: ${body.title}`, description: `Show up for ${body.title}. The mirror is watching.`, category: 'fitness', difficulty: body.difficulty || 1, points: (body.gain || 2) * 5, rewardCredits: 3 + (body.difficulty || 1), rewardExp: 5 + (body.difficulty || 1), completed: false, date: d,
-        });
-      }
-
-      if (mind) {
-        newTasks.push({
-          id: `t_${d}_2`, title: `Log: ${mind.title}`, description: `Show up for ${mind.title}. The mirror is watching.`, category: 'mental', difficulty: mind.difficulty || 1, points: (mind.gain || 2) * 5, rewardCredits: 3 + (mind.difficulty || 1), rewardExp: 5 + (mind.difficulty || 1), completed: false, date: d,
-        });
-      }
-
-      if (other) {
-        newTasks.push({
-          id: `t_${d}_3`, title: `Complete ${other.title}`, description: `Execute your ${other.title} protocol.`, category: 'habit', difficulty: other.difficulty || 1, points: (other.gain || 2) * 5, rewardCredits: 3 + (other.difficulty || 1), rewardExp: 5 + (other.difficulty || 1), completed: false, date: d,
-        });
-      }
-
-      if (newTasks.length === 0) {
-        newTasks.push({
-          id: `t_${d}_0`, title: 'Create your first training routine', description: 'Go to Training Hub and add a routine. Your daily tasks will be generated from it.', category: 'habit', difficulty: 1, points: 5, rewardCredits: 3, rewardExp: 5, completed: false, date: d,
-        });
-      }
-
-      return [...prev, ...newTasks];
-    });
-
     const activeQuests = quests.filter(q => !q.completed && !q.failed);
     if (activeQuests.length < 5) {
       const newQuests = generateDailyQuestSet({

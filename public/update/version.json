@@ -1,113 +1,97 @@
 {
-  "latestVersion": "1.28.4",
-  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.4/NEXUS.Setup.1.28.4.exe",
-  "releaseNotes": "Shadow Chat LLM fix (model now persists in userData), update+chelog system fix, quest anti-cheat system with time-locks and proof requirement, auto-generated 5-10 quests.",
+  "latestVersion": "1.28.5",
+  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.5/NEXUS.Setup.1.28.5.exe",
+  "releaseNotes": "CRITICAL: Quests+tasks now persist to localStorage. Daily Tasks section removed. Quests only from protocols/habits/books/weak-points. AI has persistent memory — no more asking questions every time.",
   "minSchemaVersion": 1,
   "changelog": [
+    {
+      "version": "1.28.5",
+      "date": "2026-07-13",
+      "notes": [
+        "CRITICAL FIX: Quests and tasks were never saved to localStorage — now persisted properly",
+        "Removed Daily Tasks section — Quest Board is now quests-only (full width)",
+        "Quest engine rewritten: quests only from your protocols, habits, books, and weak-point detection",
+        "No more random filler quests — every quest is tied to something you created",
+        "Weak-point detection: analyzes your 6 stats and generates quests for your lowest stat",
+        "AI persistent memory: agents now know your name, goals, stats, streak, recent quest completions, failed quests, and Shadow conversation history",
+        "AI no longer asks 'What's your name?' or 'What are your goals?' every time — it already knows",
+        "AI behavioral rules: references weakest stat, streak count, suggests specific actions from your protocols",
+        "Removed dummy protocol placeholder text in Training Hub"
+      ]
+    },
     {
       "version": "1.28.4",
       "date": "2026-07-13",
       "notes": [
-        "FIXED: Shadow Chat LLM — model now stored in userData (persists across updates), errors sent to renderer, Activate/Re-download buttons added",
-        "FIXED: Update checking + changelog — checkForUpdates now returns full changelog array, changelog panel shows all entries",
-        "FIXED: Model migration from old resourcesPath to userData on first launch",
-        "NEW: Quest anti-cheat system — time-locked completion (15-120 min based on difficulty), confirmation dialog, proof-of-completion for hard quests",
-        "NEW: Auto-generated 5-10 daily quests including fitness, mental, willpower, social, protocol-sync, habit, and book quests",
-        "NEW: Quest engine with 25+ quest templates across 4 categories",
-        "NEW: Time-lock badges show countdown until quest can be completed",
-        "NEW: Proof requirement for high-difficulty quests (60+ difficulty requires 10+ char reflection)"
+        "FIXED: Shadow Chat LLM — model stored in userData (survives updates), errors visible, Activate/Re-download buttons",
+        "FIXED: Update checking + changelog panel — now shows full changelog",
+        "NEW: Quest anti-cheat — time-locked completion, confirmation dialog, proof-of-completion",
+        "NEW: Auto-generated daily quests from protocols, habits, books"
       ]
     },
     {
       "version": "1.28.3",
       "date": "2026-07-12",
       "notes": [
-        "CRITICAL FIX: Preload script was broken by ESM/CJS mismatch — window.electronAPI was never defined",
-        "Fix: Renamed preload.js to preload.cjs so Electron loads it as CommonJS correctly",
-        "Fix: LLM Install button now appears in Profile",
-        "Fix: Shadow Chat now works — native LLM bridge connects properly via IPC",
-        "Fix: Auto-update, notifications, store sync — all Electron features now functional",
-        "Fix: Animations not rendering on some laptops — added GPU compatibility switches"
+        "CRITICAL FIX: Preload script broken by ESM/CJS mismatch",
+        "Fix: Animations not rendering on some laptops — GPU compatibility switches"
       ]
     },
     {
       "version": "1.28.2",
       "date": "2026-07-11",
       "notes": [
-        "Update now preserves ALL user data — no more reset after updating",
-        "Crash-safe state loading — old data with missing fields is merged with defaults instead of crashing",
-        "Store items now cheap (2-5 NC) so everything is affordable"
+        "Update preserves ALL user data — no more reset after updating",
+        "Store items now cheap (2-5 NC)"
       ]
     },
     {
       "version": "1.28.1",
       "date": "2026-07-11",
       "notes": [
-        "Fixed Local LLM — prominent Install AI Model button in Profile",
-        "Fixed Store — all items now have real prices, starting credits raised to 100",
-        "Fixed update crash — version migration system auto-cleans stale localStorage"
+        "Fixed Local LLM install button, store prices, update crash"
       ]
     },
     {
       "version": "1.28.0",
       "date": "2026-07-09",
       "notes": [
-        "Store preview modal — full overview, training plan, quests, and deliverables before purchase",
-        "PDF training guide download after buying any protocol or book",
-        "Rich content for all 11 protocols and 8 books",
-        "Sound effects system, achievement burst animation",
-        "Stat radar chart, habit donut, EXP/NC ratio in Mission Debrief",
-        "Data export/import (JSON backup and restore), keyboard shortcuts, app icon"
+        "Store preview modal, PDF training guides, sound effects, achievement burst, charts, export/import"
       ]
     },
     {
       "version": "1.27.0",
       "date": "2026-07-09",
       "notes": [
-        "Shadow Chat professional UI redesign with LLM status indicator and persona dropdown",
-        "First-time tutorial — 8-step onboarding guide for new users",
-        "Mission Debrief: monthly and yearly reports with bar charts",
-        "EXP formula changed to n³ × 20, rank thresholds compressed"
+        "Shadow Chat redesign, first-time tutorial, Mission Debrief, EXP overhaul"
       ]
     },
     {
       "version": "1.26.0",
       "date": "2026-07-06",
       "notes": [
-        "Shadow Chat persona selector — 6 voices",
-        "First-launch LLM download prompt with progress bar",
-        "CPU-only inference via node-llama-cpp",
-        "Model: Qwen2.5-2B-Instruct (Q4_K_M, ~1.5 GB) from HuggingFace"
+        "Shadow Chat persona selector, CPU-only LLM inference, website overhaul"
       ]
     },
     {
       "version": "1.3.0",
       "date": "2026-06-29",
       "notes": [
-        "Effort-mirror tone: Sync to Log.",
-        "3-of-7 streak window with rest tokens.",
-        "SAGE, TITAN, CHRONOS, MANAGER domain-stat badges.",
-        "Mission Debrief tab, Changelog panel."
+        "Effort-mirror tone, streak window, domain badges, Mission Debrief, Changelog panel"
       ]
     },
     {
       "version": "1.2.0",
       "date": "2026-05-20",
       "notes": [
-        "Manual update button in main menu.",
-        "Logout clears all data.",
-        "Splash boot animation.",
-        "3-section HabitLab.",
-        "Multi-agent orchestrator wiring."
+        "Manual update button, logout clears data, splash animation, HabitLab, multi-agent wiring"
       ]
     },
     {
       "version": "1.1.0",
       "date": "2026-04-12",
       "notes": [
-        "Initial public release of NEXUS Self-Evolution.",
-        "6 stats, 24 components, multi-agent AI orchestration.",
-        "Auto-update from GitHub Gist."
+        "Initial public release"
       ]
     }
   ]

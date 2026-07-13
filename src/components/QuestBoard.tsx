@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, Circle, Trophy, Zap, Flame, Star, Target, ChevronRight, Activity, Swords, BookOpen, Dumbbell, Sparkles, Lock, Clock, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Circle, Trophy, Zap, Flame, Star, Target, ChevronRight, Swords, BookOpen, Dumbbell, Sparkles, Lock, AlertTriangle } from 'lucide-react';
 import { useGame } from '../GameContext';
 import { canCompleteQuest, needsProof } from '../utils/questEngine';
 
@@ -44,7 +44,7 @@ function TimeLockBadge({ quest }: { quest: any }) {
 }
 
 const QuestBoard: React.FC = () => {
-  const { quests, tasks, completeQuest, completeTask, credits, progression, streakData, applyPenalty, failTask } = useGame();
+  const { quests, completeQuest, credits, progression, streakData, applyPenalty } = useGame();
 
   const [confirmQuest, setConfirmQuest] = useState<any | null>(null);
   const [proofText, setProofText] = useState('');
@@ -83,17 +83,6 @@ const QuestBoard: React.FC = () => {
       setShowProofInput(false);
       setProofText('');
     }
-  };
-
-  const handleCompleteTask = (id: string) => {
-    const task = tasks.find(t => t.id === id);
-    if (task && !task.completed) {
-      completeTask(id);
-    }
-  };
-
-  const handleSkipTask = (id: string) => {
-    failTask(id);
   };
 
   const rankColor = (rank: string) => {
@@ -167,17 +156,21 @@ const QuestBoard: React.FC = () => {
         </div>
       </div>
 
-      {/* Quests & Tasks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Quests Section */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <Swords className="text-yellow-400" size={20} />
-              <h2 className="text-lg font-display uppercase tracking-widest text-white">Active Quests</h2>
-            </div>
-            <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">Difficulty Based</span>
+      {/* Quests — full width, no daily tasks section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Swords className="text-yellow-400" size={20} />
+            <h2 className="text-lg font-display uppercase tracking-widest text-white">Active Quests</h2>
           </div>
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">{quests.filter(q => !q.completed && !q.failed).length} active</span>
+            <div className="flex items-center gap-2">
+              <Flame className={`${streakData.currentStreak > 0 ? 'text-orange-400' : 'text-white/20'}`} size={14} />
+              <span className="text-[10px] font-mono text-white/30">{streakData.currentStreak}d streak</span>
+            </div>
+          </div>
+        </div>
           <div className="space-y-4">
             {quests.map((quest) => (
               <motion.div key={quest.id} whileHover={{ x: 4 }}
@@ -253,84 +246,35 @@ const QuestBoard: React.FC = () => {
               <div className="py-10 text-center border border-dashed border-white/10 rounded-3xl">
                 <Swords size={32} className="mx-auto text-white/10 mb-4" />
                 <p className="text-white/20 font-display uppercase tracking-widest text-xs">No active quests</p>
+                <p className="text-white/10 font-tech text-[10px] mt-2">Add protocols or habits to generate quests</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Tasks Section */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <Activity className="text-blue-400" size={20} />
-              <h2 className="text-lg font-display uppercase tracking-widest text-white">Daily Tasks</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <Flame className={`${streakData.currentStreak > 0 ? 'text-orange-400' : 'text-white/20'}`} size={14} />
-              <span className="text-[10px] font-mono text-white/30">{streakData.dailyCompletions}/{streakData.totalDailyTarget}</span>
-            </div>
+      {/* Streak Rewards Preview */}
+      {streakData.currentStreak > 0 && (
+        <div className="mt-8 p-6 rounded-2xl bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20">
+          <div className="flex items-center gap-3 mb-4">
+            <Flame className="text-orange-400" size={20} />
+            <span className="text-sm font-display text-white uppercase tracking-widest">Streak Progress</span>
           </div>
-          <div className="space-y-3">
-            {tasks.filter(t => !t.completed).concat(tasks.filter(t => t.completed)).map((task) => (
-              <motion.div key={task.id}
-                whileHover={{ x: 4 }}
-                className={`flex items-center justify-between p-5 rounded-2xl border cursor-pointer transition-all ${
-                  task.completed ? 'bg-blue-500/5 border-blue-500/20 opacity-60' : 'glass border-white/10 hover:bg-white/5'
-                }`}>
-                <div className="flex items-center gap-4 flex-1" onClick={() => handleCompleteTask(task.id)}>
-                  <div className={`p-2 rounded-lg transition-colors ${task.completed ? 'bg-blue-500/20 text-blue-400' : 'bg-white/5 text-white/20'}`}>
-                    {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
-                  </div>
-                  <div>
-                    <span className={`text-sm font-tech font-medium tracking-wide ${task.completed ? 'text-blue-300 line-through' : 'text-white/80'}`}>
-                      {task.title}
-                    </span>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-[8px] text-yellow-400/60 font-tech">+{task.rewardCredits} NC</span>
-                      <span className="text-[8px] text-emerald-400/60 font-tech">+{task.rewardExp} EXP</span>
-                    </div>
-                  </div>
+          <div className="flex items-center gap-2">
+            {[3, 7, 30, 100].map((day) => (
+              <div key={day} className={`flex-1 p-3 rounded-xl border text-center ${
+                streakData.currentStreak >= day
+                  ? 'bg-orange-500/20 border-orange-500/40'
+                  : 'bg-white/5 border-white/10 opacity-50'
+              }`}>
+                <span className="text-[10px] font-display text-white/60">{day}d</span>
+                <div className="text-[9px] text-yellow-400 font-tech mt-1">
+                  {day === 3 ? '+50 NC' : day === 7 ? '+200 NC' : day === 30 ? '+1000 NC' : '+2500 NC'}
                 </div>
-                {!task.completed && (
-                  <button onClick={() => handleSkipTask(task.id)}
-                    className="p-2 rounded-lg text-white/10 hover:text-red-400 hover:bg-red-500/10 transition-all">
-                    <Circle size={14} />
-                  </button>
-                )}
-              </motion.div>
+              </div>
             ))}
-            {tasks.length === 0 && (
-              <div className="py-10 text-center border border-dashed border-white/10 rounded-3xl">
-                <p className="text-white/20 font-display uppercase tracking-widest text-xs">No daily tasks yet</p>
-              </div>
-            )}
           </div>
-
-          {/* Streak Rewards Preview */}
-          {streakData.currentStreak > 0 && (
-            <div className="mt-8 p-6 rounded-2xl bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20">
-              <div className="flex items-center gap-3 mb-4">
-                <Flame className="text-orange-400" size={20} />
-                <span className="text-sm font-display text-white uppercase tracking-widest">Streak Progress</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {[3, 7, 30, 100].map((day) => (
-                  <div key={day} className={`flex-1 p-3 rounded-xl border text-center ${
-                    streakData.currentStreak >= day
-                      ? 'bg-orange-500/20 border-orange-500/40'
-                      : 'bg-white/5 border-white/10 opacity-50'
-                  }`}>
-                    <span className="text-[10px] font-display text-white/60">{day}d</span>
-                    <div className="text-[9px] text-yellow-400 font-tech mt-1">
-                      {day === 3 ? '+50 NC' : day === 7 ? '+200 NC' : day === 30 ? '+1000 NC' : '+2500 NC'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
-      </div>
+      )}
 
       {error && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] px-6 py-3 rounded-2xl bg-red-500/20 border border-red-500/40 text-red-400 text-sm font-mono backdrop-blur-xl">
