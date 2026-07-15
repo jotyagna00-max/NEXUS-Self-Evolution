@@ -1,57 +1,56 @@
 {
-  "latestVersion": "1.28.6",
-  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.6/NEXUS.Setup.1.28.6.exe",
-  "releaseNotes": "LLM speed fix: compact prompt for 2B model, max_tokens 256, 180s timeout. Better error messages. Daily Brief verified with real data.",
+  "latestVersion": "1.28.7",
+  "downloadUrl": "https://github.com/jotyagna00-max/NEXUS-Self-Evolution/releases/download/v1.28.7/NEXUS.Setup.1.28.7.exe",
+  "releaseNotes": "Custom LLM API key support (OpenAI/Groq/Together/DeepSeek/Mistral/OpenRouter). Shadow Chat now shows actual errors. Better UI fonts.",
   "minSchemaVersion": 1,
   "changelog": [
+    {
+      "version": "1.28.7",
+      "date": "2026-07-15",
+      "notes": [
+        "NEW: Custom LLM — add your own API key (OpenAI, Groq, Together, OpenRouter, DeepSeek, Mistral)",
+        "NEW: 6 quick-setup presets for popular providers",
+        "NEW: Test Connection button — verifies API key and endpoint before enabling",
+        "NEW: LLM mode system — Custom API > Native Model > External LLM",
+        "FIX: Shadow Chat now shows the ACTUAL error message instead of generic 'neural link destabilized'",
+        "FIX: Shadow Chat status badge shows which AI engine is active (Custom API / Local Model / External)",
+        "FIX: Better fonts in Shadow Chat — Inter/Segoe UI instead of monospace for message text",
+        "FIX: Input box uses system font for better readability",
+        "Improved error handling: 401 (invalid key), 404 (model not found), 429 (rate limit), 503 (not ready)"
+      ]
+    },
     {
       "version": "1.28.6",
       "date": "2026-07-14",
       "notes": [
-        "FIXED: LLM was stuck — system prompt was 2000+ tokens, max_tokens was 4096 (took 5-10 min on CPU)",
-        "Fix: Compact prompt for native 2B model — under 200 tokens system prompt, max_tokens 256, 180s timeout",
-        "Fix: llamaServer truncates system prompt to 800 chars and history to 500 chars per message",
-        "Fix: Better error messages — timeout, connection, and not-enabled errors now show actionable text",
-        "Fix: Shadow Chat shows specific error (timeout vs not-connected vs generic) instead of generic fallback",
-        "Verified: Daily Brief uses real data (stats, consistency score, weakest stat detection) — no LLM needed",
-        "Verified: Add Routine pipeline works — protocol added, events fired, quest generation attempted",
-        "Verified: Training section starts empty — no dummy protocols, user adds their own"
+        "LLM speed fix — compact prompt for 2B model, max_tokens 256, 180s timeout"
       ]
     },
     {
       "version": "1.28.5",
       "date": "2026-07-13",
       "notes": [
-        "CRITICAL FIX: Quests now persist to localStorage",
-        "Removed Daily Tasks section — quests only",
-        "Quest engine: only from protocols, habits, books, weak-points",
-        "AI persistent memory — knows your name, stats, streak"
+        "Quest persistence fix, remove daily tasks, quest engine from protocols/habits/books only, AI memory"
       ]
     },
     {
       "version": "1.28.4",
       "date": "2026-07-13",
       "notes": [
-        "Shadow Chat LLM fix — model persists in userData",
-        "Update checking + changelog fix",
-        "Quest anti-cheat system"
+        "Shadow Chat LLM model path fix, changelog fix, quest anti-cheat"
       ]
     },
     {
       "version": "1.28.3",
       "date": "2026-07-12",
       "notes": [
-        "CRITICAL: Preload script fix (ESM/CJS)",
-        "GPU compatibility for animations"
+        "Critical preload fix, GPU compatibility for animations"
       ]
     },
     {
       "version": "1.28.2",
       "date": "2026-07-11",
-      "notes": [
-        "Update preserves ALL user data",
-        "Store items cheap (2-5 NC)"
-      ]
+      "notes": ["Update preserves all user data, store items cheap (2-5 NC)"]
     },
     {
       "version": "1.28.1",

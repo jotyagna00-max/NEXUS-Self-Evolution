@@ -52,6 +52,173 @@ const LOCAL_LLM_STORAGE_KEYS = {
   model: 'LOCAL_LLM_MODEL',
 };
 
+const CUSTOM_LLM_PRESETS = [
+  { name: 'OpenAI', baseURL: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+  { name: 'Groq', baseURL: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
+  { name: 'Together AI', baseURL: 'https://api.together.xyz/v1', model: 'meta-llama/Llama-3.3-70B-Instruct-Turbo' },
+  { name: 'OpenRouter', baseURL: 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct:free' },
+  { name: 'DeepSeek', baseURL: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  { name: 'Mistral', baseURL: 'https://api.mistral.ai/v1', model: 'mistral-small-latest' },
+];
+
+const CustomLLMPanel: React.FC = () => {
+  const [enabled, setEnabled] = useState(() => localStorage.getItem('CUSTOM_LLM_ENABLED') === 'true');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('CUSTOM_LLM_API_KEY') || '');
+  const [baseURL, setBaseURL] = useState(() => localStorage.getItem('CUSTOM_LLM_BASE_URL') || 'https://api.openai.com/v1');
+  const [model, setModel] = useState(() => localStorage.getItem('CUSTOM_LLM_MODEL') || 'gpt-4o-mini');
+  const [showKey, setShowKey] = useState(false);
+  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [testMsg, setTestMsg] = useState('');
+
+  const save = (key: string, value: string) => localStorage.setItem(key, value);
+
+  const handleEnable = (v: boolean) => {
+    setEnabled(v);
+    save('CUSTOM_LLM_ENABLED', String(v));
+    if (v) {
+      save('LOCAL_LLM_ENABLED', 'false');
+    }
+  };
+
+  const testConnection = async () => {
+    setTestStatus('testing');
+    setTestMsg('');
+    try {
+      const resp = await fetch(baseURL.replace(/\/$/, '') + '/models', {
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!resp.ok) {
+        setTestStatus('error');
+        setTestMsg(resp.status === 401 ? 'Invalid API key' : `Server returned ${resp.status}`);
+        return;
+      }
+      setTestStatus('success');
+      setTestMsg('Connected successfully');
+    } catch (err: any) {
+      setTestStatus('error');
+      setTestMsg(err?.name === 'AbortError' ? 'Connection timed out' : `Failed: ${err?.message || err}`);
+    }
+  };
+
+  return (
+    <div className="glass rounded-[32px] p-8 border border-white/10 mt-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-5 h-5 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[9px] font-mono text-white/40">AI+</div>
+        <span className="text-[8px] font-display uppercase tracking-[0.3em] text-white/30">Custom AI Engine</span>
+        <div className="h-px flex-1 bg-white/5" />
+        {enabled ? (
+          <span className="text-[8px] font-display uppercase tracking-widest px-2 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1"><CheckCircle2 size={10} /> Active</span>
+        ) : (
+          <span className="text-[8px] font-display uppercase tracking-widest px-2 py-1 rounded-full bg-white/5 border border-white/10 text-white/30">Disabled</span>
+        )}
+      </div>
+
+      <p className="text-[10px] font-tech text-white/40 mb-5 leading-relaxed">
+        Connect your own AI API key (OpenAI, Groq, Together, OpenRouter, DeepSeek, Mistral). This is the most reliable way to power Shadow Chat and AI agents — no local model needed.
+      </p>
+
+      {/* Preset selector */}
+      <div className="mb-5">
+        <label className="text-[8px] font-display uppercase tracking-widest text-white/30 mb-2 block">Quick Setup</label>
+        <div className="flex flex-wrap gap-2">
+          {CUSTOM_LLM_PRESETS.map(preset => (
+            <button
+              key={preset.name}
+              onClick={() => {
+                setBaseURL(preset.baseURL);
+                setModel(preset.model);
+                save('CUSTOM_LLM_BASE_URL', preset.baseURL);
+                save('CUSTOM_LLM_MODEL', preset.model);
+              }}
+              className={`px-3 py-2 rounded-xl text-[9px] font-display uppercase tracking-wider border transition-all ${
+                baseURL === preset.baseURL
+                  ? 'bg-blue-500/15 border-blue-500/40 text-blue-400'
+                  : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30'
+              }`}
+            >
+              {preset.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* API Key */}
+      <div className="mb-4">
+        <label className="text-[8px] font-display uppercase tracking-widest text-white/30 mb-1.5 block">API Key</label>
+        <div className="relative">
+          <input
+            type={showKey ? 'text' : 'password'}
+            value={apiKey}
+            onChange={e => { setApiKey(e.target.value); save('CUSTOM_LLM_API_KEY', e.target.value); }}
+            placeholder="sk-..."
+            className="w-full bg-black/50 border border-white/10 rounded-2xl px-4 py-3 pr-12 text-sm font-mono text-white/80 placeholder:text-white/20 focus:outline-none focus:border-blue-500/50 transition-all"
+          />
+          <button
+            onClick={() => setShowKey(!showKey)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 text-[10px] font-mono"
+          >
+            {showKey ? 'HIDE' : 'SHOW'}
+          </button>
+        </div>
+      </div>
+
+      {/* Base URL + Model */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <div>
+          <label className="text-[8px] font-display uppercase tracking-widest text-white/30 mb-1.5 block">Base URL</label>
+          <input
+            value={baseURL}
+            onChange={e => { setBaseURL(e.target.value); save('CUSTOM_LLM_BASE_URL', e.target.value); }}
+            placeholder="https://api.openai.com/v1"
+            className="w-full bg-black/50 border border-white/10 rounded-2xl px-4 py-3 text-sm font-mono text-white/80 placeholder:text-white/20 focus:outline-none focus:border-blue-500/50 transition-all"
+          />
+        </div>
+        <div>
+          <label className="text-[8px] font-display uppercase tracking-widest text-white/30 mb-1.5 block">Model</label>
+          <input
+            value={model}
+            onChange={e => { setModel(e.target.value); save('CUSTOM_LLM_MODEL', e.target.value); }}
+            placeholder="gpt-4o-mini"
+            className="w-full bg-black/50 border border-white/10 rounded-2xl px-4 py-3 text-sm font-mono text-white/80 placeholder:text-white/20 focus:outline-none focus:border-blue-500/50 transition-all"
+          />
+        </div>
+      </div>
+
+      {/* Test + Enable */}
+      <div className="flex items-center gap-3 mb-4">
+        <button
+          onClick={testConnection}
+          disabled={testStatus === 'testing' || !apiKey}
+          className="px-5 py-3 rounded-2xl bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:bg-blue-500/30 disabled:opacity-40 transition-all text-[9px] font-display uppercase tracking-wider flex items-center gap-2"
+        >
+          {testStatus === 'testing' ? <>Testing...</> : <><Zap size={12} /> Test Connection</>}
+        </button>
+        {testStatus === 'success' && (
+          <span className="text-[9px] font-mono text-emerald-400 flex items-center gap-1"><CheckCircle2 size={11} /> {testMsg}</span>
+        )}
+        {testStatus === 'error' && (
+          <span className="text-[9px] font-mono text-red-400 flex items-center gap-1"><AlertTriangle size={11} /> {testMsg}</span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-3 pt-3 border-t border-white/5">
+        <span className="text-[10px] font-tech text-white/40">Enable Custom AI</span>
+        <button
+          onClick={() => handleEnable(!enabled)}
+          disabled={!apiKey}
+          className={`w-12 h-6 rounded-full transition-all disabled:opacity-30 ${enabled ? 'bg-emerald-500/40' : 'bg-white/10'}`}
+        >
+          <div className={`w-5 h-5 rounded-full transition-all ${enabled ? 'bg-emerald-400 translate-x-6' : 'bg-white/30 translate-x-0.5'}`} />
+        </button>
+        {enabled && (
+          <span className="text-[8px] font-mono text-emerald-400/70 ml-auto">All AI calls route through this engine</span>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const LocalLLMPanel: React.FC = () => {
   const [enabled, setEnabledState] = useState(() => localStorage.getItem(LOCAL_LLM_STORAGE_KEYS.enabled) === 'true');
   const [baseURL, setBaseURLState] = useState(() => localStorage.getItem(LOCAL_LLM_STORAGE_KEYS.baseURL) || 'http://localhost:1234/v1');
@@ -892,6 +1059,9 @@ const Profile: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           </label>
         </div>
       </div>
+
+      {/* Custom LLM — User's own API key */}
+      <CustomLLMPanel />
 
       {/* Local LLM — Standalone AI Engine */}
       <LocalLLMPanel />

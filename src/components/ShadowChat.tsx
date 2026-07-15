@@ -8,6 +8,7 @@ import {
 } from '../services/shadowQuestions';
 import { ShadowChatEntry } from '../utils/shadowMemory';
 import { getNativeLLMStatus } from '../services/nativeLLMBridge';
+import { isLLMReady, getLLMModeLabel } from '../services/openaiAgentService';
 import ConfirmDialog from './ConfirmDialog';
 import './ShadowChat.css';
 
@@ -68,16 +69,11 @@ const ShadowChat: React.FC = () => {
 
   useEffect(() => {
     const checkLlm = async () => {
-      const enabled = localStorage.getItem('LOCAL_LLM_ENABLED') === 'true';
-      if (enabled) {
-        const status = await getNativeLLMStatus();
-        setLlmReady(!!status?.ready || enabled);
-      } else {
-        setLlmReady(false);
-      }
+      const ready = isLLMReady();
+      setLlmReady(ready);
     };
     checkLlm();
-    const interval = setInterval(checkLlm, 5000);
+    const interval = setInterval(checkLlm, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -125,17 +121,11 @@ const ShadowChat: React.FC = () => {
       };
       appendShadowChat(shadowEntry);
     } catch (err: any) {
-      const errorMsg = err?.message || '';
+      const errorMsg = err?.message || 'Unknown error';
       const fallbackEntry: ShadowChatEntry = {
         id: Math.random().toString(36).substring(2, 9),
         role: 'shadow',
-        text: llmReady
-          ? errorMsg.includes('timeout') || errorMsg.includes('too long')
-            ? '...the neural link timed out. The AI model runs on your CPU and may need 30-60 seconds. Try a shorter question.'
-            : errorMsg.includes('not enabled') || errorMsg.includes('Cannot connect')
-            ? 'The Shadow is silent. Activate the AI model in Profile → Local AI Engine first.'
-            : '...the neural link destabilized. Try again.'
-          : 'The Shadow is silent. No AI engine is connected. Go to Profile → Local AI Engine to install or activate your AI model.',
+        text: `Error: ${errorMsg}`,
         emotional: false,
         timestamp: new Date().toISOString(),
       };
@@ -223,7 +213,7 @@ const ShadowChat: React.FC = () => {
           {/* LLM Connection Status */}
           <div className={`shadow-llm-status ${llmReady ? 'connected' : 'disconnected'}`}>
             {llmReady ? <Wifi size={11} /> : <WifiOff size={11} />}
-            <span>{llmReady ? 'LLM Connected' : 'No LLM'}</span>
+            <span>{llmReady ? getLLMModeLabel() : 'No AI'}</span>
           </div>
 
           {/* Persona selector dropdown */}
@@ -381,7 +371,7 @@ const ShadowChat: React.FC = () => {
             <textarea
               ref={inputRef}
               className="shadow-input"
-              placeholder={llmReady ? "Address the Shadow..." : "Enable LLM in Profile to chat with the Shadow..."}
+              placeholder={llmReady ? "Address the Shadow..." : "No AI configured. Go to Profile → Custom LLM to add your API key..."}
               value={inputValue}
               onChange={e => setInputValue(e.target.value)}
               rows={1}

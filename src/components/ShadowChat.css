@@ -321,9 +321,9 @@
 }
 
 .shadow-msg-text {
-  font-size: 12.5px;
-  line-height: 1.65;
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
@@ -486,17 +486,17 @@
 .shadow-input,
 .shadow-input--text {
   flex: 1;
-  padding: 0.65rem 0.85rem;
-  background: rgba(255, 255, 255, 0.025);
+  padding: 0.7rem 0.9rem;
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: 14px;
   color: #e5e7eb;
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-  font-size: 12px;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
   line-height: 1.5;
   transition: border-color 0.2s, box-shadow 0.2s;
   resize: none;
-  min-height: 40px;
+  min-height: 42px;
   max-height: 120px;
   overflow-y: auto;
 }
